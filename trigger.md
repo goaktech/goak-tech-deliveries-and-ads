@@ -1,0 +1,1 @@
+arquivo criado para disparar o deploy quando algum contribuidor for bloqueado

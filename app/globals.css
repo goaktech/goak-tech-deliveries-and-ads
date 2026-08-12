@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f8f8;
+  --foreground: #1a1a1a;
+  --ui-primary: #e16349;
+  --ui-primary-hover: #cf553d;
+  --ui-border: #e4e4e7;
+  --ui-muted: #6b7280;
+  --ui-surface: #ffffff;
+  --ui-surface-soft: #f3f4f6;
+  --ui-radius-card: 1.5rem;
+  --ui-radius-control: 0.875rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.015em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@layer components {
+  .ui-card {
+    @apply rounded-3xl border border-zinc-200 bg-white shadow-sm;
+  }
+
+  .ui-card-soft {
+    @apply rounded-3xl border border-zinc-200 bg-zinc-100/70;
+  }
+
+  .ui-label {
+    @apply block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600;
+  }
+
+  .ui-input {
+    @apply w-full rounded-2xl border border-zinc-300 bg-zinc-100 px-5 py-3.5 text-sm text-zinc-900 outline-none transition focus:border-[var(--ui-primary)] focus:bg-white;
+  }
+
+  .ui-button-primary {
+    @apply w-full rounded-2xl bg-[var(--ui-primary)] px-6 py-3.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-[var(--ui-primary-hover)] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .ui-button-secondary {
+    @apply w-full rounded-2xl border border-[color:rgba(225,99,73,0.4)] bg-white px-6 py-3.5 text-sm font-semibold uppercase tracking-wide text-[var(--ui-primary)] transition hover:bg-[#fff6f4];
+  }
+
+  .ui-feedback-error {
+    @apply rounded-xl border border-red-200 bg-red-50 p-4 text-center text-xs font-medium text-red-700;
+  }
+
+  .ui-feedback-success {
+    @apply rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center text-xs font-medium text-emerald-700;
+  }
+}

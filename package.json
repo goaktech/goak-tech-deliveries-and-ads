@@ -1,0 +1,41 @@
+{
+  "name": "goak-tech-official",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test:hml:bloco1": "node --test tests/homologacao/bloco1-auth.test.mjs",
+    "test:hml:bloco2": "node --test tests/homologacao/bloco2-admin.test.mjs",
+    "test:hml:bloco3": "node --test tests/homologacao/bloco3-vitrine-carrinho.test.mjs",
+    "test:hml:bloco4": "node --test tests/homologacao/bloco4-checkout.test.mjs",
+    "test:hml:bloco5": "node --test tests/homologacao/bloco5-webhook-pagamento.test.mjs",
+    "test:hml:bloco6": "node --test tests/homologacao/bloco6-cozinha.test.mjs",
+    "test:hml:db-contexto": "node --test tests/homologacao/db-iteracao-contexto.test.mjs",
+    "test:hml:db-etapa1-insumos": "node --test tests/homologacao/db-iteracao-etapa1-insumos.test.mjs",
+    "test:hml:db-etapa2-produto-complementos": "node --test tests/homologacao/db-iteracao-etapa2-produto-complementos.test.mjs",
+    "test:hml:db-etapa3-leituras": "node --test tests/homologacao/db-iteracao-etapa3-leituras.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.110.0",
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "stripe": "^22.3.2",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

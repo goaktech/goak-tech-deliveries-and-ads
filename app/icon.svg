@@ -1,0 +1,42 @@
+<svg xmlns="http://w3.org" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente de Alta Performance (Velocidade e Apetite) -->
+    <linearGradient id="aceleraGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EA580C" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+    <!-- Sombra Suave para Efeito Premium -->
+    <filter id="suaveDrop" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- Fundo Circular de Proteção e Contraste -->
+  <circle cx="250" cy="250" r="220" fill="#18181B" filter="url(#suaveDrop)" />
+
+  <!-- Grupo do Ícone Central (Foguete + Prato de Alimentos) -->
+  <g transform="translate(115, 110)">
+    <!-- Rastro de Velocidade / Fumaça Lateral Izquerda -->
+    <path d="M 30,190 C 15,170 10,140 20,120" stroke="url(#aceleraGrad)" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.4" />
+    <!-- Rastro de Velocidade / Fumaça Lateral Direita -->
+    <path d="M 240,190 C 255,170 260,140 250,120" stroke="url(#aceleraGrad)" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.4" />
+    
+    <!-- Linhas de Vento Traseiras (Aceleração) -->
+    <line x1="90" y1="230" x2="60" y2="260" stroke="#F97316" stroke-width="8" stroke-linecap="round" />
+    <line x1="135" y1="245" x2="115" y2="285" stroke="#EA580C" stroke-width="10" stroke-linecap="round" />
+    <line x1="180" y1="230" x2="210" y2="260" stroke="#F97316" stroke-width="8" stroke-linecap="round" />
+
+    <!-- Corpo do Foguete Gourmet (Cúpula de Prato de Servir) -->
+    <path d="M 50,160 C 50,70 110,40 135,10 C 160,40 220,70 220,160 C 220,175 210,185 135,185 C 60,185 50,175 50,160 Z" fill="url(#aceleraGrad)" />
+    
+    <!-- Asa Esquerda do Foguete -->
+    <path d="M 55,140 L 15,190 C 10,195 20,205 45,195 Z" fill="#EA580C" />
+    <!-- Asa Direita do Foguete -->
+    <path d="M 215,140 L 255,190 C 260,195 250,205 225,195 Z" fill="#EA580C" />
+
+    <!-- Janela Redonda (Representando um Prato Visto de Cima ou Cronômetro) -->
+    <circle cx="135" cy="115" r="30" fill="#18181B" />
+    <circle cx="135" cy="115" r="22" fill="#F97316" />
+    <circle cx="142" cy="108" r="6" fill="#FFFFFF" opacity="0.8" />
+  </g>
+</svg>
