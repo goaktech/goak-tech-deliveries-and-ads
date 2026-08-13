@@ -13,16 +13,21 @@ import { SeletorLocalizacaoMapa, type ResultadoLocalizacaoMapa } from '@/compone
 import type { AbaEntregaCheckout, EtapaCheckout } from '@/components/ecommerce/checkout/tipos';
 import { trackInitiateCheckout, trackPurchase } from '@/utils/meta-pixel';
 import { registrarCheckoutIniciadoFunil } from '@/actions/metricasFunil';
+import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 
 export default function TelaDeCheckoutDedicada() {
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) || '';
-  
+
+  const configLoja = useMemo(() => obterConfigLojaEspecial(slug), [slug]);
+  const taxaEntrega = configLoja.taxaEntregaFixa;
+
   const { itens, adicionarItem, removerItem, valorTotal, totalItens, limparCarrinho } = useCarrinho();
-  
+  const valorTotalComTaxa = valorTotal + taxaEntrega;
+
   const [etapaCheckout, setEtapaCheckout] = useState<EtapaCheckout>('SACOLA');
-  
+
   const [abaEntregaAtiva, setAbaEntregaAtiva] = useState<AbaEntregaCheckout>('CEP');
   const [cep, setCep] = useState('');
   const [rua, setRua] = useState('');
@@ -175,7 +180,7 @@ export default function TelaDeCheckoutDedicada() {
       if (body.pedido_id) {
         trackPurchase({
           pedidoId: body.pedido_id,
-          valorTotal,
+          valorTotal: valorTotalComTaxa,
           itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
         });
       }
@@ -258,12 +263,12 @@ export default function TelaDeCheckoutDedicada() {
 
   return (
     <main className="min-h-screen w-full bg-[#F8F8F8] text-[#1A1A1A] font-sans antialiased flex flex-col justify-between selection:bg-zinc-900 selection:text-white">
-      
+
       <div className="w-full max-w-xl mx-auto bg-white flex-1 flex flex-col shadow-sm border-x border-zinc-200/40">
-        
+
         <header className="p-6 border-b border-zinc-100 flex items-center gap-4 bg-white sticky top-0 z-10 shrink-0">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={handleVoltarClique}
             className="w-9 h-9 rounded-xl bg-zinc-50 hover:bg-zinc-100 flex items-center justify-center text-zinc-800 transition-colors border border-zinc-200/40"
           >
@@ -290,9 +295,20 @@ export default function TelaDeCheckoutDedicada() {
         </header>
 
         <div className="p-6 space-y-6 flex-1 bg-white">
-          
+
           {etapaCheckout === 'SACOLA' && (
             <div className="space-y-4">
+              {taxaEntrega > 0 && (
+                <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs font-medium leading-relaxed">
+                    Esta loja trabalha apenas com entrega. Uma taxa fixa de {formatarMoeda(taxaEntrega)} será adicionada ao valor da sua sacola.
+                  </p>
+                </div>
+              )}
+
               {itens.length === 0 ? (
                 <div className="text-center py-20 text-zinc-400 italic text-xs font-medium bg-zinc-50 rounded-2xl border border-dashed border-zinc-200 p-4">
                   Sua sacola está limpa. Adicione itens para prosseguir ao pagamento.
@@ -300,8 +316,8 @@ export default function TelaDeCheckoutDedicada() {
                 </div>
               ) : (
                 itens.map((item) => (
-                  <div 
-                    key={item.idUnico} 
+                  <div
+                    key={item.idUnico}
                     className="bg-white border border-zinc-200/60 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm"
                   >
                     {item.produto.imagem_url ? (
@@ -328,17 +344,17 @@ export default function TelaDeCheckoutDedicada() {
                     </div>
 
                     <div className="flex items-center bg-zinc-50 rounded-xl p-1 gap-2 border border-zinc-200/40 shrink-0 select-none">
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => removerItem(item.idUnico)} 
+                        onClick={() => removerItem(item.idUnico)}
                         className="w-6 h-6 rounded-lg bg-white border border-zinc-200/40 flex items-center justify-center text-xs font-extrabold text-zinc-600 hover:bg-zinc-100 shadow-sm transition-colors"
                       >
                         -
                       </button>
                       <span className="text-xs font-extrabold px-1.5 text-zinc-900 font-mono">{item.quantidade}</span>
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => adicionarItem(item.produto, item.adicionaisEscolhidos)} 
+                        onClick={() => adicionarItem(item.produto, item.adicionaisEscolhidos)}
                         className="w-6 h-6 rounded-lg bg-zinc-900 hover:bg-zinc-800 flex items-center justify-center text-xs font-extrabold text-white shadow-sm transition-colors"
                       >
                         +
@@ -388,6 +404,7 @@ export default function TelaDeCheckoutDedicada() {
                   abaAtiva={abaEntregaAtiva}
                   onChangeAba={setAbaEntregaAtiva}
                   classeCorTextoAtiva="text-zinc-900"
+                  ocultarRetirada={configLoja.ocultarRetirada}
                 />
 
                 <div className="p-4 space-y-4">
@@ -410,7 +427,7 @@ export default function TelaDeCheckoutDedicada() {
                     </div>
                   )}
 
-                  {abaEntregaAtiva === 'RETIRADA' && (
+                  {abaEntregaAtiva === 'RETIRADA' && !configLoja.ocultarRetirada && (
                     <CartaoRetirada endereco={enderecoLoja} latitude={latitudeLoja} longitude={longitudeLoja} />
                   )}
 
@@ -430,9 +447,21 @@ export default function TelaDeCheckoutDedicada() {
           )}
           {etapaCheckout === 'PAGAMENTO' && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="bg-zinc-50 border border-zinc-200/60 rounded-xl p-4 flex justify-between items-center text-xs font-medium">
-                <span className="text-zinc-500">Resumo da Compra</span>
-                <span className="font-bold text-zinc-900">{formatarMoeda(valorTotal)}</span>
+              <div className="bg-zinc-50 border border-zinc-200/60 rounded-xl p-4 space-y-1.5 text-xs font-medium">
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-500">Subtotal</span>
+                  <span className="font-semibold text-zinc-700">{formatarMoeda(valorTotal)}</span>
+                </div>
+                {taxaEntrega > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-500">Taxa de entrega</span>
+                    <span className="font-semibold text-zinc-700">{formatarMoeda(taxaEntrega)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center border-t border-zinc-200/60 pt-1.5">
+                  <span className="text-zinc-600 font-bold">Total</span>
+                  <span className="font-bold text-zinc-900">{formatarMoeda(valorTotalComTaxa)}</span>
+                </div>
               </div>
 
               <div className="grid gap-3">
@@ -539,14 +568,21 @@ export default function TelaDeCheckoutDedicada() {
             </div>
           )}
         </div>
-        
+
         <footer className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-zinc-100 bg-white space-y-4 shrink-0 select-none w-full max-w-xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">Subtotal Líquido</span>
-              <span className="text-xl font-extrabold text-zinc-900 font-mono tracking-tight">
-                {formatarMoeda(valorTotal)}
+              <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">
+                {taxaEntrega > 0 ? 'Total com Entrega' : 'Subtotal Líquido'}
               </span>
+              <span className="text-xl font-extrabold text-zinc-900 font-mono tracking-tight">
+                {formatarMoeda(valorTotalComTaxa)}
+              </span>
+              {taxaEntrega > 0 && (
+                <span className="text-[10px] text-zinc-400 block font-medium mt-0.5">
+                  Sacola {formatarMoeda(valorTotal)} + entrega {formatarMoeda(taxaEntrega)}
+                </span>
+              )}
             </div>
             {etapaCheckout !== 'PAGAMENTO' && itens.length > 0 && (
               <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-md border border-zinc-200/40">

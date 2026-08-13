@@ -12,6 +12,7 @@ import {
 import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
+import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import type { DadosClientePedido } from '@/utils/pedido-status';
 
 const MP_API_BASE = 'https://api.mercadopago.com';
@@ -184,7 +185,11 @@ export async function POST(request: Request) {
       };
     });
 
-    const valorTotal = itensPrecificados.reduce((acc, item) => acc + item.precoUnitario * item.quantidade, 0);
+    const configLoja = obterConfigLojaEspecial(restaurante.slug);
+    const taxaEntrega = dadosCliente.tipoEntrega !== 'RETIRADA' ? configLoja.taxaEntregaFixa : 0;
+
+    const valorSacola = itensPrecificados.reduce((acc, item) => acc + item.precoUnitario * item.quantidade, 0);
+    const valorTotal = valorSacola + taxaEntrega;
 
     if (valorTotal <= 0) {
       return NextResponse.json({ error: 'Valor total inválido.' }, { status: 400 });
@@ -336,6 +341,27 @@ export async function POST(request: Request) {
       });
     }
 
+    const itensPreferencia = itensPrecificados.map((item) => ({
+      id: item.item_cardapio_id,
+      title:
+        item.adicionais.length > 0
+          ? `${item.nome} (+ ${item.adicionais.map((adicional) => adicional.nome).join(', ')})`
+          : item.nome,
+      quantity: item.quantidade,
+      unit_price: item.precoUnitario,
+      currency_id: 'BRL',
+    }));
+
+    if (taxaEntrega > 0) {
+      itensPreferencia.push({
+        id: 'taxa-entrega',
+        title: 'Taxa de entrega',
+        quantity: 1,
+        unit_price: taxaEntrega,
+        currency_id: 'BRL',
+      });
+    }
+
     const preferenceResponse = await fetch(`${MP_API_BASE}/checkout/preferences`, {
       method: 'POST',
       headers: {
@@ -344,16 +370,7 @@ export async function POST(request: Request) {
         'x-idempotency-key': idempotencyKey,
       },
       body: JSON.stringify({
-        items: itensPrecificados.map((item) => ({
-          id: item.item_cardapio_id,
-          title:
-            item.adicionais.length > 0
-              ? `${item.nome} (+ ${item.adicionais.map((adicional) => adicional.nome).join(', ')})`
-              : item.nome,
-          quantity: item.quantidade,
-          unit_price: item.precoUnitario,
-          currency_id: 'BRL',
-        })),
+        items: itensPreferencia,
         payer: {
           email: emailPayer,
         },

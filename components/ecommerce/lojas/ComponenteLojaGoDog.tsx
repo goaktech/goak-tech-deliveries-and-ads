@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { ItemCardapio } from '@/types/database';
 import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
 import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
+import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 
 interface ComponenteLojaGoDogProps {
   restaurante: { id: string; nome: string; endereco: string | null };
@@ -22,6 +23,44 @@ function formatarMoeda(valor: number) {
 
 function ehBebida(nome: string) {
   return /coca|guaran[aá]|suco|[aá]gua|refrigerante|milk\s*-?shake|shake|sprite|limonada|ch[aá]/i.test(nome);
+}
+
+function IconeHamburguer({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M4 9.5C4 6.5 7.6 4 12 4s8 2.5 8 5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M3.2 11.2h17.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M3.6 14.3c1-0.9 2-0.9 3 0s2 0.9 3 0 2-0.9 3 0 2 0.9 3 0 2-0.9 3 0"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3.5 17.2h17a1.3 1.3 0 010 2.6h-17a1.3 1.3 0 010-2.6z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconeBebida({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M12 3v3.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M6.3 8h11.4l-1.15 10.3a2 2 0 01-1.99 1.78H9.44a2 2 0 01-1.99-1.78L6.3 8z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <path d="M6.9 11h10.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 interface CartaoItemGoDogProps {
@@ -67,7 +106,7 @@ function CartaoItemGoDog({ produto }: CartaoItemGoDogProps) {
     <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden transition-all">
       <div
         onClick={() => setSanfonaAberta(!sanfonaAberta)}
-        className="p-4 flex gap-4 items-center cursor-pointer select-none hover:bg-zinc-50/80 transition-colors"
+        className="p-4 flex gap-4 items-start cursor-pointer select-none hover:bg-zinc-50/80 transition-colors"
       >
         <div className="w-[88px] h-[88px] rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FCEFD2] text-amber-700 shadow-inner overflow-hidden">
           {produto.imagem_url ? (
@@ -86,10 +125,10 @@ function CartaoItemGoDog({ produto }: CartaoItemGoDogProps) {
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-zinc-900 truncate text-base leading-tight">
+          <h3 className="font-semibold text-zinc-900 text-base leading-tight break-words">
             {produto.nome}
           </h3>
-          <p className="text-zinc-500 text-xs mt-1 line-clamp-2 leading-relaxed">
+          <p className="text-zinc-500 text-xs mt-1 leading-relaxed break-words">
             {produto.descricao || 'Preparado na hora, com ingredientes selecionados.'}
           </p>
           <span className="font-bold text-[24px] block mt-2 leading-none" style={{ color: COR_PRIMARIA }}>
@@ -97,7 +136,7 @@ function CartaoItemGoDog({ produto }: CartaoItemGoDogProps) {
           </span>
         </div>
 
-        <div className="shrink-0 p-1" style={{ color: COR_PRIMARIA }}>
+        <div className="shrink-0 p-1 mt-1" style={{ color: COR_PRIMARIA }}>
           <svg
             className={`w-6 h-6 transform transition-transform duration-200 ${sanfonaAberta ? 'rotate-180' : ''}`}
             fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"
@@ -202,14 +241,17 @@ export default function ComponenteLojaGoDog({ restaurante, produtos }: Component
   const slug = (params?.slug as string) || '';
   const { totalItens } = useCarrinho();
   const [categoriaAtiva, setCategoriaAtiva] = useState<'DOGS' | 'BEBIDAS'>('DOGS');
+  const configLoja = obterConfigLojaEspecial(slug);
 
   const produtosFiltrados = produtos.filter((produto) =>
     categoriaAtiva === 'BEBIDAS' ? ehBebida(produto.nome) : !ehBebida(produto.nome)
   );
 
+  const formatarMoedaTaxa = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   return (
     <div className="min-h-screen w-full bg-white text-[#1A1A1A] antialiased font-sans select-none">
-      <div className="w-full max-w-xl mx-auto min-h-screen bg-white border-x border-zinc-200/40 pb-32">
+      <div className="w-full max-w-xl mx-auto min-h-screen bg-[#F4F4F4] border-x border-zinc-200/40 pb-32">
         <div className="w-full text-white shadow-md" style={{ backgroundColor: COR_PRIMARIA }}>
           <header className="w-full px-6 py-4 flex items-center justify-between">
             <div className="leading-tight">
@@ -246,7 +288,7 @@ export default function ComponenteLojaGoDog({ restaurante, produtos }: Component
                   : { backgroundColor: 'transparent', color: '#1A1A1A' }
               }
             >
-              <span aria-hidden>🌭</span>
+              <IconeHamburguer className="w-4 h-4" />
               <span>Cachorro-quente</span>
             </button>
             <button
@@ -259,13 +301,26 @@ export default function ComponenteLojaGoDog({ restaurante, produtos }: Component
                   : { backgroundColor: 'transparent', color: '#1A1A1A' }
               }
             >
-              <span aria-hidden>🥤</span>
+              <IconeBebida className="w-4 h-4" />
               <span>Bebidas</span>
             </button>
           </nav>
         </div>
 
-        <div className="w-full px-6 mt-8">
+        {configLoja.taxaEntregaFixa > 0 && (
+          <div className="w-full px-6 pt-4">
+            <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-xs font-medium leading-relaxed">
+                Ainda não trabalhamos com retirada no local. Uma taxa de entrega de {formatarMoedaTaxa(configLoja.taxaEntregaFixa)} é adicionada no checkout.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="w-full px-6 mt-6">
           <div className="flex flex-col gap-1 mb-4 select-none">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Cardápio</span>
           </div>
