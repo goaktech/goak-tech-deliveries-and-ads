@@ -89,6 +89,8 @@ export default function TelaDeCheckoutDedicada() {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
+  const dadosContatoPreenchidos = nomeCliente.trim().length > 0 && telefoneCliente.trim().length > 0;
+
   const dadosEndereco = useMemo(
     () => ({
       rua,
@@ -121,6 +123,7 @@ export default function TelaDeCheckoutDedicada() {
       void registrarCheckoutIniciadoFunil(slug);
       setEtapaCheckout('ENTREGA');
     } else if (etapaCheckout === 'ENTREGA') {
+      if (!dadosContatoPreenchidos) return;
       setEtapaCheckout('PAGAMENTO');
     }
   };
@@ -475,6 +478,7 @@ export default function TelaDeCheckoutDedicada() {
                   <div className="text-sm font-medium">Pagar com QR Code e copia e cola</div>
                 </button>
 
+                {/* Pagamento com cartão temporariamente oculto — reative removendo este comentário quando voltar a habilitar.
                 <button
                   type="button"
                   onClick={() => criarPagamento('CARTAO')}
@@ -484,6 +488,7 @@ export default function TelaDeCheckoutDedicada() {
                   <div className="text-xs font-bold uppercase tracking-widest">Cartão de crédito</div>
                   <div className="text-sm font-medium">Finalizar no checkout do Mercado Pago</div>
                 </button>
+                */}
               </div>
 
               {dadosPix && (
@@ -594,7 +599,9 @@ export default function TelaDeCheckoutDedicada() {
           <button
             type="button"
             onClick={handleAcaoPrincipal}
-            disabled={itens.length === 0}
+            disabled={
+              itens.length === 0 || (etapaCheckout === 'ENTREGA' && !dadosContatoPreenchidos)
+            }
             className="w-full py-4 px-6 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 active:scale-[0.99] shadow-sm disabled:opacity-30 disabled:pointer-events-none"
           >
             {etapaCheckout === 'SACOLA'
