@@ -1,0 +1,290 @@
+'use client';
+
+import React, { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ItemCardapio } from '@/types/database';
+import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
+import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
+
+interface ComponenteLojaGoDogProps {
+  restaurante: { id: string; nome: string; endereco: string | null };
+  produtos: ItemCardapio[];
+}
+
+const COR_PRIMARIA = '#C1272D';
+const COR_ACENTO = '#F4B41A';
+
+function formatarMoeda(valor: number) {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function ehBebida(nome: string) {
+  return /coca|guaran[aá]|suco|[aá]gua|refrigerante|milk\s*-?shake|shake|sprite|limonada|ch[aá]/i.test(nome);
+}
+
+interface CartaoItemGoDogProps {
+  produto: ItemCardapio;
+}
+
+function CartaoItemGoDog({ produto }: CartaoItemGoDogProps) {
+  const { adicionarItem, itens, removerItem } = useCarrinho();
+  const [sanfonaAberta, setSanfonaAberta] = useState(false);
+  const [complementosSelecionadosIds, setComplementosSelecionadosIds] = useState<string[]>([]);
+
+  const complementosDisponiveis = (produto.complementos_produto || []).filter((c) => c.disponivel);
+  const complementosSelecionados = complementosDisponiveis
+    .filter((c) => complementosSelecionadosIds.includes(c.id))
+    .map<Complemento>((c) => ({
+      id: c.id,
+      item_cardapio_id: c.item_cardapio_id || produto.id,
+      nome: c.nome,
+      preco_adicional: Number(c.preco_adicional),
+      disponivel: c.disponivel,
+      grupo: c.grupo ?? null,
+    }));
+
+  const adicionaisIds = complementosSelecionados.map((c) => c.id).sort().join('-');
+  const idUnicoCarrinho = adicionaisIds ? `${produto.id}-${adicionaisIds}` : produto.id;
+  const itemNoCarrinho = itens.find((item) => item.idUnico === idUnicoCarrinho);
+  const qtd = itemNoCarrinho?.quantidade || 0;
+
+  const valorComplementosSelecionados = complementosSelecionados.reduce(
+    (acc, c) => acc + Number(c.preco_adicional),
+    0
+  );
+
+  const toggleComplemento = (id: string) => {
+    setComplementosSelecionadosIds((atuais) =>
+      atuais.includes(id) ? atuais.filter((itemId) => itemId !== id) : [...atuais, id]
+    );
+  };
+
+  const emoji = ehBebida(produto.nome) ? '🥤' : '🌭';
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden transition-all">
+      <div
+        onClick={() => setSanfonaAberta(!sanfonaAberta)}
+        className="p-4 flex gap-4 items-center cursor-pointer select-none hover:bg-zinc-50/80 transition-colors"
+      >
+        <div className="w-[88px] h-[88px] rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FCEFD2] text-amber-700 shadow-inner overflow-hidden">
+          {produto.imagem_url ? (
+            <Image
+              src={produto.imagem_url}
+              alt={`Foto do produto ${produto.nome}`}
+              className="w-full h-full object-cover"
+              width={72}
+              height={72}
+              loading="lazy"
+              unoptimized
+            />
+          ) : (
+            <span className="text-3xl">{emoji}</span>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-zinc-900 truncate text-base leading-tight">
+            {produto.nome}
+          </h3>
+          <p className="text-zinc-500 text-xs mt-1 line-clamp-2 leading-relaxed">
+            {produto.descricao || 'Preparado na hora, com ingredientes selecionados.'}
+          </p>
+          <span className="font-bold text-[24px] block mt-2 leading-none" style={{ color: COR_PRIMARIA }}>
+            {formatarMoeda(Number(produto.preco_venda))}
+          </span>
+        </div>
+
+        <div className="shrink-0 p-1" style={{ color: COR_PRIMARIA }}>
+          <svg
+            className={`w-6 h-6 transform transition-transform duration-200 ${sanfonaAberta ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </div>
+      </div>
+
+      {sanfonaAberta && (
+        <div className="border-t border-zinc-200 bg-white p-4 space-y-3 animate-in fade-in duration-200">
+          <div className="flex justify-between items-center select-none">
+            <span className="text-xs font-medium text-zinc-600">Adicionais</span>
+            {qtd > 0 && (
+              <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                Item na sacola
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {complementosDisponiveis.length === 0 ? (
+              <div className="bg-white border border-zinc-200/60 rounded-xl p-3 text-[11px] text-zinc-500">
+                Este item não possui complementos no momento.
+              </div>
+            ) : (
+              complementosDisponiveis.map((complemento) => {
+                const selecionado = complementosSelecionadosIds.includes(complemento.id);
+                return (
+                  <label
+                    key={complemento.id}
+                    className={`w-full bg-white border rounded-xl p-3 flex justify-between items-center shadow-2xs transition-all ${
+                      selecionado ? 'border-[#C1272D]' : 'border-zinc-200 hover:border-zinc-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={selecionado}
+                        onChange={() => toggleComplemento(complemento.id)}
+                        className="h-5 w-5 accent-[#C1272D] rounded border-zinc-300"
+                      />
+                      <div className="text-left min-w-0">
+                        <span className="text-xs font-medium text-zinc-800 block truncate">{complemento.nome}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-700">
+                      {formatarMoeda(Number(complemento.preco_adicional))}
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          {complementosSelecionados.length > 0 && (
+            <div className="text-xs text-zinc-600 flex justify-between">
+              <span>Complementos selecionados</span>
+              <span className="font-mono">+{formatarMoeda(valorComplementosSelecionados)}</span>
+            </div>
+          )}
+
+          <div className="pt-2 flex justify-between items-center border-t border-zinc-100">
+            <span className="text-xs text-zinc-600">Quantidade</span>
+            {qtd > 0 ? (
+              <div className="flex items-center bg-zinc-100 border border-zinc-200/60 rounded-xl p-0.5 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => removerItem(idUnicoCarrinho)}
+                  className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-sm font-semibold text-zinc-600 hover:bg-zinc-200 shadow-2xs transition-colors"
+                >
+                  -
+                </button>
+                <span className="text-sm px-0.5 text-zinc-800 font-mono">{qtd}</span>
+                <button
+                  type="button"
+                  onClick={() => adicionarItem(produto, complementosSelecionados)}
+                  className="w-7 h-7 rounded-lg bg-zinc-900 flex items-center justify-center text-sm font-semibold text-white hover:bg-zinc-800 shadow-2xs transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => adicionarItem(produto, complementosSelecionados)}
+                className="text-zinc-900 font-semibold text-sm px-6 py-2.5 rounded-xl transition-all tracking-wide border"
+                style={{ backgroundColor: COR_ACENTO, borderColor: '#D9A014' }}
+              >
+                Adicionar à sacola
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ComponenteLojaGoDog({ restaurante, produtos }: ComponenteLojaGoDogProps) {
+  const params = useParams();
+  const slug = (params?.slug as string) || '';
+  const { totalItens } = useCarrinho();
+  const [categoriaAtiva, setCategoriaAtiva] = useState<'DOGS' | 'BEBIDAS'>('DOGS');
+
+  const produtosFiltrados = produtos.filter((produto) =>
+    categoriaAtiva === 'BEBIDAS' ? ehBebida(produto.nome) : !ehBebida(produto.nome)
+  );
+
+  return (
+    <div className="min-h-screen w-full bg-white text-[#1A1A1A] antialiased font-sans select-none">
+      <div className="w-full max-w-xl mx-auto min-h-screen bg-white border-x border-zinc-200/40 pb-32">
+        <div className="w-full text-white shadow-md" style={{ backgroundColor: COR_PRIMARIA }}>
+          <header className="w-full px-6 py-4 flex items-center justify-between">
+            <div className="leading-tight">
+              <h1 className="font-bold text-lg tracking-tight">{restaurante.nome}</h1>
+              <span className="text-[9px] font-medium tracking-[0.12em] uppercase" style={{ color: COR_ACENTO }}>
+                {restaurante.endereco?.trim() || 'Endereço do estabelecimento'}
+              </span>
+            </div>
+            <Link href={`/${slug}/checkout`} className="relative p-1" aria-label="Ver sacola">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
+              </svg>
+              {totalItens > 0 && (
+                <span
+                  className="absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center leading-none border shadow-sm"
+                  style={{ backgroundColor: COR_ACENTO, color: COR_PRIMARIA, borderColor: 'rgba(193,39,45,0.2)' }}
+                >
+                  {totalItens}
+                </span>
+              )}
+            </Link>
+          </header>
+        </div>
+
+        <div className="w-full border-b" style={{ backgroundColor: COR_ACENTO, borderColor: '#D9A014' }}>
+          <nav className="w-full px-6 py-3 flex items-center gap-3 text-xs font-medium text-zinc-900 overflow-x-auto scrollbar-none">
+            <button
+              type="button"
+              onClick={() => setCategoriaAtiva('DOGS')}
+              className="px-5 py-2 rounded-xl flex items-center gap-2 shadow-sm shrink-0 transition-colors"
+              style={
+                categoriaAtiva === 'DOGS'
+                  ? { backgroundColor: COR_PRIMARIA, color: '#fff' }
+                  : { backgroundColor: 'transparent', color: '#1A1A1A' }
+              }
+            >
+              <span aria-hidden>🌭</span>
+              <span>Cachorro-quente</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoriaAtiva('BEBIDAS')}
+              className="px-5 py-2 rounded-xl flex items-center gap-2 shrink-0 transition-colors"
+              style={
+                categoriaAtiva === 'BEBIDAS'
+                  ? { backgroundColor: COR_PRIMARIA, color: '#fff' }
+                  : { backgroundColor: 'transparent', color: '#1A1A1A' }
+              }
+            >
+              <span aria-hidden>🥤</span>
+              <span>Bebidas</span>
+            </button>
+          </nav>
+        </div>
+
+        <div className="w-full px-6 mt-8">
+          <div className="flex flex-col gap-1 mb-4 select-none">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Cardápio</span>
+          </div>
+
+          <div className="space-y-4">
+            {produtosFiltrados.length === 0 ? (
+              <div className="text-center py-16 text-zinc-400 bg-white rounded-2xl border border-zinc-200/60 shadow-sm">
+                <p className="text-xs">Nada por aqui ainda — confira a outra aba.</p>
+              </div>
+            ) : (
+              produtosFiltrados.map((produto) => (
+                <CartaoItemGoDog key={produto.id} produto={produto} />
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <BarraCarrinhoFlutuante corBotaoAcao={COR_PRIMARIA} corBadgeFundo={COR_ACENTO} corBadgeTexto={COR_PRIMARIA} />
+    </div>
+  );
+}
