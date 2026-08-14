@@ -34,7 +34,7 @@ export async function atualizarMetaPixelId(pixelId: string | null) {
     return { success: false, error: `Erro ao salvar Pixel: ${error.message}` };
   }
 
-  revalidatePath('/admin/pagamentos');
+  revalidatePath('/admin/integracoes');
   revalidatePath(`/${restaurante.slug}`);
 
   return { success: true };

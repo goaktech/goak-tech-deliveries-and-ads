@@ -16,7 +16,7 @@ function classeBadgeIntegracao(status: string | null | undefined): string {
     : 'rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-600';
 }
 
-export default async function PainelPagamentosAdmin() {
+export default async function PainelIntegracoesAdmin() {
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const supabase = createWebhookAdminClient();
   const { data: restaurante } = await supabase
@@ -32,11 +32,11 @@ export default async function PainelPagamentosAdmin() {
   return (
     <div className="min-h-screen bg-[#F3F3F3] text-[#1A1A1A] font-sans antialiased flex items-start justify-center p-4 sm:p-8 md:py-12">
       <div className="w-full max-w-4xl space-y-6">
-        <AdminNavHeader activeTab="pagamentos" />
+        <AdminNavHeader activeTab="integracoes" />
 
         <section className="bg-white rounded-[24px] p-6 shadow-sm shadow-zinc-300/40 space-y-5">
           <div className="space-y-1">
-            <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900">Integrações de pagamento</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900">Pagamentos e Integrações</h1>
             <p className="text-sm text-zinc-500">
               Conecte a conta do Mercado Pago do estabelecimento para processar PIX e cartão com o dinheiro caindo na conta do lojista.
             </p>

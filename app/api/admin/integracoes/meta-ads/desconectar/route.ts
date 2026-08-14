@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
     await desconectarMetaAds(restauranteId);
 
-    return NextResponse.redirect(new URL('/admin/pagamentos?status=meta-ads-desconectado', request.url));
+    return NextResponse.redirect(new URL('/admin/integracoes?status=meta-ads-desconectado', request.url));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Falha ao desconectar Meta Ads.';
     return NextResponse.json({ error: message }, { status: 400 });

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       .eq('id', payload.restauranteId)
       .maybeSingle();
 
-    const redirectUrl = new URL('/admin/pagamentos', request.url);
+    const redirectUrl = new URL('/admin/integracoes', request.url);
     redirectUrl.searchParams.set('status', 'conectado');
     if (restaurante?.slug) {
       redirectUrl.searchParams.set('slug', restaurante.slug);

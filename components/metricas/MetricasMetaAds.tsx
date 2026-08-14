@@ -26,7 +26,7 @@ export function MetricasMetaAds({ dados }: { dados: ResumoMetricasMetaAds }) {
           </p>
         </div>
         <Link
-          href="/admin/pagamentos"
+          href="/admin/integracoes"
           className="inline-flex items-center justify-center rounded-xl bg-zinc-900 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white"
         >
           Conectar Meta Ads

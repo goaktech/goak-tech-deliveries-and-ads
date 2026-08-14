@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     await concluirConexaoMetaAds(code, payload.restauranteId);
 
-    const redirectUrl = new URL('/admin/pagamentos', request.url);
+    const redirectUrl = new URL('/admin/integracoes', request.url);
     redirectUrl.searchParams.set('status', 'meta-ads-conectado');
     return NextResponse.redirect(redirectUrl);
   } catch (error) {

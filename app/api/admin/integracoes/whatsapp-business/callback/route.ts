@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     await concluirConexaoWhatsappBusiness(code, payload.restauranteId);
 
-    const redirectUrl = new URL('/admin/pagamentos', request.url);
+    const redirectUrl = new URL('/admin/integracoes', request.url);
     redirectUrl.searchParams.set('status', 'whatsapp-conectado');
     return NextResponse.redirect(redirectUrl);
   } catch (error) {

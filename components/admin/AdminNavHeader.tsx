@@ -12,7 +12,7 @@ type AdminTab =
   | 'estoque'
   | 'cozinha'
   | 'metricas'
-  | 'pagamentos'
+  | 'integracoes'
   | 'ia'
   | 'configuracoes'
   | 'entregadores';
@@ -85,8 +85,8 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    id: 'pagamentos',
-    href: '/admin/pagamentos',
+    id: 'integracoes',
+    href: '/admin/integracoes',
     label: 'Pagamentos e Integrações',
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
