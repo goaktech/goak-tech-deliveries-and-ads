@@ -11,7 +11,7 @@ import CartaoRetirada from '@/components/ecommerce/checkout/CartaoRetirada';
 import FormularioEnderecoEntrega from '@/components/ecommerce/checkout/FormularioEnderecoEntrega';
 import { SeletorLocalizacaoMapa, type ResultadoLocalizacaoMapa } from '@/components/shared/SeletorLocalizacaoMapa';
 import type { AbaEntregaCheckout, EtapaCheckout } from '@/components/ecommerce/checkout/tipos';
-import { trackInitiateCheckout, trackPurchase } from '@/utils/meta-pixel';
+import { trackInitiateCheckout, trackPurchase, trackClicouPagarPix } from '@/utils/meta-pixel';
 import { registrarCheckoutIniciadoFunil } from '@/actions/metricasFunil';
 import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 
@@ -470,7 +470,13 @@ export default function TelaDeCheckoutDedicada() {
               <div className="grid gap-3">
                 <button
                   type="button"
-                  onClick={() => criarPagamento('PIX')}
+                  onClick={() => {
+                    trackClicouPagarPix({
+                      valorTotal: valorTotalComTaxa,
+                      itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
+                    });
+                    criarPagamento('PIX');
+                  }}
                   disabled={carregandoPagamento}
                   className="rounded-2xl border border-[#E9B31E] bg-[#FFC72C] px-4 py-4 text-left text-zinc-900 shadow-sm disabled:opacity-50"
                 >

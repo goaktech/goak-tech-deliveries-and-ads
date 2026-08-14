@@ -59,3 +59,17 @@ export function trackPurchase(params: {
     { eventID: params.pedidoId }
   );
 }
+
+export function trackClicouPagarPix(params: {
+  valorTotal: number;
+  itens: Array<{ id: string; quantidade: number }>;
+}) {
+  if (!fbqDisponivel()) return;
+
+  window.fbq!('trackCustom', 'ClicouPagarPix', {
+    content_ids: params.itens.map((item) => item.id),
+    contents: params.itens.map((item) => ({ id: item.id, quantity: item.quantidade })),
+    value: params.valorTotal,
+    currency: 'BRL',
+  });
+}
