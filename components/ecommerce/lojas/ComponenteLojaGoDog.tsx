@@ -17,6 +17,10 @@ interface ComponenteLojaGoDogProps {
 const COR_PRIMARIA = '#C1272D';
 const COR_ACENTO = '#F4B41A';
 
+// Deixe em `false` para ocultar o aviso de promoção de inauguração sem
+// precisar remover o bloco do código.
+const MOSTRAR_PROMO_INAUGURACAO = true;
+
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -39,6 +43,20 @@ function IconeHamburguer({ className }: { className?: string }) {
         strokeWidth="1.6"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function IconeSelo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} style={style} aria-hidden>
+      <path
+        d="M12 3.4l1.72 1.06 2.02-.3.96 1.82 1.82.96-.3 2.02L19.28 10l-1.06 1.72.3 2.02-1.82.96-.96 1.82-2.02-.3L12 17.28l-1.72 1.06-2.02-.3-.96-1.82-1.82-.96.3-2.02L4.72 11.72 5.78 10l-.3-2.02 1.82-.96.96-1.82 2.02.3L12 3.4z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M9 11.6l1.9 1.9L15.2 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -322,8 +340,30 @@ export default function ComponenteLojaGoDog({ restaurante, produtos }: Component
           </nav>
         </div>
 
-        {configLoja.taxaEntregaFixa > 0 && (
+        {MOSTRAR_PROMO_INAUGURACAO && (
           <div className="w-full px-6 pt-4">
+            <div
+              className="rounded-2xl border p-4 text-white shadow-md"
+              style={{ backgroundColor: COR_PRIMARIA, borderColor: '#8f1d22' }}
+            >
+              <div className="flex items-center gap-2">
+                <IconeSelo className="w-4 h-4 shrink-0" style={{ color: COR_ACENTO }} />
+                <span
+                  className="text-[11px] font-bold uppercase tracking-widest"
+                  style={{ color: COR_ACENTO }}
+                >
+                  Promoção de inauguração
+                </span>
+              </div>
+              <p className="text-sm font-semibold leading-relaxed mt-1.5">
+                Estamos comemorando a abertura da GoDog com preços especiais por tempo limitado! Corra e aproveite!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {configLoja.taxaEntregaFixa > 0 && (
+          <div className="w-full px-6 pt-3">
             <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
               <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
