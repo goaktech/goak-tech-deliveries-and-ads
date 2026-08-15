@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation';
 import { ItemCardapio } from '@/types/database';
 import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
 import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
-import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
+import { ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 
 interface ComponenteLojaGoDogProps {
   restaurante: { id: string; nome: string; endereco: string | null };
@@ -19,10 +19,6 @@ const COR_ACENTO = '#F4B41A';
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function ehBebida(nome: string) {
-  return /coca|guaran[aá]|suco|[aá]gua|refrigerante|milk\s*-?shake|shake|sprite|limonada|ch[aá]/i.test(nome);
 }
 
 function IconeHamburguer({ className }: { className?: string }) {
@@ -65,9 +61,10 @@ function IconeBebida({ className }: { className?: string }) {
 
 interface CartaoItemGoDogProps {
   produto: ItemCardapio;
+  limiteUnidadesComida?: number;
 }
 
-function CartaoItemGoDog({ produto }: CartaoItemGoDogProps) {
+function CartaoItemGoDog({ produto, limiteUnidadesComida }: CartaoItemGoDogProps) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const [sanfonaAberta, setSanfonaAberta] = useState(false);
   const [complementosSelecionadosIds, setComplementosSelecionadosIds] = useState<string[]>([]);
@@ -88,6 +85,14 @@ function CartaoItemGoDog({ produto }: CartaoItemGoDogProps) {
   const idUnicoCarrinho = adicionaisIds ? `${produto.id}-${adicionaisIds}` : produto.id;
   const itemNoCarrinho = itens.find((item) => item.idUnico === idUnicoCarrinho);
   const qtd = itemNoCarrinho?.quantidade || 0;
+
+  const produtoEhComida = !ehBebida(produto.nome);
+  const totalComidaNoCarrinho = itens
+    .filter((item) => !ehBebida(item.produto.nome))
+    .reduce((acc, item) => acc + item.quantidade, 0);
+  const limiteComidaAtingido = Boolean(
+    limiteUnidadesComida && produtoEhComida && totalComidaNoCarrinho >= limiteUnidadesComida
+  );
 
   const valorComplementosSelecionados = complementosSelecionados.reduce(
     (acc, c) => acc + Number(c.preco_adicional),
@@ -199,35 +204,45 @@ function CartaoItemGoDog({ produto }: CartaoItemGoDogProps) {
             </div>
           )}
 
-          <div className="pt-2 flex justify-between items-center border-t border-zinc-100">
-            <span className="text-xs text-zinc-600">Quantidade</span>
-            {qtd > 0 ? (
-              <div className="flex items-center bg-zinc-100 border border-zinc-200/60 rounded-xl p-0.5 gap-2.5">
+          <div className="pt-2 flex flex-col gap-2 items-end border-t border-zinc-100">
+            <div className="w-full flex justify-between items-center">
+              <span className="text-xs text-zinc-600">Quantidade</span>
+              {qtd > 0 ? (
+                <div className="flex items-center bg-zinc-100 border border-zinc-200/60 rounded-xl p-0.5 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => removerItem(idUnicoCarrinho)}
+                    className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-sm font-semibold text-zinc-600 hover:bg-zinc-200 shadow-2xs transition-colors"
+                  >
+                    -
+                  </button>
+                  <span className="text-sm px-0.5 text-zinc-800 font-mono">{qtd}</span>
+                  <button
+                    type="button"
+                    disabled={limiteComidaAtingido}
+                    onClick={() => adicionarItem(produto, complementosSelecionados)}
+                    className="w-7 h-7 rounded-lg bg-zinc-900 flex items-center justify-center text-sm font-semibold text-white hover:bg-zinc-800 shadow-2xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-900"
+                  >
+                    +
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => removerItem(idUnicoCarrinho)}
-                  className="w-7 h-7 rounded-lg bg-white flex items-center justify-center text-sm font-semibold text-zinc-600 hover:bg-zinc-200 shadow-2xs transition-colors"
-                >
-                  -
-                </button>
-                <span className="text-sm px-0.5 text-zinc-800 font-mono">{qtd}</span>
-                <button
-                  type="button"
+                  disabled={limiteComidaAtingido}
                   onClick={() => adicionarItem(produto, complementosSelecionados)}
-                  className="w-7 h-7 rounded-lg bg-zinc-900 flex items-center justify-center text-sm font-semibold text-white hover:bg-zinc-800 shadow-2xs transition-colors"
+                  className="text-zinc-900 font-semibold text-sm px-6 py-2.5 rounded-xl transition-all tracking-wide border disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: COR_ACENTO, borderColor: '#D9A014' }}
                 >
-                  +
+                  Adicionar à sacola
                 </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => adicionarItem(produto, complementosSelecionados)}
-                className="text-zinc-900 font-semibold text-sm px-6 py-2.5 rounded-xl transition-all tracking-wide border"
-                style={{ backgroundColor: COR_ACENTO, borderColor: '#D9A014' }}
-              >
-                Adicionar à sacola
-              </button>
+              )}
+            </div>
+
+            {limiteComidaAtingido && (
+              <p className="text-[11px] text-right text-[#C1272D] font-medium leading-snug">
+                Limite de {limiteUnidadesComida} cachorros-quentes por pedido atingido.
+              </p>
             )}
           </div>
         </div>
@@ -332,7 +347,11 @@ export default function ComponenteLojaGoDog({ restaurante, produtos }: Component
               </div>
             ) : (
               produtosFiltrados.map((produto) => (
-                <CartaoItemGoDog key={produto.id} produto={produto} />
+                <CartaoItemGoDog
+                  key={produto.id}
+                  produto={produto}
+                  limiteUnidadesComida={configLoja.limiteUnidadesComida}
+                />
               ))
             )}
           </div>

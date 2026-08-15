@@ -12,7 +12,7 @@ import {
 import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
-import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
+import { ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import type { DadosClientePedido } from '@/utils/pedido-status';
 
 const MP_API_BASE = 'https://api.mercadopago.com';
@@ -193,6 +193,21 @@ export async function POST(request: Request) {
 
     if (valorTotal <= 0) {
       return NextResponse.json({ error: 'Valor total inválido.' }, { status: 400 });
+    }
+
+    if (configLoja.limiteUnidadesComida) {
+      const totalUnidadesComida = itensPrecificados
+        .filter((item) => !ehBebida(item.nome))
+        .reduce((acc, item) => acc + item.quantidade, 0);
+
+      if (totalUnidadesComida > configLoja.limiteUnidadesComida) {
+        return NextResponse.json(
+          {
+            error: `Limite de ${configLoja.limiteUnidadesComida} unidades por pedido excedido para este item. Reduza a quantidade e tente novamente.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restaurante.id);

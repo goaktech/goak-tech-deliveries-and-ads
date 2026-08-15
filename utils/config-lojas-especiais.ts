@@ -10,6 +10,11 @@ export interface ConfigLojaEspecial {
   taxaEntregaFixa: number;
   /** Se true, a opção "Retirada" fica oculta no checkout desta loja. */
   ocultarRetirada: boolean;
+  /**
+   * Limite máximo de unidades de "comida" (itens que não são bebida, ver
+   * `ehBebida`) somadas em todo o pedido. `undefined`/`0` = sem limite.
+   */
+  limiteUnidadesComida?: number;
 }
 
 const CONFIG_PADRAO: ConfigLojaEspecial = {
@@ -21,10 +26,20 @@ const CONFIGS_LOJAS_ESPECIAIS: Record<string, ConfigLojaEspecial> = {
   godog: {
     taxaEntregaFixa: 5,
     ocultarRetirada: true,
+    limiteUnidadesComida: 3,
   },
 };
 
 export function obterConfigLojaEspecial(slug: string | null | undefined): ConfigLojaEspecial {
   const chave = (slug ?? '').trim();
   return CONFIGS_LOJAS_ESPECIAIS[chave] ?? CONFIG_PADRAO;
+}
+
+/**
+ * Heurística por nome do produto para separar bebidas de "comida" quando a
+ * loja ainda não tem uma categoria dedicada no cardápio. Usado pela vitrine
+ * da GoDog e pela validação de limite de unidades no checkout.
+ */
+export function ehBebida(nome: string) {
+  return /coca|guaran[aá]|suco|[aá]gua|refrigerante|milk\s*-?shake|shake|sprite|limonada|ch[aá]/i.test(nome);
 }
