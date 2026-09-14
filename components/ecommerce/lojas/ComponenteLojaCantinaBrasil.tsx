@@ -91,7 +91,7 @@ function SeletorQuantidade({ qtd, idUnicoCarrinho, produto, complementosSelecion
     <button
       type="button"
       onClick={() => onAdicionar(produto, complementosSelecionados)}
-      className="rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors"
+      className="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors"
       style={{ border: `1.5px solid ${COR_MARROM}`, color: COR_MARROM }}
     >
       Adicionar
@@ -237,11 +237,12 @@ export default function ComponenteLojaCantinaBrasil({ restaurante, produtos }: C
     return 'PRATOS';
   };
 
+  // TODO: reativar quando o cardápio tiver itens nas demais categorias.
   const categorias: { chave: CategoriaCantina; rotulo: string }[] = [
     { chave: 'PRATOS', rotulo: 'Pratos do Dia' },
-    { chave: 'ACOMPANHAMENTOS', rotulo: 'Acompanhamentos' },
-    { chave: 'BEBIDAS', rotulo: 'Bebidas' },
-    { chave: 'SOBREMESAS', rotulo: 'Sobremesas' },
+    // { chave: 'ACOMPANHAMENTOS', rotulo: 'Acompanhamentos' },
+    // { chave: 'BEBIDAS', rotulo: 'Bebidas' },
+    // { chave: 'SOBREMESAS', rotulo: 'Sobremesas' },
   ];
 
   const produtosFiltrados = produtos.filter((produto) => categoriaDoProduto(produto.nome) === categoriaAtiva);
@@ -250,11 +251,9 @@ export default function ComponenteLojaCantinaBrasil({ restaurante, produtos }: C
     <div className="min-h-screen antialiased pb-32 font-sans select-none" style={{ backgroundColor: COR_CREME }}>
       <header className="relative z-20" style={{ backgroundColor: COR_MARROM }}>
         <div className="mx-auto flex w-full max-w-xl items-center justify-between px-6 py-4">
-          <button className="shrink-0" style={{ color: COR_DOURADO_CLARO }} aria-label="Menu">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full" style={{ border: `1.5px solid ${COR_DOURADO}` }}>
+            <Image src="/cantina-brasil-logo.jpg" alt="Cantina Brasil" width={36} height={36} className="h-full w-full object-cover" />
+          </div>
 
           <span
             className={`${fonteExibicao.className} truncate px-3 text-center text-sm font-semibold uppercase tracking-[0.3em]`}
