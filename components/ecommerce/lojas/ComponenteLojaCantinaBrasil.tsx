@@ -91,8 +91,8 @@ function SeletorQuantidade({ qtd, idUnicoCarrinho, produto, complementosSelecion
     <button
       type="button"
       onClick={() => onAdicionar(produto, complementosSelecionados)}
-      className="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors"
-      style={{ border: `1.5px solid ${COR_MARROM}`, color: COR_MARROM }}
+      className="rounded-full px-2.5 py-[3px] text-[9px] font-semibold uppercase tracking-wide transition-colors"
+      style={{ border: `1.25px solid ${COR_MARROM}`, color: COR_MARROM }}
     >
       Adicionar
     </button>
@@ -156,7 +156,11 @@ function LinhaProdutoCantina({ produto, expandido, onToggleExpandir }: LinhaProd
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h3 className={`${fonteExibicao.className} shrink-0 text-[15px] font-semibold`} style={{ color: COR_MARROM }}>
+            <h3
+              className={`${fonteExibicao.className} min-w-0 truncate text-[15px] font-semibold`}
+              style={{ color: COR_MARROM }}
+              title={produto.nome}
+            >
               {produto.nome}
             </h3>
             <span className="relative top-[-3px] h-0 flex-1 border-b border-dotted" style={{ borderColor: COR_DOURADO, opacity: 0.6 }} aria-hidden />
@@ -164,7 +168,7 @@ function LinhaProdutoCantina({ produto, expandido, onToggleExpandir }: LinhaProd
               {formatarMoeda(Number(produto.preco_venda))}
             </span>
           </div>
-          <p className="mt-1 truncate text-xs italic text-zinc-500">{produto.descricao || 'Feito em casa, todo dia.'}</p>
+          <p className="mt-1 whitespace-pre-line break-words text-xs italic text-zinc-500">{produto.descricao || 'Feito em casa, todo dia.'}</p>
 
           {!temComplementos && (
             <div className="mt-3 flex justify-end">
