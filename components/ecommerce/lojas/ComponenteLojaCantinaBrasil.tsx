@@ -8,6 +8,12 @@ import { Fraunces } from 'next/font/google';
 import { ItemCardapio } from '@/types/database';
 import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
 import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
+import {
+  categoriaDoProduto,
+  produtoDisponivelHoje,
+  rotuloDiaSemana,
+  type CategoriaCantina,
+} from '@/utils/cardapio-cantina-brasil';
 
 const fonteExibicao = Fraunces({
   subsets: ['latin'],
@@ -33,6 +39,13 @@ const COR_LINHA = '#E6D2A6';
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
+
+const ORDEM_CATEGORIAS: { chave: CategoriaCantina; rotulo: string }[] = [
+  { chave: 'PRATOS', rotulo: 'Pratos do Dia' },
+  { chave: 'ACOMPANHAMENTOS', rotulo: 'Acompanhamentos' },
+  { chave: 'BEBIDAS', rotulo: 'Bebidas' },
+  { chave: 'SOBREMESAS', rotulo: 'Sobremesas' },
+];
 
 function IconeFolha({ className }: { className?: string }) {
   return (
@@ -99,6 +112,18 @@ function SeletorQuantidade({ qtd, idUnicoCarrinho, produto, complementosSelecion
   );
 }
 
+/** Prato do dia fora do dia dele: mostra quando ele volta em vez do botão de adicionar. */
+function EtiquetaForaDoDia({ diaSemana }: { diaSemana: number }) {
+  return (
+    <span
+      className="rounded-full px-2.5 py-[3px] text-[9px] font-semibold uppercase tracking-wide"
+      style={{ border: `1.25px dashed ${COR_MARROM_SUAVE}`, color: COR_MARROM_SUAVE }}
+    >
+      Disponível {rotuloDiaSemana(diaSemana)}
+    </span>
+  );
+}
+
 interface LinhaProdutoCantinaProps {
   produto: ItemCardapio;
   expandido: boolean;
@@ -129,6 +154,12 @@ function LinhaProdutoCantina({ produto, expandido, onToggleExpandir }: LinhaProd
 
   const valorComplementos = complementosSelecionados.reduce((acc, c) => acc + Number(c.preco_adicional), 0);
   const temComplementos = complementosDisponiveis.length > 0;
+
+  // Cada prato do dia é servido em 1 dia da semana fixo; fora desse dia o
+  // item continua visível no cardápio, só não dá pra adicionar. Acompanhamentos,
+  // bebidas e sobremesas não têm essa restrição.
+  const categoria = categoriaDoProduto(produto);
+  const disponivelHoje = categoria !== 'PRATOS' || produtoDisponivelHoje(produto);
 
   const togglePill = (id: string) => {
     setComplementosSelecionadosIds((atuais) =>
@@ -172,7 +203,11 @@ function LinhaProdutoCantina({ produto, expandido, onToggleExpandir }: LinhaProd
 
           {!temComplementos && (
             <div className="mt-3 flex justify-end">
-              <SeletorQuantidade qtd={qtd} idUnicoCarrinho={idUnicoCarrinho} produto={produto} complementosSelecionados={complementosSelecionados} onAdicionar={adicionarItem} onRemover={removerItem} />
+              {disponivelHoje ? (
+                <SeletorQuantidade qtd={qtd} idUnicoCarrinho={idUnicoCarrinho} produto={produto} complementosSelecionados={complementosSelecionados} onAdicionar={adicionarItem} onRemover={removerItem} />
+              ) : (
+                <EtiquetaForaDoDia diaSemana={produto.dia_semana as number} />
+              )}
             </div>
           )}
         </div>
@@ -213,7 +248,11 @@ function LinhaProdutoCantina({ produto, expandido, onToggleExpandir }: LinhaProd
                 <>Adicionais <span className="font-semibold">+{formatarMoeda(valorComplementos)}</span></>
               )}
             </div>
-            <SeletorQuantidade qtd={qtd} idUnicoCarrinho={idUnicoCarrinho} produto={produto} complementosSelecionados={complementosSelecionados} onAdicionar={adicionarItem} onRemover={removerItem} />
+            {disponivelHoje ? (
+              <SeletorQuantidade qtd={qtd} idUnicoCarrinho={idUnicoCarrinho} produto={produto} complementosSelecionados={complementosSelecionados} onAdicionar={adicionarItem} onRemover={removerItem} />
+            ) : (
+              <EtiquetaForaDoDia diaSemana={produto.dia_semana as number} />
+            )}
           </div>
         </div>
       )}
@@ -221,35 +260,29 @@ function LinhaProdutoCantina({ produto, expandido, onToggleExpandir }: LinhaProd
   );
 }
 
-type CategoriaCantina = 'PRATOS' | 'ACOMPANHAMENTOS' | 'BEBIDAS' | 'SOBREMESAS';
-
 export default function ComponenteLojaCantinaBrasil({ restaurante, produtos }: ComponenteLojaCantinaBrasilProps) {
   const params = useParams();
   const slug = (params?.slug as string) || '';
   const { totalItens } = useCarrinho();
   const [produtoExpandidoId, setProdutoExpandidoId] = useState<string | null>(null);
-  const [categoriaAtiva, setCategoriaAtiva] = useState<CategoriaCantina>('PRATOS');
 
   const alternarExpandido = (produtoId: string) => {
     setProdutoExpandidoId((atual) => (atual === produtoId ? null : produtoId));
   };
 
-  const categoriaDoProduto = (nome: string): CategoriaCantina => {
-    if (/sobremesa|doce|pudim|sorvete|mousse|brigadeiro|bolo/i.test(nome)) return 'SOBREMESAS';
-    if (/suco|refrigerante|água|bebida|cerveja|drink|vinho|guaraná|coca/i.test(nome)) return 'BEBIDAS';
-    if (/acompanhamento|arroz|farofa|salada|purê|fritas|couve|vinagrete/i.test(nome)) return 'ACOMPANHAMENTOS';
-    return 'PRATOS';
-  };
+  // Categoria vem do cadastro (campo `categoria`, com fallback pro nome pros
+  // itens ainda não categorizados) — a barra só mostra as categorias que
+  // realmente têm produto, então sobremesas e bebidas aparecem sozinhas
+  // assim que existir pelo menos 1 item cadastrado em cada uma.
+  const categoriasDisponiveis = ORDEM_CATEGORIAS.filter((categoria) =>
+    produtos.some((produto) => categoriaDoProduto(produto) === categoria.chave)
+  );
 
-  // TODO: reativar quando o cardápio tiver itens nas demais categorias.
-  const categorias: { chave: CategoriaCantina; rotulo: string }[] = [
-    { chave: 'PRATOS', rotulo: 'Pratos do Dia' },
-    // { chave: 'ACOMPANHAMENTOS', rotulo: 'Acompanhamentos' },
-    // { chave: 'BEBIDAS', rotulo: 'Bebidas' },
-    // { chave: 'SOBREMESAS', rotulo: 'Sobremesas' },
-  ];
+  const [categoriaAtiva, setCategoriaAtiva] = useState<CategoriaCantina>(
+    categoriasDisponiveis[0]?.chave ?? 'PRATOS'
+  );
 
-  const produtosFiltrados = produtos.filter((produto) => categoriaDoProduto(produto.nome) === categoriaAtiva);
+  const produtosFiltrados = produtos.filter((produto) => categoriaDoProduto(produto) === categoriaAtiva);
 
   return (
     <div className="min-h-screen antialiased pb-32 font-sans select-none" style={{ backgroundColor: COR_CREME }}>
@@ -299,7 +332,7 @@ export default function ComponenteLojaCantinaBrasil({ restaurante, produtos }: C
 
       <div className="mx-auto w-full max-w-xl px-6">
         <nav className="flex items-center gap-6 overflow-x-auto border-b pt-5 scrollbar-none" style={{ borderColor: COR_LINHA }}>
-          {categorias.map((categoria) => (
+          {categoriasDisponiveis.map((categoria) => (
             <button
               key={categoria.chave}
               type="button"

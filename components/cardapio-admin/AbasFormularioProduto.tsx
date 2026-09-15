@@ -5,6 +5,18 @@ import Image from 'next/image';
 import { Insumo } from '@/types/database';
 import { AdicionalCustomizado } from '@/actions/admin';
 
+const SUGESTOES_CATEGORIA = ['Pratos', 'Acompanhamentos', 'Bebidas', 'Sobremesas', 'Entradas', 'Combos'];
+
+const OPCOES_DIA_SEMANA = [
+  { valor: '0', rotulo: 'Domingo' },
+  { valor: '1', rotulo: 'Segunda-feira' },
+  { valor: '2', rotulo: 'Terça-feira' },
+  { valor: '3', rotulo: 'Quarta-feira' },
+  { valor: '4', rotulo: 'Quinta-feira' },
+  { valor: '5', rotulo: 'Sexta-feira' },
+  { valor: '6', rotulo: 'Sábado' },
+];
+
 interface AbaDadosProps {
   nome: string;
   setNome: (v: string) => void;
@@ -12,6 +24,10 @@ interface AbaDadosProps {
   setDescricao: (v: string) => void;
   preco: string;
   setPreco: (v: string) => void;
+  categoria: string;
+  setCategoria: (v: string) => void;
+  diaSemana: string;
+  setDiaSemana: (v: string) => void;
   fotoPreviewUrl: string;
   nomeArquivoFoto: string;
   onSelecionarFoto: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -24,6 +40,10 @@ export function AbaDadosBasicos({
   setDescricao,
   preco,
   setPreco,
+  categoria,
+  setCategoria,
+  diaSemana,
+  setDiaSemana,
   fotoPreviewUrl,
   nomeArquivoFoto,
   onSelecionarFoto
@@ -60,8 +80,41 @@ export function AbaDadosBasicos({
           value={preco} 
           onChange={(e) => setPreco(e.target.value)} 
           placeholder="0,00" 
-          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]" 
+          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]"
         />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Categoria</label>
+          <input
+            type="text"
+            list="sugestoes-categoria-produto"
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
+            placeholder="Ex: Pratos"
+            className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]"
+          />
+          <datalist id="sugestoes-categoria-produto">
+            {SUGESTOES_CATEGORIA.map((sugestao) => (
+              <option key={sugestao} value={sugestao} />
+            ))}
+          </datalist>
+          <p className="text-[10px] text-zinc-400">Opcional. Usada pra organizar o cardápio por seção.</p>
+        </div>
+        <div className="space-y-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Dia da semana</label>
+          <select
+            value={diaSemana}
+            onChange={(e) => setDiaSemana(e.target.value)}
+            className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]"
+          >
+            <option value="">Todos os dias</option>
+            {OPCOES_DIA_SEMANA.map((opcao) => (
+              <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-zinc-400">Só pra itens servidos em 1 dia fixo (ex: prato do dia).</p>
+        </div>
       </div>
       <div className="space-y-2">
         <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Foto do produto</label>

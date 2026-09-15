@@ -76,8 +76,12 @@ export interface ItemCardapio {
   disponivel: boolean;
   imagem_url: string;
   created_at: string;
+  /** Categoria estrutural do item (ex.: "Pratos", "Acompanhamentos", "Bebidas", "Sobremesas"). Texto livre, opcional. */
+  categoria?: string | null;
+  /** Dia da semana em que o item fica disponível para pedido (0=Domingo .. 6=Sábado). null = disponível todos os dias. */
+  dia_semana?: number | null;
   complementos_produto?: ComplementoProduto[];
-  
+
   adicionais_selecionados?: AdicionalSelecionado[];
 }
 

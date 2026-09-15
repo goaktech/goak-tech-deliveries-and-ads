@@ -44,6 +44,8 @@ interface ItemCardapioBruto {
   preco_venda: number | null;
   disponivel: boolean | null;
   imagem_url: string | null;
+  categoria: string | null;
+  dia_semana: number | null;
   composicao_produto: ProdutoComposicao[] | null;
   complementos_produto: ComplementoProdutoBruto[] | null;
 }
@@ -55,6 +57,10 @@ export interface ItemCardapioComCMV {
   preco_venda: number;
   disponivel: boolean;
   imagem_url: string | null;
+  /** Categoria estrutural do item (ex.: "Pratos", "Acompanhamentos", "Bebidas", "Sobremesas"). Opcional. */
+  categoria: string | null;
+  /** Dia da semana em que o item fica disponível (0=Domingo .. 6=Sábado). null = disponível todos os dias. */
+  dia_semana: number | null;
   custo_producao: number;
   percentual_cmv: number;
   margem_lucro: number;
@@ -227,6 +233,8 @@ export async function listarProdutosComCMV(): Promise<ItemCardapioComCMV[]> {
       preco_venda,
       disponivel,
       imagem_url,
+      categoria,
+      dia_semana,
       composicao_produto (
         insumo_id,
         quantidade_necessaria,
@@ -295,6 +303,8 @@ export async function listarProdutosComCMV(): Promise<ItemCardapioComCMV[]> {
       preco_venda: precoVenda,
       disponivel: !!item.disponivel,
       imagem_url: item.imagem_url ?? null,
+      categoria: item.categoria ?? null,
+      dia_semana: item.dia_semana ?? null,
       custo_producao: custoProducao,
       percentual_cmv: percentualCmv,
       margem_lucro: margemLucro,

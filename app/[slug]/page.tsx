@@ -28,6 +28,8 @@ interface ProdutoPagina {
   preco_venda: number | string;
   imagem_url: string | null;
   disponivel: boolean;
+  categoria: string | null;
+  dia_semana: number | null;
   created_at: string;
   complementos_produto: ComplementoProdutoPagina[] | null;
 }
@@ -62,6 +64,8 @@ export default async function PaginaCardapioPublico({ params }: PaginaCardapioPr
     preco_venda: Number(p.preco_venda),
     imagem_url: p.imagem_url ?? '',
     disponivel: p.disponivel,
+    categoria: p.categoria ?? null,
+    dia_semana: p.dia_semana ?? null,
     created_at: p.created_at,
     complementos_produto: (p.complementos_produto || []).map((c) => ({
       id: c.id,

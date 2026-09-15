@@ -14,6 +14,8 @@ import ComponenteLojaNaturaz from '@/components/ecommerce/lojas/ComponenteLojaNa
 import ComponenteLojaWcsAcaiteria from '@/components/ecommerce/lojas/ComponenteLojaWcsAcaiteria';
 import ComponenteLojaGoDog from '@/components/ecommerce/lojas/ComponenteLojaGoDog';
 import ComponenteLojaCantinaBrasil from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasil';
+import ComponenteLojaCantinaBrasilV2 from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV2';
+import ComponenteLojaPeruchoBurguer from '@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguer';
 
 export interface RestaurantePropsLoja {
   id: string;
@@ -36,6 +38,8 @@ const LOJAS_CUSTOMIZADAS: Record<string, ComponenteLoja> = {
   'wcs-acaiteria': ComponenteLojaWcsAcaiteria,
   godog: ComponenteLojaGoDog,
   'cantina-brasil': ComponenteLojaCantinaBrasil,
+  'cantina-brasil-v2': ComponenteLojaCantinaBrasilV2,
+  'perucho-burguer': ComponenteLojaPeruchoBurguer,
 };
 
 const TEMPLATES_POR_TIPO: Partial<Record<TipoRestaurante, ComponenteLoja>> = {

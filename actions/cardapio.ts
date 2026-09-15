@@ -11,6 +11,10 @@ interface DadosNovoProduto {
   fichaTecnica: Record<string, string>
   adicionais: Array<{ nome: string; preco: number }>
   imagemDataUrl?: string
+  /** Categoria estrutural do item (ex.: "Pratos", "Acompanhamentos", "Bebidas", "Sobremesas"). Opcional. */
+  categoria?: string | null
+  /** Dia da semana em que o item fica disponível (0=Domingo .. 6=Sábado). null/undefined = todos os dias. */
+  diaSemana?: number | null
 }
 
 const BUCKET_IMAGENS_PRODUTOS =
@@ -152,7 +156,9 @@ export async function criarProdutoAdmin(dados: DadosNovoProduto) {
         preco_venda: dados.preco_venda,
         imagem_url: imagemUrl,
         disponivel: dados.disponivel,
-        ordem: proximaOrdem
+        ordem: proximaOrdem,
+        categoria: dados.categoria?.trim() || null,
+        dia_semana: dados.diaSemana ?? null
       })
       .select()
       .single()
@@ -267,7 +273,9 @@ export async function atualizarProdutoAdmin(itemId: string, dados: DadosNovoProd
         descricao: dados.descricao || null,
         preco_venda: dados.preco_venda,
         imagem_url: imagemUrl,
-        disponivel: dados.disponivel
+        disponivel: dados.disponivel,
+        categoria: dados.categoria?.trim() || null,
+        dia_semana: dados.diaSemana ?? null
       })
       .eq('id', itemId)
 
@@ -413,6 +421,8 @@ export async function obterCardapioPorSlug(slug: string) {
       preco_venda,
       imagem_url,
       disponivel,
+      categoria,
+      dia_semana,
       created_at,
       complementos_produto (
         id,

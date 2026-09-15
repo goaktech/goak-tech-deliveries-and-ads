@@ -23,6 +23,8 @@ export default function ModalNovoProduto({ aberto, onFechar, insumosDisponiveis 
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
   const [preco, setPreco] = useState('')
+  const [categoria, setCategoria] = useState('')
+  const [diaSemana, setDiaSemana] = useState('')
   const [quantidadesFicha, setQuantidadesFicha] = useState<Record<string, string>>({})
   const [adicionais, setAdicionais] = useState<Array<{ nome: string; preco: number }>>([])
   const [fotoPreviewUrl, setFotoPreviewUrl] = useState('')
@@ -96,13 +98,17 @@ export default function ModalNovoProduto({ aberto, onFechar, insumosDisponiveis 
         disponivel: true,
         fichaTecnica: quantidadesFicha,
         adicionais,
-        imagemDataUrl: fotoDataUrl || undefined
+        imagemDataUrl: fotoDataUrl || undefined,
+        categoria: categoria || null,
+        diaSemana: diaSemana === '' ? null : Number(diaSemana)
       })
 
       if (resultado.success) {
         setNome('')
         setDescricao('')
         setPreco('')
+        setCategoria('')
+        setDiaSemana('')
         setQuantidadesFicha({})
         setAdicionais([])
         setFotoPreviewUrl('')
@@ -163,10 +169,12 @@ export default function ModalNovoProduto({ aberto, onFechar, insumosDisponiveis 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-5">
           <div className="min-h-[220px] flex flex-col">
             {abaAtiva === 'DADOS' && (
-              <AbaDadosBasicos 
+              <AbaDadosBasicos
                 nome={nome} setNome={setNome}
                 descricao={descricao} setDescricao={setDescricao}
                 preco={preco} setPreco={setPreco}
+                categoria={categoria} setCategoria={setCategoria}
+                diaSemana={diaSemana} setDiaSemana={setDiaSemana}
                 fotoPreviewUrl={fotoPreviewUrl}
                 nomeArquivoFoto={nomeArquivoFoto}
                 onSelecionarFoto={handleSelecionarFoto}

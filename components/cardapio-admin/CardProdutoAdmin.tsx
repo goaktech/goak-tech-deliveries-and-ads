@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { ItemCardapioComCMV } from '@/actions/admin';
+import { NOMES_DIAS_SEMANA } from '@/utils/horario-funcionamento';
 
 interface CardProps {
   produto: ItemCardapioComCMV;
@@ -92,6 +93,21 @@ export default function CardProdutoAdmin({
     </div>
   );
 
+  const badgeCategoriaEDia = (produto.categoria || produto.dia_semana !== null) && (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {produto.categoria && (
+        <span className="rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-600">
+          {produto.categoria}
+        </span>
+      )}
+      {produto.dia_semana !== null && (
+        <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+          Só {NOMES_DIAS_SEMANA[produto.dia_semana]}
+        </span>
+      )}
+    </div>
+  );
+
   const composicao = (
     <div className="max-w-md space-y-1 rounded-xl border border-zinc-200/70 bg-white p-3">
       <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Composição</span>
@@ -166,6 +182,7 @@ export default function CardProdutoAdmin({
         </div>
 
         {badgeEAcoes}
+        {badgeCategoriaEDia}
         <p className="max-w-md truncate text-xs font-medium text-zinc-500">{produto.descricao || 'Sem descrição.'}</p>
         {composicao}
 
@@ -185,6 +202,7 @@ export default function CardProdutoAdmin({
         <div className="min-w-0 flex-1 space-y-2.5">
           <h3 className="truncate text-base font-semibold leading-tight text-[#1A1A1A] transition-colors group-hover:text-[#E16349]">{produto.nome}</h3>
           {badgeEAcoes}
+          {badgeCategoriaEDia}
           <p className="max-w-md truncate text-xs font-medium text-zinc-500">{produto.descricao || 'Sem descrição.'}</p>
           {composicao}
           {botaoToggleDetalhes('w-full lg:hidden')}

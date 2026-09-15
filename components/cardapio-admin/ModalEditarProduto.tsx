@@ -43,6 +43,10 @@ function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: Form
   const [nome, setNome] = useState(produto.nome)
   const [descricao, setDescricao] = useState(produto.descricao || '')
   const [preco, setPreco] = useState(String(produto.preco_venda))
+  const [categoria, setCategoria] = useState(produto.categoria || '')
+  const [diaSemana, setDiaSemana] = useState(
+    produto.dia_semana === null || produto.dia_semana === undefined ? '' : String(produto.dia_semana)
+  )
   const [quantidadesFicha, setQuantidadesFicha] = useState<Record<string, string>>(() =>
     Object.fromEntries(produto.fichaTecnica.map((f) => [f.insumo_id, String(f.quantidade_necessaria)]))
   )
@@ -113,7 +117,9 @@ function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: Form
         disponivel: produto.disponivel,
         fichaTecnica: quantidadesFicha,
         adicionais,
-        imagemDataUrl: fotoDataUrl || undefined
+        imagemDataUrl: fotoDataUrl || undefined,
+        categoria: categoria || null,
+        diaSemana: diaSemana === '' ? null : Number(diaSemana)
       })
 
       if (resultado.success) {
@@ -175,6 +181,8 @@ function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: Form
                 nome={nome} setNome={setNome}
                 descricao={descricao} setDescricao={setDescricao}
                 preco={preco} setPreco={setPreco}
+                categoria={categoria} setCategoria={setCategoria}
+                diaSemana={diaSemana} setDiaSemana={setDiaSemana}
                 fotoPreviewUrl={fotoPreviewUrl}
                 nomeArquivoFoto={nomeArquivoFoto}
                 onSelecionarFoto={handleSelecionarFoto}

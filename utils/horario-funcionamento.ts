@@ -29,6 +29,11 @@ function converterMinutos(horaMinuto: string): number {
   return horas * 60 + minutos;
 }
 
+/** Dia da semana atual no fuso horário da loja (0=Domingo .. 6=Sábado). */
+export function obterDiaSemanaAtualBrasil(agora = new Date()): number {
+  return obterDiaEHoraAtualBrasilia(agora).dia;
+}
+
 function obterDiaEHoraAtualBrasilia(agora: Date): { dia: number; minutos: number } {
   const partes = new Intl.DateTimeFormat('en-US', {
     timeZone: FUSO_HORARIO_LOJA,
