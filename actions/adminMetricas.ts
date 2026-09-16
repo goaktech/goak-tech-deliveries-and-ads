@@ -4,16 +4,16 @@ import { createClient } from '@/utils/supabase/server';
 
 interface ComposicaoInsumoPedido {
   quantidade_necessaria: number | string | null;
-  insumos: Array<{
+  insumos: {
     custo_unitario: number | string | null;
-  }> | null;
+  } | null;
 }
 
 interface ItemPedidoMetrica {
   quantidade: number | string | null;
-  itens_cardapio: Array<{
+  itens_cardapio: {
     composicao_produto: ComposicaoInsumoPedido[] | null;
-  }> | null;
+  } | null;
 }
 
 interface PedidoMetrica {
@@ -108,11 +108,11 @@ export async function obterMetricasGrowthDoDia(): Promise<ResumoMetricasFunil> {
         const itens = pedido.itens_pedido || [];
         itens.forEach((item) => {
           const quantidadeVendida = Number(item.quantidade);
-          const composicoes = item.itens_cardapio?.[0]?.composicao_produto || [];
+          const composicoes = item.itens_cardapio?.composicao_produto || [];
           
           composicoes.forEach((comp) => {
             const quantidadeNecessaria = Number(comp.quantidade_necessaria);
-            const custoUnitarioInsumo = Number(comp.insumos?.[0]?.custo_unitario || 0);
+            const custoUnitarioInsumo = Number(comp.insumos?.custo_unitario || 0);
             
             custoInsumosTotal += quantidadeVendida * quantidadeNecessaria * custoUnitarioInsumo;
           });

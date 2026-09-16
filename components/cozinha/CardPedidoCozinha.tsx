@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { EntregadorCozinha, PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
 
 interface CardPedidoCozinhaProps {
@@ -21,6 +21,34 @@ export function CardPedidoCozinha({
   const ehEntrega = pedido.dados_cliente?.tipoEntrega !== 'RETIRADA';
   const mostrarAtribuicaoEntregador =
     ehEntrega && (pedido.status === 'PRONTO' || pedido.status === 'SAIU_PARA_ENTREGA');
+  const endereco = pedido.dados_cliente?.endereco;
+
+  const [mostrarEndereco, setMostrarEndereco] = useState(false);
+  const [enderecoCopiado, setEnderecoCopiado] = useState(false);
+
+  const formatarEndereco = (end?: typeof endereco) => {
+    if (!end) return '';
+    return [
+      [end.rua, end.numero].filter(Boolean).join(', '),
+      end.bairro,
+      end.cidade,
+      end.cep ? `CEP ${end.cep}` : null,
+    ]
+      .filter(Boolean)
+      .join(' - ');
+  };
+
+  const copiarEndereco = async () => {
+    const texto = formatarEndereco(endereco);
+    if (!texto) return;
+    try {
+      await navigator.clipboard.writeText(texto);
+      setEnderecoCopiado(true);
+      setTimeout(() => setEnderecoCopiado(false), 2000);
+    } catch (err) {
+      console.error('Falha ao copiar endereço:', err);
+    }
+  };
 
   const obterProximoStatus = (statusAtual: PedidoCozinha['status']): PedidoCozinha['status'] | null => {
     switch (statusAtual) {
@@ -98,6 +126,36 @@ export function CardPedidoCozinha({
           <h3 className="text-xs font-bold tracking-tight text-[#1A1A1A] uppercase">{pedido.dados_cliente?.nome}</h3>
           <p className="mt-0.5 text-[11px] font-semibold text-zinc-500">{pedido.dados_cliente?.telefone}</p>
         </div>
+
+        {ehEntrega && endereco && (
+          <div className="mb-3 border-b border-zinc-100 pb-2.5">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMostrarEndereco((atual) => !atual)}
+                className="flex-1 rounded-lg border border-zinc-200 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-50"
+              >
+                {mostrarEndereco ? 'Ocultar endereço' : 'Ver endereço'}
+              </button>
+              <button
+                type="button"
+                onClick={copiarEndereco}
+                className={`flex-1 rounded-lg border py-1.5 text-[10px] font-semibold uppercase tracking-wider transition ${
+                  enderecoCopiado
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                {enderecoCopiado ? 'Copiado!' : 'Copiar endereço'}
+              </button>
+            </div>
+            {mostrarEndereco && (
+              <p className="mt-2 text-[11px] font-medium leading-snug text-zinc-600">
+                {formatarEndereco(endereco)}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2">
           {pedido.itens_pedido.map((item) => (

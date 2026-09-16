@@ -31,7 +31,7 @@ export interface PedidoCozinha {
     nome: string;
     telefone: string;
     tipoEntrega?: 'ENTREGA' | 'RETIRADA';
-    endereco?: { rua: string; numero: string; bairro: string };
+    endereco?: { rua: string; numero: string; bairro: string; cidade?: string; cep?: string };
   };
   created_at: string;
   itens_pedido: ItemPedidoDetalhado[];
@@ -42,9 +42,9 @@ export interface PedidoCozinha {
 interface ItemPedidoSelecionado {
   id: string;
   quantidade: number;
-  itens_cardapio: Array<{
+  itens_cardapio: {
     nome: string;
-  }> | null;
+  } | null;
   itens_pedido_complementos: Array<{
     id: string;
     nome: string;
@@ -59,7 +59,7 @@ interface PedidoSelecionado {
   dados_cliente: PedidoCozinha['dados_cliente'];
   created_at: string;
   entregador_id: string | null;
-  entregadores: Array<{ nome: string }> | null;
+  entregadores: { nome: string } | null;
   itens_pedido: ItemPedidoSelecionado[] | null;
 }
 
@@ -120,7 +120,7 @@ export function useCozinha() {
     const itensFormatados = ((itensBuscados || []) as unknown as ItemPedidoSelecionado[]).map((i) => ({
       id: i.id,
       quantidade: i.quantidade,
-      item_cardapio: { nome: i.itens_cardapio?.[0]?.nome || 'Item Desconhecido' },
+      item_cardapio: { nome: i.itens_cardapio?.nome || 'Item Desconhecido' },
       adicionais: (i.itens_pedido_complementos || []).map((a) => ({ id: a.id, nome: a.nome }))
     }));
 
@@ -146,11 +146,11 @@ export function useCozinha() {
       dados_cliente: p.dados_cliente,
       created_at: p.created_at,
       entregador_id: p.entregador_id ?? null,
-      entregador_nome: p.entregadores?.[0]?.nome ?? null,
+      entregador_nome: p.entregadores?.nome ?? null,
       itens_pedido: (p.itens_pedido || []).map((i) => ({
         id: i.id,
         quantidade: i.quantidade,
-        item_cardapio: { nome: i.itens_cardapio?.[0]?.nome || 'Item Desconhecido' },
+        item_cardapio: { nome: i.itens_cardapio?.nome || 'Item Desconhecido' },
         adicionais: (i.itens_pedido_complementos || []).map((a) => ({ id: a.id, nome: a.nome }))
       }))
     }));

@@ -32,10 +32,10 @@ interface PedidoPublicoLinhaBruta {
   id: string;
   quantidade: number;
   preco_unitario: number;
-  itens_cardapio: Array<{
+  itens_cardapio: {
     nome: string;
     imagem_url?: string | null;
-  }> | null;
+  } | null;
   itens_pedido_complementos: AdicionalPedidoBruto[] | null;
 }
 
@@ -177,8 +177,8 @@ function normalizarPedidoPublico(bruto: PedidoPublicoBruto): PedidoPublico {
     },
     itens: (bruto.itens_pedido ?? []).map((item) => ({
       id: item.id,
-      nome: item.itens_cardapio?.[0]?.nome ?? 'Item',
-      imagem_url: item.itens_cardapio?.[0]?.imagem_url ?? null,
+      nome: item.itens_cardapio?.nome ?? 'Item',
+      imagem_url: item.itens_cardapio?.imagem_url ?? null,
       quantidade: Number(item.quantidade),
       preco_unitario: Number(item.preco_unitario),
       adicionais: (item.itens_pedido_complementos ?? []).map((adicional) => ({
