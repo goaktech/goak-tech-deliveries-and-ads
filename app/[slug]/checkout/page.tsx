@@ -554,9 +554,14 @@ export default function TelaDeCheckoutDedicada() {
                       </>
                     )}
                   </button>
-                  {trackingPedido?.estimativaMin ? (
+                  {trackingPedido ? (
+                    // TEMPORÁRIO: enquanto a disponibilidade de motoboy estiver instável, não
+                    // exibimos mais a previsão em minutos aqui (que somava preparo + deslocamento
+                    // em trackingPedido.estimativaMin) — o tempo de entrega passa a ser combinado
+                    // por WhatsApp. Reverter para a previsão em minutos assim que a entrega
+                    // estiver estabilizada.
                     <p className="text-center text-xs text-zinc-500">
-                      Previsão inicial: cerca de {trackingPedido.estimativaMin} min após a confirmação do pagamento.
+                      Vamos enviar as informações sobre o tempo de entrega no seu WhatsApp.
                     </p>
                   ) : null}
                   {trackingPedido ? (

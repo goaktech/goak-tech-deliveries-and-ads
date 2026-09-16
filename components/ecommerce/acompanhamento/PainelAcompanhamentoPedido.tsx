@@ -13,7 +13,6 @@ import {
   obterTituloStatusPedido,
   obterTipoEntregaPedido,
 } from '@/utils/pedido-status';
-import { calcularMinutosRestantes } from '@/utils/estimativa-chegada';
 
 interface PedidoAcompanhamento {
   id: string;
@@ -64,47 +63,6 @@ function formatarData(data: string) {
   });
 }
 
-function LinhaContagemRegressiva({ rotulo, minutos }: { rotulo: string; minutos: number }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
-      <span className="relative flex h-2 w-2 shrink-0">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#E16349] opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#E16349]" />
-      </span>
-      <p className="text-xs font-semibold text-zinc-700">
-        <span className="uppercase tracking-wide text-zinc-500">{rotulo}:</span>{' '}
-        <span
-          key={minutos}
-          className="inline-block animate-in fade-in slide-in-from-bottom-1 font-bold tabular-nums text-zinc-900 duration-300"
-        >
-          {minutos} min
-        </span>
-      </p>
-    </div>
-  );
-}
-
-function ContagemRegressiva({
-  rotulo,
-  totalMinutos,
-  referenciaIso,
-}: {
-  rotulo: string;
-  totalMinutos: number;
-  referenciaIso: string;
-}) {
-  const [minutos, setMinutos] = useState(() => calcularMinutosRestantes(totalMinutos, referenciaIso));
-
-  useEffect(() => {
-    const intervalo = window.setInterval(() => {
-      setMinutos((atual) => (atual > 0 ? atual - 1 : atual));
-    }, 60000);
-    return () => window.clearInterval(intervalo);
-  }, []);
-
-  return <LinhaContagemRegressiva rotulo={rotulo} minutos={minutos} />;
-}
-
 export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelAcompanhamentoPedidoProps) {
   const [pedido, setPedido] = useState(pedidoInicial);
   const [erro, setErro] = useState('');
@@ -112,7 +70,6 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
   const etapas = useMemo(() => obterEtapasStatusPedido(tipoEntrega), [tipoEntrega]);
   const indiceAtual = useMemo(() => obterIndiceStatusPedido(pedido.status, tipoEntrega), [pedido.status, tipoEntrega]);
 
-  const emFasePreparo = pedido.status === 'PENDENTE' || pedido.status === 'PAGO' || pedido.status === 'PREPARANDO';
   const emFaseEntrega = pedido.status === 'SAIU_PARA_ENTREGA';
 
   useEffect(() => {
@@ -187,23 +144,25 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
               </div>
             </div>
 
-            {(emFasePreparo && pedido.tempo_preparo_estimado_min != null) ||
-            (emFaseEntrega && pedido.tempo_deslocamento_min != null) ? (
+            {emFaseEntrega ? (
+              // TEMPORÁRIO: enquanto a disponibilidade de motoboy estiver instável,
+              // escondemos tanto a contagem de preparo quanto a de entrega em minutos
+              // (que ficavam aqui, uma embaixo da outra) — o tempo estimado passa a ser
+              // combinado por WhatsApp. Os componentes LinhaContagemRegressiva /
+              // ContagemRegressiva usados antes ficaram só no histórico do git; reverter
+              // restaurando os dois blocos (Preparo com totalMinutos={pedido.tempo_preparo_estimado_min}
+              // referenciaIso={pedido.created_at}, Entrega com totalMinutos={pedido.tempo_deslocamento_min}
+              // referenciaIso={pedido.updated_at}) assim que a entrega estiver estabilizada.
               <div className="mt-3 space-y-2">
-                {emFasePreparo && pedido.tempo_preparo_estimado_min != null ? (
-                  <ContagemRegressiva
-                    rotulo="Preparo"
-                    totalMinutos={pedido.tempo_preparo_estimado_min}
-                    referenciaIso={pedido.created_at}
-                  />
-                ) : null}
-                {emFaseEntrega && pedido.tempo_deslocamento_min != null ? (
-                  <ContagemRegressiva
-                    rotulo="Entrega"
-                    totalMinutos={pedido.tempo_deslocamento_min}
-                    referenciaIso={pedido.updated_at}
-                  />
-                ) : null}
+                <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#E16349] opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-[#E16349]" />
+                  </span>
+                  <p className="text-xs font-semibold text-zinc-700">
+                    Vamos enviar as informações sobre o tempo de entrega no seu WhatsApp.
+                  </p>
+                </div>
               </div>
             ) : pedido.status === 'PRONTO' ? (
               <div className="mt-3 flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
@@ -214,9 +173,7 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
                 <p className="text-xs font-semibold text-zinc-700">
                   {tipoEntrega === 'RETIRADA'
                     ? 'Já pode retirar na loja.'
-                    : pedido.tempo_deslocamento_min != null
-                      ? `Sai para entrega a qualquer momento — cerca de ${pedido.tempo_deslocamento_min} min de trajeto até você.`
-                      : 'Sai para entrega a qualquer momento.'}
+                    : 'Sai para entrega a qualquer momento. Vamos enviar as informações sobre o tempo de entrega no seu WhatsApp.'}
                 </p>
               </div>
             ) : null}
