@@ -24,41 +24,30 @@ interface ComponenteLojaCantinaBrasilV2Props {
 }
 
 /* =============================================================
-   Paleta — extraída da logo da Cantina Brasil (marrom / dourado /
-   creme / terracota / verde-folha). Mesma família de cores do
-   Royal Burguer (cream + brown + gold), só que com os tons
-   próprios da marca.
+   Paleta — mesmas cores do Royal Burguer (--ink, --ink-soft, --brown,
+   --brown-soft, --gold, --cream, --cream-2 do style.css original),
+   só trocando a foto do lanche pela identidade da Cantina Brasil.
    ============================================================= */
-const COR_MARROM = '#2A1A10'; // tinta / textos fortes
-const COR_MARROM_SUAVE = '#7A5A3A'; // texto secundário
-const COR_PAINEL = '#8C5E3C'; // painel do card do prato (equivalente ao --brown-soft)
-const COR_PAINEL_TEXTO = '#F7E9CE'; // texto/preço sobre o painel marrom
-const COR_DOURADO = '#C8892E';
-const COR_DOURADO_CLARO = '#E8B65A';
-const COR_CREME = '#FBF3E4';
-const COR_CREME_ESCURO = '#F1E1BF';
-const COR_TERRACOTA = '#9C4E24';
-const COR_VERDE = '#5C7A46';
-const COR_LINHA = '#E6D2A6';
-const SOMBRA = '0 10px 26px rgba(42, 26, 16, 0.18)';
-const SOMBRA_FOTO = '0 14px 16px rgba(42, 26, 16, 0.4)';
+const COR_MARROM = '#3b2011'; // --ink
+const COR_MARROM_SUAVE = '#6b4a33'; // --ink-soft
+const COR_PAINEL = '#b15e33'; // --brown-soft (painel do card do prato + pill de categoria inativa)
+const COR_PAINEL_TEXTO = '#ffffff'; // --white (texto sobre o painel marrom)
+const COR_DOURADO = '#f4a93c'; // --gold
+const COR_CREME = '#f6efe0'; // --cream
+const COR_CREME_ESCURO = '#efe3cc'; // --cream-2
+const COR_TERRACOTA = '#9e4a1f'; // --brown
+const COR_LINHA = 'rgba(107, 74, 51, 0.25)'; // --ink-soft com opacidade, pra bordas/divisores sutis
+const COR_FUNDO_PAGINA = '#e9dcc4'; // "mesa" atrás do cardápio em telas largas — igual ao body do Royal Burguer
+const SOMBRA = '0 10px 26px rgba(59, 32, 17, 0.16)'; // --shadow
+const SOMBRA_FOTO = '0 14px 16px rgba(59, 32, 17, 0.4)';
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-/* =============================================================
-   Prato em destaque no bloco "Prato do Dia" (topo do cardápio).
-   Preencha com o nome (ou parte do nome) do produto que deve
-   aparecer lá — o texto é comparado sem diferenciar maiúsculas.
-   Deixe "" para desativar o bloco.
-   Ex.: const NOME_PRODUTO_DESTAQUE = 'Feijoada';
-   ============================================================= */
-const NOME_PRODUTO_DESTAQUE: string = '';
-
 function IconeFolha({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke={COR_VERDE} strokeWidth="1.4" aria-hidden>
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke={COR_TERRACOTA} strokeWidth="1.4" aria-hidden>
       <path d="M4 20c8-1 14-7 15-16C10 5 4 11 4 20Z" strokeLinejoin="round" />
       <path d="M5.5 18.5C9 15 12 12 17.5 5.5" strokeLinecap="round" />
     </svg>
@@ -171,9 +160,9 @@ function SeletorQuantidade({
   onRemover,
   variante = 'claro',
 }: SeletorQuantidadeProps) {
-  const corBorda = variante === 'escuro' ? 'rgba(247, 233, 206, 0.55)' : COR_MARROM;
+  const corBorda = variante === 'escuro' ? 'rgba(255, 255, 255, 0.55)' : COR_MARROM;
   const corTexto = variante === 'escuro' ? COR_PAINEL_TEXTO : COR_MARROM;
-  const corBotaoPreenchido = variante === 'escuro' ? COR_DOURADO_CLARO : COR_MARROM;
+  const corBotaoPreenchido = variante === 'escuro' ? COR_DOURADO : COR_MARROM;
   const corTextoPreenchido = variante === 'escuro' ? COR_MARROM : '#fff';
 
   if (qtd > 0) {
@@ -269,25 +258,25 @@ function CartaoPratoCantina({ produto, emojiCategoria, expandido, onToggleExpand
   };
 
   return (
-    <article className="relative mb-7 ml-[18px] min-h-[132px] pl-[104px]">
-      {/* foto em "blob" orgânico, sangrando pra esquerda — mesma ideia do Royal Burguer */}
+    <article className="relative mb-7 ml-[18px] flex min-h-[150px] flex-col justify-center pl-[118px]">
+      {/* foto em "blob" orgânico, sangrando pra esquerda e por cima do painel — mesma ideia do Royal Burguer */}
       <div
-        className="absolute -left-[18px] top-1/2 z-[2] h-[124px] w-[124px] -translate-y-1/2 overflow-hidden rounded-[38%_38%_38%_12%]"
+        className="absolute -left-[18px] top-1/2 z-[2] h-[142px] w-[142px] -translate-y-1/2 overflow-hidden rounded-[38%_38%_38%_12%]"
         style={{ boxShadow: SOMBRA_FOTO }}
       >
         {produto.imagem_url ? (
           <Image
             src={produto.imagem_url}
             alt={produto.nome}
-            width={124}
-            height={124}
+            width={142}
+            height={142}
             className="h-full w-full object-cover"
             unoptimized
           />
         ) : (
           <div
             className="flex h-full w-full items-center justify-center"
-            style={{ background: `radial-gradient(circle at 38% 30%, #ffe3ba, ${COR_DOURADO_CLARO} 65%, ${COR_TERRACOTA})` }}
+            style={{ background: 'radial-gradient(circle at 38% 30%, #ffe0b0, #e2a860 65%, #c67d43)' }}
           >
             <span className="text-4xl" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.22))' }} aria-hidden>
               {emojiCategoria}
@@ -297,22 +286,25 @@ function CartaoPratoCantina({ produto, emojiCategoria, expandido, onToggleExpand
       </div>
 
       <h3
-        className={`${fonteExibicao.className} mb-1.5 truncate pr-2 text-right text-[15px] font-bold leading-tight`}
+        className={`${fonteExibicao.className} mb-1.5 truncate pr-8 text-right text-[15px] font-bold leading-tight`}
         style={{ color: COR_MARROM }}
         title={produto.nome}
       >
         {produto.nome}
       </h3>
 
+      {/* painel puxado pra trás (-ml) pra passar por baixo da foto, com o canto
+          superior esquerdo bem arredondado pra "abraçar" o blob — o z-index
+          menor que o da foto garante que ela fique por cima na sobreposição */}
       <div
-        className="rounded-[30px_18px_18px_18px] px-4 py-3"
+        className="relative z-[1] ml-[-64px] min-h-[108px] rounded-[34px_18px_18px_18px] py-3 pl-[78px] pr-4"
         style={{ backgroundColor: COR_PAINEL, boxShadow: SOMBRA }}
       >
         <p className="text-[13px] leading-snug" style={{ color: COR_PAINEL_TEXTO }}>
           {produto.descricao || 'Feito em casa, todo dia.'}
         </p>
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-[15px] font-bold" style={{ color: '#FFE9C2' }}>
+          <span className="text-[15px] font-bold" style={{ color: '#ffe6bf' }}>
             {formatarMoeda(Number(produto.preco_venda))}
           </span>
           {!temComplementos && (
@@ -439,29 +431,46 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
 
   const produtosFiltrados = produtos.filter((produto) => categoriaDoProduto(produto) === categoriaAtiva);
 
-  const produtoDestaque = NOME_PRODUTO_DESTAQUE
-    ? produtos.find((produto) => produto.nome.toLowerCase().includes(NOME_PRODUTO_DESTAQUE.toLowerCase()))
-    : undefined;
+  // "Prato do Momento": destaca automaticamente o prato do dia de hoje (o
+  // item de categoria PRATOS cujo dia_semana bate com hoje) — sem precisar
+  // configurar nada manualmente. Some sozinho quando nenhum prato do dia
+  // estiver cadastrado pra hoje.
+  const produtoDestaque = produtos.find(
+    (produto) =>
+      categoriaDoProduto(produto) === 'PRATOS' &&
+      produto.dia_semana !== null &&
+      produto.dia_semana !== undefined &&
+      produtoDisponivelHoje(produto)
+  );
 
   return (
-    <div className="min-h-screen select-none pb-32 antialiased" style={{ backgroundColor: COR_CREME }}>
+    // moldura "celular" centralizada — mesma ideia do Royal Burguer (.phone,
+    // fundo contrastante nas laterais em telas largas). Um pouco mais larga
+    // que o --app original (480px) pra aproveitar melhor telas de desktop.
+    // Sem essa moldura o cardápio esticava a largura inteira da tela em
+    // desktop e o card do prato (foto-blob + painel compacto) ficava deformado.
+    <div className="min-h-screen w-full" style={{ backgroundColor: COR_FUNDO_PAGINA }}>
+      <div
+        className="relative mx-auto min-h-screen w-full max-w-[560px] select-none pb-32 antialiased"
+        style={{ backgroundColor: COR_CREME, boxShadow: '0 0 60px rgba(59, 32, 17, 0.18)' }}
+      >
       {/* ---------- herói: identidade da marca, no lugar da foto do Royal Burguer ---------- */}
       <header
         className="relative overflow-hidden"
-        style={{ background: `linear-gradient(160deg, ${COR_MARROM} 0%, #46301C 55%, ${COR_TERRACOTA} 100%)` }}
+        style={{ background: `linear-gradient(160deg, ${COR_MARROM} 0%, #6E3A1E 55%, ${COR_TERRACOTA} 100%)` }}
       >
         <div className="relative mx-auto w-full max-w-xl px-6 pb-8 pt-6 text-center">
           <Link
             href={`/${slug}/checkout`}
             className="absolute right-6 top-6 rounded-full p-2"
-            style={{ backgroundColor: 'rgba(251, 243, 228, 0.14)', color: COR_CREME }}
+            style={{ backgroundColor: 'rgba(246, 239, 224, 0.14)', color: COR_CREME }}
             aria-label="Ver sacola"
           >
             <IconeSacola className="h-5 w-5" />
             {totalItens > 0 && (
               <span
                 className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
-                style={{ backgroundColor: COR_DOURADO_CLARO, color: COR_MARROM }}
+                style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}
               >
                 {totalItens}
               </span>
@@ -484,7 +493,7 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
           <h1 className={`${fonteExibicao.className} mt-4 text-3xl font-extrabold uppercase leading-tight`} style={{ color: COR_CREME }}>
             {restaurante.nome || 'Cantina Brasil'}
           </h1>
-          <p className={`${fonteManuscrita.className} mt-1 text-xl`} style={{ color: COR_DOURADO_CLARO }}>
+          <p className={`${fonteManuscrita.className} mt-1 text-xl`} style={{ color: COR_DOURADO }}>
             &ldquo;O sabor de casa em cada prato&rdquo;
           </p>
         </div>
@@ -494,7 +503,7 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
       {categoriasDisponiveis.length > 1 && (
         <nav
           className="sticky top-0 z-30 flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none"
-          style={{ backgroundColor: COR_CREME, boxShadow: '0 6px 14px rgba(42, 26, 16, 0.08)' }}
+          style={{ backgroundColor: COR_CREME, boxShadow: '0 6px 14px rgba(59, 32, 17, 0.08)' }}
         >
           {categoriasDisponiveis.map((categoria) => {
             const ativa = categoriaAtiva === categoria.chave;
@@ -525,14 +534,14 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
         </nav>
       )}
 
-      {/* ---------- prato do dia (destaque opcional) ---------- */}
+      {/* ---------- prato do momento (destaque automático do prato de hoje) ---------- */}
       {produtoDestaque && (
-        <section className="px-6 pb-2 pt-6 text-center" style={{ backgroundColor: COR_CREME_ESCURO }}>
+        <section className="px-6 pb-2 pt-6 text-center" style={{ backgroundColor: COR_CREME }}>
           <span
             className="inline-block rounded-full px-3 py-1 text-xs font-bold"
             style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}
           >
-            ⭐ Prato do Dia
+            ⭐ Prato do Momento
           </span>
 
           <div className="mx-auto mt-3 flex max-w-[280px] items-center justify-center">
@@ -598,13 +607,14 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
         </div>
       </section>
 
-      <BarraCarrinhoFlutuante corBotaoAcao={COR_MARROM} corBadgeFundo={COR_DOURADO_CLARO} corBadgeTexto={COR_MARROM} />
+      <BarraCarrinhoFlutuante corBotaoAcao={COR_MARROM} corBadgeFundo={COR_DOURADO} corBadgeTexto={COR_MARROM} />
+      </div>
     </div>
   );
 }
 
-/* botão de adicionar do bloco "Prato do Dia" — vive fora do card porque usa o
-   contexto do carrinho isoladamente (mesmo produto pode não ter complementos) */
+/* botão de adicionar do bloco "Prato do Momento" — vive fora do card porque
+   usa o contexto do carrinho isoladamente (mesmo produto pode não ter complementos) */
 function ProdutoDestaqueBotao({ produto }: { produto: ItemCardapio }) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const itemNoCarrinho = itens.find((item) => item.idUnico === produto.id);
