@@ -142,8 +142,8 @@ export function CardPedidoCozinha({
         </div>
 
         <div className="mb-3 border-b border-zinc-100 pb-2">
-          <h3 className="text-xs font-bold tracking-tight text-[#1A1A1A] uppercase">{pedido.dados_cliente?.nome}</h3>
-          <p className="mt-0.5 text-[11px] font-semibold text-zinc-500">{pedido.dados_cliente?.telefone}</p>
+          <h3 className="text-base font-bold tracking-tight text-[#1A1A1A] uppercase">{pedido.dados_cliente?.nome}</h3>
+          <p className="mt-0.5 text-sm font-bold text-zinc-700">{pedido.dados_cliente?.telefone}</p>
         </div>
 
         {ehEntrega && endereco && (
@@ -151,7 +151,7 @@ export function CardPedidoCozinha({
             <button
               type="button"
               onClick={() => setMostrarEndereco((atual) => !atual)}
-              className="w-full rounded-lg border border-zinc-200 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-50"
+              className="w-full rounded-md border border-zinc-100 py-1 text-[9px] font-medium lowercase tracking-wide text-zinc-400 transition hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-600"
             >
               {mostrarEndereco ? 'Ocultar endereço' : 'Ver endereço'}
             </button>
@@ -160,14 +160,14 @@ export function CardPedidoCozinha({
                 {formatarEndereco(endereco)}
               </p>
             )}
-            <div className="mt-2 flex items-center gap-1.5">
+            <div className="mt-1.5 flex items-center gap-1">
               <button
                 type="button"
                 onClick={copiarEndereco}
-                className={`flex-1 rounded-lg border py-1.5 text-[10px] font-semibold uppercase tracking-wider transition ${
+                className={`flex-1 rounded-md border py-1 text-[9px] font-medium lowercase tracking-wide transition ${
                   enderecoCopiado
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
+                    : 'border-zinc-100 text-zinc-400 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-600'
                 }`}
               >
                 {enderecoCopiado ? 'Copiado!' : 'Copiar endereço'}
@@ -177,31 +177,31 @@ export function CardPedidoCozinha({
                 onClick={copiarLocalizacao}
                 disabled={!urlLocalizacao}
                 title={urlLocalizacao ?? undefined}
-                className={`flex-1 rounded-lg border py-1.5 text-[10px] font-semibold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`flex-1 rounded-md border py-1 text-[9px] font-medium lowercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   localizacaoCopiada
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
+                    : 'border-zinc-100 text-zinc-400 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-600'
                 }`}
               >
-                {localizacaoCopiada ? 'Copiado!' : 'Copiar localização'}
+                {localizacaoCopiada ? 'Copiado!' : 'Copiar localização do Maps'}
               </button>
             </div>
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {pedido.itens_pedido.map((item) => (
-            <div key={item.id} className="text-xs">
+            <div key={item.id} className="text-sm">
               <div className="flex items-start justify-between">
-                <span className="text-zinc-700 font-semibold leading-tight">
+                <span className="text-[#1A1A1A] font-bold leading-tight">
                   {item.item_cardapio.nome}
                 </span>
-                <span className="ml-4 rounded border border-zinc-200/40 bg-[#F3F3F3] px-1.5 py-0.5 text-[10px] font-mono font-semibold text-zinc-500">
+                <span className="ml-4 rounded border border-zinc-200 bg-[#F3F3F3] px-2 py-0.5 text-xs font-mono font-bold text-zinc-700">
                   {item.quantidade}x
                 </span>
               </div>
               {item.adicionais.length > 0 && (
-                <p className="mt-0.5 text-[10px] font-medium text-[#E16349]">
+                <p className="mt-0.5 text-xs font-medium text-[#E16349]">
                   + {item.adicionais.map((adicional) => adicional.nome).join(', ')}
                 </p>
               )}
