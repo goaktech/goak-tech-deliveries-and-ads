@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { EntregadorCozinha, PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
-import { montarUrlLocalizacaoEntrega } from '@/utils/pedido-status';
+import { montarUrlGeoLocalizacaoEntrega, montarUrlLocalizacaoEntrega } from '@/utils/pedido-status';
 
 interface CardPedidoCozinhaProps {
   pedido: PedidoCozinha;
@@ -26,7 +26,6 @@ export function CardPedidoCozinha({
 
   const [mostrarEndereco, setMostrarEndereco] = useState(false);
   const [enderecoCopiado, setEnderecoCopiado] = useState(false);
-  const [localizacaoCopiada, setLocalizacaoCopiada] = useState(false);
 
   const formatarEndereco = (end?: typeof endereco) => {
     if (!end) return '';
@@ -52,20 +51,26 @@ export function CardPedidoCozinha({
     }
   };
 
-  const urlLocalizacao = montarUrlLocalizacaoEntrega(
+  const urlMapsLocalizacao = montarUrlLocalizacaoEntrega(
+    pedido.dados_cliente,
+    pedido.cliente_latitude,
+    pedido.cliente_longitude
+  );
+  const urlGeoLocalizacao = montarUrlGeoLocalizacaoEntrega(
     pedido.dados_cliente,
     pedido.cliente_latitude,
     pedido.cliente_longitude
   );
 
-  const copiarLocalizacao = async () => {
-    if (!urlLocalizacao) return;
-    try {
-      await navigator.clipboard.writeText(urlLocalizacao);
-      setLocalizacaoCopiada(true);
-      setTimeout(() => setLocalizacaoCopiada(false), 2000);
-    } catch (err) {
-      console.error('Falha ao copiar localização:', err);
+  // No Android, "geo:" abre o seletor nativo de apps (Maps, Waze etc). No iPhone e no
+  // computador esse esquema não é reconhecido, então usamos o link do Google Maps.
+  // A checagem do aparelho só é feita no clique (evento do usuário), nunca durante a
+  // renderização, então não há risco de diferença entre o HTML do servidor e o do cliente.
+  const abrirLocalizacaoNoMaps = () => {
+    const ehAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+    const href = (ehAndroid ? urlGeoLocalizacao : urlMapsLocalizacao) ?? urlMapsLocalizacao;
+    if (href) {
+      window.open(href, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -146,12 +151,37 @@ export function CardPedidoCozinha({
           <p className="mt-0.5 text-sm font-bold text-zinc-700">{pedido.dados_cliente?.telefone}</p>
         </div>
 
+        <div className="mb-3 border-b border-zinc-100 pb-2.5">
+          <span className="inline-block rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-800">
+            descrição
+          </span>
+          <div className="mt-2 space-y-2.5">
+            {pedido.itens_pedido.map((item) => (
+              <div key={item.id} className="text-sm">
+                <div className="flex items-start justify-between">
+                  <span className="text-[#1A1A1A] font-bold leading-tight">
+                    {item.item_cardapio.nome}
+                  </span>
+                  <span className="ml-4 rounded border border-zinc-200 bg-[#F3F3F3] px-2 py-0.5 text-xs font-mono font-bold text-zinc-700">
+                    {item.quantidade}x
+                  </span>
+                </div>
+                {item.adicionais.length > 0 && (
+                  <p className="mt-0.5 text-xs font-medium text-[#E16349]">
+                    + {item.adicionais.map((adicional) => adicional.nome).join(', ')}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {ehEntrega && endereco && (
           <div className="mb-3 border-b border-zinc-100 pb-2.5">
             <button
               type="button"
               onClick={() => setMostrarEndereco((atual) => !atual)}
-              className="w-full rounded-md border border-zinc-100 py-1 text-[9px] font-medium lowercase tracking-wide text-zinc-400 transition hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-600"
+              className="w-full rounded-md border border-zinc-100 py-1 text-[9px] font-medium lowercase tracking-wide text-zinc-500 transition hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700"
             >
               {mostrarEndereco ? 'Ocultar endereço' : 'Ver endereço'}
             </button>
@@ -167,47 +197,24 @@ export function CardPedidoCozinha({
                 className={`flex-1 rounded-md border py-1 text-[9px] font-medium lowercase tracking-wide transition ${
                   enderecoCopiado
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-zinc-100 text-zinc-400 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-600'
+                    : 'border-zinc-100 text-zinc-500 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700'
                 }`}
               >
                 {enderecoCopiado ? 'Copiado!' : 'Copiar endereço'}
               </button>
               <button
                 type="button"
-                onClick={copiarLocalizacao}
-                disabled={!urlLocalizacao}
-                title={urlLocalizacao ?? undefined}
-                className={`flex-1 rounded-md border py-1 text-[9px] font-medium lowercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                  localizacaoCopiada
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-zinc-100 text-zinc-400 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-600'
-                }`}
+                onClick={abrirLocalizacaoNoMaps}
+                disabled={!urlMapsLocalizacao}
+                title={urlMapsLocalizacao ?? undefined}
+                className="flex-1 rounded-md border border-zinc-100 py-1 text-[9px] font-medium lowercase tracking-wide text-zinc-500 transition hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {localizacaoCopiada ? 'Copiado!' : 'Copiar localização do Maps'}
+                Abrir no Maps
               </button>
             </div>
           </div>
         )}
 
-        <div className="space-y-2.5">
-          {pedido.itens_pedido.map((item) => (
-            <div key={item.id} className="text-sm">
-              <div className="flex items-start justify-between">
-                <span className="text-[#1A1A1A] font-bold leading-tight">
-                  {item.item_cardapio.nome}
-                </span>
-                <span className="ml-4 rounded border border-zinc-200 bg-[#F3F3F3] px-2 py-0.5 text-xs font-mono font-bold text-zinc-700">
-                  {item.quantidade}x
-                </span>
-              </div>
-              {item.adicionais.length > 0 && (
-                <p className="mt-0.5 text-xs font-medium text-[#E16349]">
-                  + {item.adicionais.map((adicional) => adicional.nome).join(', ')}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
       </div>
 
       {mostrarAtribuicaoEntregador && (

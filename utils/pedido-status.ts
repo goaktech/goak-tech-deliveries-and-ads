@@ -117,3 +117,20 @@ export function montarUrlLocalizacaoEntrega(
 
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(enderecoTexto)}&travelmode=driving`;
 }
+
+export function montarUrlGeoLocalizacaoEntrega(
+  dadosCliente: Partial<DadosClientePedido> | null | undefined,
+  latitude?: number | null,
+  longitude?: number | null
+): string | null {
+  if (typeof latitude === 'number' && typeof longitude === 'number') {
+    return `geo:${latitude},${longitude}?q=${latitude},${longitude}`;
+  }
+
+  const enderecoTexto = formatarEnderecoPedido(dadosCliente);
+  if (!enderecoTexto) {
+    return null;
+  }
+
+  return `geo:0,0?q=${encodeURIComponent(enderecoTexto)}`;
+}
