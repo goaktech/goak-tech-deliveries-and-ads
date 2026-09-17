@@ -100,3 +100,20 @@ export function formatarEnderecoPedido(dadosCliente: Partial<DadosClientePedido>
 
   return partes.length > 0 ? partes.join(', ') : null;
 }
+
+export function montarUrlLocalizacaoEntrega(
+  dadosCliente: Partial<DadosClientePedido> | null | undefined,
+  latitude?: number | null,
+  longitude?: number | null
+): string | null {
+  if (typeof latitude === 'number' && typeof longitude === 'number') {
+    return `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+  }
+
+  const enderecoTexto = formatarEnderecoPedido(dadosCliente);
+  if (!enderecoTexto) {
+    return null;
+  }
+
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(enderecoTexto)}&travelmode=driving`;
+}

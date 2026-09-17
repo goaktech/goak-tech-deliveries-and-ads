@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { EntregadorCozinha, PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
+import { montarUrlLocalizacaoEntrega } from '@/utils/pedido-status';
 
 interface CardPedidoCozinhaProps {
   pedido: PedidoCozinha;
@@ -25,6 +26,7 @@ export function CardPedidoCozinha({
 
   const [mostrarEndereco, setMostrarEndereco] = useState(false);
   const [enderecoCopiado, setEnderecoCopiado] = useState(false);
+  const [localizacaoCopiada, setLocalizacaoCopiada] = useState(false);
 
   const formatarEndereco = (end?: typeof endereco) => {
     if (!end) return '';
@@ -47,6 +49,23 @@ export function CardPedidoCozinha({
       setTimeout(() => setEnderecoCopiado(false), 2000);
     } catch (err) {
       console.error('Falha ao copiar endereço:', err);
+    }
+  };
+
+  const urlLocalizacao = montarUrlLocalizacaoEntrega(
+    pedido.dados_cliente,
+    pedido.cliente_latitude,
+    pedido.cliente_longitude
+  );
+
+  const copiarLocalizacao = async () => {
+    if (!urlLocalizacao) return;
+    try {
+      await navigator.clipboard.writeText(urlLocalizacao);
+      setLocalizacaoCopiada(true);
+      setTimeout(() => setLocalizacaoCopiada(false), 2000);
+    } catch (err) {
+      console.error('Falha ao copiar localização:', err);
     }
   };
 
@@ -129,14 +148,19 @@ export function CardPedidoCozinha({
 
         {ehEntrega && endereco && (
           <div className="mb-3 border-b border-zinc-100 pb-2.5">
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setMostrarEndereco((atual) => !atual)}
-                className="flex-1 rounded-lg border border-zinc-200 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-50"
-              >
-                {mostrarEndereco ? 'Ocultar endereço' : 'Ver endereço'}
-              </button>
+            <button
+              type="button"
+              onClick={() => setMostrarEndereco((atual) => !atual)}
+              className="w-full rounded-lg border border-zinc-200 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-50"
+            >
+              {mostrarEndereco ? 'Ocultar endereço' : 'Ver endereço'}
+            </button>
+            {mostrarEndereco && (
+              <p className="mt-2 text-[11px] font-medium leading-snug text-zinc-600">
+                {formatarEndereco(endereco)}
+              </p>
+            )}
+            <div className="mt-2 flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={copiarEndereco}
@@ -148,12 +172,20 @@ export function CardPedidoCozinha({
               >
                 {enderecoCopiado ? 'Copiado!' : 'Copiar endereço'}
               </button>
+              <button
+                type="button"
+                onClick={copiarLocalizacao}
+                disabled={!urlLocalizacao}
+                title={urlLocalizacao ?? undefined}
+                className={`flex-1 rounded-lg border py-1.5 text-[10px] font-semibold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  localizacaoCopiada
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                {localizacaoCopiada ? 'Copiado!' : 'Copiar localização'}
+              </button>
             </div>
-            {mostrarEndereco && (
-              <p className="mt-2 text-[11px] font-medium leading-snug text-zinc-600">
-                {formatarEndereco(endereco)}
-              </p>
-            )}
           </div>
         )}
 

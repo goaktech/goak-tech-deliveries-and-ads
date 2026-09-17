@@ -33,6 +33,8 @@ export interface PedidoCozinha {
     tipoEntrega?: 'ENTREGA' | 'RETIRADA';
     endereco?: { rua: string; numero: string; bairro: string; cidade?: string; cep?: string };
   };
+  cliente_latitude: number | null;
+  cliente_longitude: number | null;
   created_at: string;
   itens_pedido: ItemPedidoDetalhado[];
   entregador_id: string | null;
@@ -57,6 +59,8 @@ interface PedidoSelecionado {
   valor_total: number;
   forma_pagamento: string;
   dados_cliente: PedidoCozinha['dados_cliente'];
+  cliente_latitude: number | null;
+  cliente_longitude: number | null;
   created_at: string;
   entregador_id: string | null;
   entregadores: { nome: string } | null;
@@ -70,6 +74,8 @@ interface PedidoRealtime {
   valor_total: number;
   forma_pagamento: string;
   dados_cliente: PedidoCozinha['dados_cliente'];
+  cliente_latitude?: number | null;
+  cliente_longitude?: number | null;
   created_at: string;
   entregador_id?: string | null;
 }
@@ -131,7 +137,7 @@ export function useCozinha() {
     const { data: listaPedidos } = await supabase
       .from('pedidos')
       .select(`
-        id, status, valor_total, forma_pagamento, dados_cliente, created_at, entregador_id, entregadores ( nome ),
+        id, status, valor_total, forma_pagamento, dados_cliente, cliente_latitude, cliente_longitude, created_at, entregador_id, entregadores ( nome ),
         itens_pedido ( id, quantidade, itens_cardapio ( nome ), itens_pedido_complementos ( id, nome ) )
       `)
       .eq('restaurante_id', idDoRestaurante)
@@ -144,6 +150,8 @@ export function useCozinha() {
       valor_total: p.valor_total,
       forma_pagamento: p.forma_pagamento,
       dados_cliente: p.dados_cliente,
+      cliente_latitude: p.cliente_latitude ?? null,
+      cliente_longitude: p.cliente_longitude ?? null,
       created_at: p.created_at,
       entregador_id: p.entregador_id ?? null,
       entregador_nome: p.entregadores?.nome ?? null,
@@ -217,6 +225,7 @@ export function useCozinha() {
           const pedidoCompleto: PedidoCozinha = {
             id: registro.id, status: registro.status, valor_total: registro.valor_total,
             forma_pagamento: registro.forma_pagamento, dados_cliente: registro.dados_cliente,
+            cliente_latitude: registro.cliente_latitude ?? null, cliente_longitude: registro.cliente_longitude ?? null,
             created_at: registro.created_at, itens_pedido: itensFormatados,
             entregador_id: registro.entregador_id ?? null, entregador_nome: null
           };
