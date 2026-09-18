@@ -18,6 +18,7 @@ import ComponenteLojaCantinaBrasil from '@/components/ecommerce/lojas/Componente
 import ComponenteLojaCantinaBrasilV2 from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV2';
 import ComponenteLojaCantinaBrasilV3 from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV3';
 import ComponenteLojaPeruchoBurguer from '@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguer';
+import ComponenteLojaPeruchoBurguerV2 from '@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguerV2';
 
 export interface RestaurantePropsLoja {
   id: string;
@@ -45,6 +46,7 @@ const LOJAS_CUSTOMIZADAS: Record<string, ComponenteLoja> = {
   'cantina-brasil-v2': ComponenteLojaCantinaBrasilV2,
   'cantina-brasil-v3': ComponenteLojaCantinaBrasilV3,
   'perucho-burguer': ComponenteLojaPeruchoBurguer,
+  'perucho-burguer-v2': ComponenteLojaPeruchoBurguerV2,
 };
 
 const TEMPLATES_POR_TIPO: Partial<Record<TipoRestaurante, ComponenteLoja>> = {
