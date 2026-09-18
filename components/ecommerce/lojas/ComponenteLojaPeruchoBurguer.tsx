@@ -129,12 +129,6 @@ function produtoDisponivelHoje(produto: Pick<ItemCardapio, 'disponivel' | 'dia_s
    ============================================================= */
 const NOME_ITEM_DESTAQUE = 'Extra Bacon';
 
-/* Produto usado como foto de fundo do herói — troque aqui se quiser
-   outro prato como "cartão de visita" da loja. Se não existir ou
-   ainda não tiver foto cadastrada, cai pro item em destaque acima
-   e, por fim, pro primeiro produto com foto. */
-const NOME_ITEM_HERO = 'Clássico';
-
 /* ---------- ícones de categoria (linha, marrom) ---------- */
 function IconeCategoria({
   categoria,
@@ -590,16 +584,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
       )
     : undefined;
 
-  // foto do herói: prioriza o produto configurado em NOME_ITEM_HERO, cai
-  // pro item em destaque e, por fim, pro primeiro produto com foto —
-  // sempre vindo do banco (produto.imagem_url), nunca de /public
-  const itemHero =
-    produtos.find((produto) => produto.nome.toLowerCase().includes(NOME_ITEM_HERO.toLowerCase())) ||
-    itemDestaque ||
-    produtos.find((produto) => Boolean(produto.imagem_url));
-  // foto de capa da loja (cadastrada em Configurações) tem prioridade sobre a foto de produto
-  const fotoHero = restaurante.fotoCapaUrl || itemHero?.imagem_url;
-
   const status = obterStatusFuncionamento(restaurante.horariosFuncionamento, new Date());
 
   return (
@@ -618,14 +602,14 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </div>
           <Link
             href={`/${slug}/checkout`}
-            className="flex h-11 w-11 items-center justify-center rounded-full"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full"
             style={{ backgroundColor: '#fff', color: COR_MARROM, boxShadow: '0 4px 10px rgba(59,32,17,0.12)' }}
             aria-label="Ver sacola"
           >
             <IconeSacola className="h-5 w-5" />
             {totalItens > 0 && (
               <span
-                className="absolute right-4 top-14 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
+                className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
                 style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}
               >
                 {totalItens}
@@ -634,27 +618,16 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </Link>
         </div>
 
-        {/* ---------- herói: foto cheia (do banco) + selo de status real + título serifado ---------- */}
+        {/* ---------- herói: foto cheia + selo de status real + título serifado ---------- */}
         <div className="relative">
-          {fotoHero ? (
-            <Image
-              src={fotoHero}
-              alt={
-                restaurante.fotoCapaUrl
-                  ? `Foto de capa — ${restaurante.nome || 'Perucho Burguer'}`
-                  : itemHero?.nome
-                    ? `${itemHero.nome} — ${restaurante.nome || 'Perucho Burguer'}`
-                    : restaurante.nome || 'Perucho Burguer'
-              }
-              width={560}
-              height={300}
-              className="block h-[280px] w-full object-cover"
-              unoptimized
-              priority
-            />
-          ) : (
-            <div className="h-[280px] w-full" style={{ background: `linear-gradient(135deg, ${COR_PAINEL}, ${COR_TERRACOTA})` }} />
-          )}
+          <Image
+            src="/perucho-burguer-classico.webp"
+            alt="Hambúrguer Clássico Perucho Burguer, servido em pão brioche com queijo, alface e tomate"
+            width={560}
+            height={300}
+            className="block h-[280px] w-full object-cover"
+            priority
+          />
           <div
             className="absolute inset-0"
             style={{ background: 'linear-gradient(180deg, rgba(59,32,17,0) 38%, rgba(59,32,17,0.82) 100%)' }}
