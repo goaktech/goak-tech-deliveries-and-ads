@@ -21,7 +21,7 @@ const BUCKET_IMAGENS_PRODUTOS =
   process.env.SUPABASE_PRODUTOS_BUCKET ??
   process.env.SUPABASE_CARDAPIO_BUCKET ??
   'produtos'
-const TAMANHO_MAXIMO_IMAGEM_BYTES = 5 * 1024 * 1024
+const TAMANHO_MAXIMO_IMAGEM_BYTES = 7 * 1024 * 1024
 
 function parseImagemDataUrl(dataUrl: string) {
   const match = dataUrl.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/)
@@ -37,7 +37,7 @@ function parseImagemDataUrl(dataUrl: string) {
     throw new Error('Arquivo de imagem vazio.')
   }
   if (buffer.length > TAMANHO_MAXIMO_IMAGEM_BYTES) {
-    throw new Error('A imagem excede o limite de 5MB.')
+    throw new Error('A imagem excede o limite de 7MB.')
   }
 
   const extensaoPorMimeType: Record<string, string> = {

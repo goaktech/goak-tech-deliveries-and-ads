@@ -8,7 +8,7 @@ import { ItemCardapioComCMV } from '@/actions/admin'
 import { AbaDadosBasicos, AbaFichaTecnica, AbaAdicionaisOpcionais } from './AbasFormularioProduto'
 import { useRouter } from 'next/navigation'
 
-const TAMANHO_MAXIMO_IMAGEM_MB = 5
+const TAMANHO_MAXIMO_IMAGEM_MB = 7
 
 interface ModalEditarProdutoProps {
   produto: ItemCardapioComCMV | null

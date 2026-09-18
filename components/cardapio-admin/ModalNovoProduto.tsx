@@ -7,7 +7,7 @@ import { Insumo } from '@/types/database'
 import { AbaDadosBasicos, AbaFichaTecnica, AbaAdicionaisOpcionais } from './AbasFormularioProduto'
 import { useRouter } from 'next/navigation'
 
-const TAMANHO_MAXIMO_IMAGEM_MB = 5
+const TAMANHO_MAXIMO_IMAGEM_MB = 7
 
 interface ModalNovoProdutoProps {
   aberto: boolean
