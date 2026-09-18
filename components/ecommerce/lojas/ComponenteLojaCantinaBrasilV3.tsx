@@ -529,7 +529,7 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
                 >
                   {rotuloDiaSemana(diaHoje)} · Hoje
                 </span>
-                <div className="mb-4 flex items-start gap-3.5">
+                <div className="mb-4 flex items-center gap-3.5">
                   {produtoDestaque.imagem_url ? (
                     <div className="h-[100px] w-[144px] shrink-0 overflow-hidden rounded-2xl">
                       <Image
@@ -577,13 +577,13 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
                 <span className="mb-2 block text-[10.5px] font-bold uppercase tracking-wide" style={{ color: COR_TEXTO_SUAVE }}>
                   Cardápio da semana
                 </span>
-                <div className="flex gap-2 overflow-x-auto pb-0.5">
+                <div className="grid grid-cols-2 gap-2">
                   {pratosPorDia.map((prato) => {
                     const ehHoje = prato.dia_semana === diaHoje;
                     return (
                       <div
                         key={prato.id}
-                        className="flex w-[88px] shrink-0 flex-col rounded-xl p-2.5"
+                        className="flex flex-col rounded-xl p-2.5"
                         style={{ backgroundColor: ehHoje ? COR_INK : COR_CREME_2, minHeight: 96 }}
                       >
                         <span
