@@ -9,11 +9,18 @@ import AbasEntrega from '@/components/ecommerce/checkout/AbasEntrega';
 import CampoCepEntrega from '@/components/ecommerce/checkout/CampoCepEntrega';
 import CartaoRetirada from '@/components/ecommerce/checkout/CartaoRetirada';
 import FormularioEnderecoEntrega from '@/components/ecommerce/checkout/FormularioEnderecoEntrega';
+import SeletorBairroEntrega from '@/components/ecommerce/checkout/SeletorBairroEntrega';
 import { SeletorLocalizacaoMapa, type ResultadoLocalizacaoMapa } from '@/components/shared/SeletorLocalizacaoMapa';
 import type { AbaEntregaCheckout, EtapaCheckout } from '@/components/ecommerce/checkout/tipos';
 import { trackInitiateCheckout, trackPurchase, trackClicouPagarPix } from '@/utils/meta-pixel';
 import { registrarCheckoutIniciadoFunil } from '@/actions/metricasFunil';
-import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
+import {
+  calcularTaxaEntrega,
+  encontrarZonaEntrega,
+  faixaTaxasEntrega,
+  lojaTemTaxaPorBairro,
+  obterConfigLojaEspecial,
+} from '@/utils/config-lojas-especiais';
 
 export default function TelaDeCheckoutDedicada() {
   const params = useParams();
@@ -21,10 +28,8 @@ export default function TelaDeCheckoutDedicada() {
   const slug = (params?.slug as string) || '';
 
   const configLoja = useMemo(() => obterConfigLojaEspecial(slug), [slug]);
-  const taxaEntrega = configLoja.taxaEntregaFixa;
 
   const { itens, adicionarItem, removerItem, valorTotal, totalItens, limparCarrinho } = useCarrinho();
-  const valorTotalComTaxa = valorTotal + taxaEntrega;
 
   const [etapaCheckout, setEtapaCheckout] = useState<EtapaCheckout>('SACOLA');
 
@@ -33,6 +38,8 @@ export default function TelaDeCheckoutDedicada() {
   const [rua, setRua] = useState('');
   const [numero, setNumero] = useState('');
   const [bairro, setBairro] = useState('');
+  // bairro devolvido pelo mapa/cadastro que não bate com a lista de localidades atendidas
+  const [bairroDetectado, setBairroDetectado] = useState('');
   const [nomeCliente, setNomeCliente] = useState('');
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [emailCliente, setEmailCliente] = useState('');
@@ -54,6 +61,33 @@ export default function TelaDeCheckoutDedicada() {
   const [clienteLongitude, setClienteLongitude] = useState<number | null>(null);
   const [modalMapaCepAberto, setModalMapaCepAberto] = useState(false);
   const [resultadoMapaCepPendente, setResultadoMapaCepPendente] = useState<ResultadoLocalizacaoMapa | null>(null);
+
+  // Taxa de entrega: mesma regra usada pela API (utils/config-lojas-especiais).
+  // Lojas com tabela por bairro só calculam depois que o cliente escolhe um bairro da lista.
+  const usaTaxaPorBairro = lojaTemTaxaPorBairro(configLoja);
+  const tipoEntregaAtual = abaEntregaAtiva === 'RETIRADA' ? 'RETIRADA' : 'ENTREGA';
+  const calculoTaxa = calcularTaxaEntrega(configLoja, tipoEntregaAtual, bairro);
+  const taxaEntrega = calculoTaxa.ok ? calculoTaxa.taxa : 0;
+  const zonaEntregaAtual = calculoTaxa.ok ? calculoTaxa.zona : null;
+  const faixaTaxas = faixaTaxasEntrega(configLoja);
+  const bairroPendente = usaTaxaPorBairro && tipoEntregaAtual === 'ENTREGA' && !calculoTaxa.ok;
+  const valorTotalComTaxa = valorTotal + taxaEntrega;
+
+  const enderecoEntregaPreenchido =
+    (rua.trim().length > 0 && numero.trim().length > 0) || (clienteLatitude !== null && clienteLongitude !== null);
+  // em lojas com taxa por bairro a entrega exige bairro da lista + endereço (ou ponto no mapa)
+  const entregaValida = !usaTaxaPorBairro || tipoEntregaAtual === 'RETIRADA' || (calculoTaxa.ok && enderecoEntregaPreenchido);
+
+  // aplica um bairro vindo do mapa/cadastro; em lojas com tabela só vale se bater com a lista
+  const aplicarBairroSugerido = (valor: string) => {
+    if (!usaTaxaPorBairro) {
+      setBairro(valor);
+      return;
+    }
+    const zona = encontrarZonaEntrega(configLoja, valor);
+    setBairro(zona?.nome ?? '');
+    setBairroDetectado(zona ? '' : valor);
+  };
 
   useEffect(() => {
     let ativo = true;
@@ -96,10 +130,10 @@ export default function TelaDeCheckoutDedicada() {
       rua,
       numero,
       bairro,
-      cidade: 'Cidade',
+      cidade: configLoja.cidadeEntrega ?? 'Cidade',
       cep,
     }),
-    [bairro, cep, numero, rua]
+    [bairro, cep, configLoja.cidadeEntrega, numero, rua]
   );
 
   const handleVoltarClique = () => {
@@ -123,7 +157,7 @@ export default function TelaDeCheckoutDedicada() {
       void registrarCheckoutIniciadoFunil(slug);
       setEtapaCheckout('ENTREGA');
     } else if (etapaCheckout === 'ENTREGA') {
-      if (!dadosContatoPreenchidos) return;
+      if (!dadosContatoPreenchidos || !entregaValida) return;
       setEtapaCheckout('PAGAMENTO');
     }
   };
@@ -227,7 +261,7 @@ export default function TelaDeCheckoutDedicada() {
       if (endereco) {
         if (!rua && endereco.rua) setRua(endereco.rua);
         if (!numero && endereco.numero) setNumero(endereco.numero);
-        if (!bairro && endereco.bairro) setBairro(endereco.bairro);
+        if (!bairro && endereco.bairro) aplicarBairroSugerido(endereco.bairro);
         if (!cep && endereco.cep) setCep(endereco.cep);
       }
     } catch (error) {
@@ -242,7 +276,7 @@ export default function TelaDeCheckoutDedicada() {
     if (resultado.endereco) {
       if (resultado.endereco.rua) setRua(resultado.endereco.rua);
       if (resultado.endereco.numero) setNumero(resultado.endereco.numero);
-      if (resultado.endereco.bairro) setBairro(resultado.endereco.bairro);
+      if (resultado.endereco.bairro) aplicarBairroSugerido(resultado.endereco.bairro);
       if (resultado.endereco.cep) setCep(resultado.endereco.cep);
     }
   };
@@ -301,7 +335,18 @@ export default function TelaDeCheckoutDedicada() {
 
           {etapaCheckout === 'SACOLA' && (
             <div className="space-y-4">
-              {taxaEntrega > 0 && (
+              {usaTaxaPorBairro && faixaTaxas && (
+                <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs font-medium leading-relaxed">
+                    A taxa de entrega depende do bairro ({formatarMoeda(faixaTaxas.minima)} a {formatarMoeda(faixaTaxas.maxima)}) e é calculada na
+                    próxima etapa. Retirada no balcão não tem taxa.
+                  </p>
+                </div>
+              )}
+              {!usaTaxaPorBairro && taxaEntrega > 0 && (
                 <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
                   <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -427,11 +472,28 @@ export default function TelaDeCheckoutDedicada() {
                           {[rua, numero, bairro].filter(Boolean).join(', ')}
                         </div>
                       )}
+                      {configLoja.zonasEntrega && configLoja.zonasEntrega.length > 0 && (
+                        <SeletorBairroEntrega
+                          zonas={configLoja.zonasEntrega}
+                          valor={bairro}
+                          onChange={(valor) => {
+                            setBairro(valor);
+                            setBairroDetectado('');
+                          }}
+                          bairroDetectado={bairroDetectado}
+                        />
+                      )}
                     </div>
                   )}
 
                   {abaEntregaAtiva === 'RETIRADA' && !configLoja.ocultarRetirada && (
                     <CartaoRetirada endereco={enderecoLoja} latitude={latitudeLoja} longitude={longitudeLoja} />
+                  )}
+
+                  {abaEntregaAtiva === 'CEP' && usaTaxaPorBairro && (
+                    <p className="text-[11px] leading-relaxed text-zinc-500">
+                      Dica: em “Usar GPS” você marca o ponto exato no mapa e o motoboy chega direto na sua porta.
+                    </p>
                   )}
 
                   {abaEntregaAtiva === 'CEP' && (
@@ -441,8 +503,19 @@ export default function TelaDeCheckoutDedicada() {
                       numero={numero}
                       onChangeNumero={setNumero}
                       bairro={bairro}
-                      onChangeBairro={setBairro}
+                      onChangeBairro={(valor) => {
+                        setBairro(valor);
+                        setBairroDetectado('');
+                      }}
+                      zonasEntrega={configLoja.zonasEntrega}
+                      bairroDetectado={bairroDetectado}
                     />
+                  )}
+
+                  {usaTaxaPorBairro && !entregaValida && (
+                    <p className="text-[11px] font-semibold leading-relaxed text-amber-700">
+                      Para continuar, escolha o bairro na lista e informe rua e número (ou marque o ponto no mapa).
+                    </p>
                   )}
                 </div>
               </div>
@@ -457,7 +530,7 @@ export default function TelaDeCheckoutDedicada() {
                 </div>
                 {taxaEntrega > 0 && (
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-500">Taxa de entrega</span>
+                    <span className="text-zinc-500">Taxa de entrega{zonaEntregaAtual ? ` · ${zonaEntregaAtual.nome}` : ''}</span>
                     <span className="font-semibold text-zinc-700">{formatarMoeda(taxaEntrega)}</span>
                   </div>
                 )}
@@ -599,6 +672,11 @@ export default function TelaDeCheckoutDedicada() {
                   Sacola {formatarMoeda(valorTotal)} + entrega {formatarMoeda(taxaEntrega)}
                 </span>
               )}
+              {bairroPendente && (
+                <span className="text-[10px] text-zinc-400 block font-medium mt-0.5">
+                  + taxa de entrega (definida pelo bairro)
+                </span>
+              )}
             </div>
             {etapaCheckout !== 'PAGAMENTO' && itens.length > 0 && (
               <span className="text-[10px] font-bold text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-md border border-zinc-200/40">
@@ -611,7 +689,7 @@ export default function TelaDeCheckoutDedicada() {
             type="button"
             onClick={handleAcaoPrincipal}
             disabled={
-              itens.length === 0 || (etapaCheckout === 'ENTREGA' && !dadosContatoPreenchidos)
+              itens.length === 0 || (etapaCheckout === 'ENTREGA' && (!dadosContatoPreenchidos || !entregaValida))
             }
             className="w-full py-4 px-6 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 active:scale-[0.99] shadow-sm disabled:opacity-30 disabled:pointer-events-none"
           >

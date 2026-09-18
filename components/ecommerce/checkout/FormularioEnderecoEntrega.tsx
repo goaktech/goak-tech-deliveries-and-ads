@@ -1,5 +1,8 @@
 'use client';
 
+import type { ZonaEntrega } from '@/utils/config-lojas-especiais';
+import SeletorBairroEntrega from './SeletorBairroEntrega';
+
 interface FormularioEnderecoEntregaProps {
   rua: string;
   onChangeRua: (valor: string) => void;
@@ -7,6 +10,9 @@ interface FormularioEnderecoEntregaProps {
   onChangeNumero: (valor: string) => void;
   bairro: string;
   onChangeBairro: (valor: string) => void;
+  /** Quando informado, o bairro vira uma lista de localidades atendidas (com taxa por bairro). */
+  zonasEntrega?: ZonaEntrega[];
+  bairroDetectado?: string;
 }
 
 export default function FormularioEnderecoEntrega({
@@ -16,6 +22,8 @@ export default function FormularioEnderecoEntrega({
   onChangeNumero,
   bairro,
   onChangeBairro,
+  zonasEntrega,
+  bairroDetectado,
 }: FormularioEnderecoEntregaProps) {
   return (
     <div className="space-y-3 pt-1 border-t border-[#F3F3F3]">
@@ -45,17 +53,21 @@ export default function FormularioEnderecoEntrega({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Bairro</label>
-        <input
-          type="text"
-          required
-          value={bairro}
-          onChange={(e) => onChangeBairro(e.target.value)}
-          placeholder="Bairro"
-          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-zinc-300 transition-all placeholder-zinc-400"
-        />
-      </div>
+      {zonasEntrega && zonasEntrega.length > 0 ? (
+        <SeletorBairroEntrega zonas={zonasEntrega} valor={bairro} onChange={onChangeBairro} bairroDetectado={bairroDetectado} />
+      ) : (
+        <div className="space-y-1">
+          <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Bairro</label>
+          <input
+            type="text"
+            required
+            value={bairro}
+            onChange={(e) => onChangeBairro(e.target.value)}
+            placeholder="Bairro"
+            className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-zinc-300 transition-all placeholder-zinc-400"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
 import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
-import { ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
+import { calcularTaxaEntrega, ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import type { DadosClientePedido } from '@/utils/pedido-status';
 
 const MP_API_BASE = 'https://api.mercadopago.com';
@@ -186,7 +186,17 @@ export async function POST(request: Request) {
     });
 
     const configLoja = obterConfigLojaEspecial(restaurante.slug);
-    const taxaEntrega = dadosCliente.tipoEntrega !== 'RETIRADA' ? configLoja.taxaEntregaFixa : 0;
+    // A taxa é sempre calculada aqui, no servidor (nunca confiamos no valor do navegador).
+    // Lojas com tabela por bairro exigem um bairro da lista; retirada nunca paga taxa.
+    const calculoTaxa = calcularTaxaEntrega(configLoja, dadosCliente.tipoEntrega, dadosCliente.endereco?.bairro);
+    if (!calculoTaxa.ok) {
+      return NextResponse.json({ error: calculoTaxa.erro }, { status: 400 });
+    }
+    const taxaEntrega = calculoTaxa.taxa;
+    if (calculoTaxa.zona && dadosCliente.endereco) {
+      // grava no pedido o nome oficial da localidade (o mesmo da tabela de taxas)
+      dadosCliente.endereco = { ...dadosCliente.endereco, bairro: calculoTaxa.zona.nome };
+    }
 
     const valorSacola = itensPrecificados.reduce((acc, item) => acc + item.precoUnitario * item.quantidade, 0);
     const valorTotal = valorSacola + taxaEntrega;

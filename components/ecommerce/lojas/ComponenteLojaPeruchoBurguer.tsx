@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Fraunces, Work_Sans } from 'next/font/google';
+import { Anton, Fraunces, Work_Sans } from 'next/font/google';
 import { ComplementoProduto, ItemCardapio } from '@/types/database';
 import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
 import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
@@ -13,8 +13,11 @@ import {
   obterStatusFuncionamento,
   type HorarioFuncionamentoDia,
 } from '@/utils/horario-funcionamento';
+import { faixaTaxasEntrega, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 
 const fonteExibicao = Fraunces({ subsets: ['latin'], weight: ['600', '700', '800'], style: ['normal', 'italic'] });
+// fonte condensada e pesada da arte dos combos ("COMBO" + número)
+const fonteCartaz = Anton({ subsets: ['latin'], weight: '400' });
 const fonteCorpo = Work_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
 interface ComponenteLojaPeruchoBurguerProps {
@@ -64,7 +67,7 @@ function formatarMoeda(valor: number) {
    por nome, então itens ainda não categorizados continuam
    aparecendo no lugar certo.
    ============================================================= */
-type CategoriaPerucho = 'HAMBURGUERES' | 'ENTRADAS' | 'BEBIDAS' | 'SOBREMESAS';
+type CategoriaPerucho = 'COMBOS' | 'HAMBURGUERES' | 'ENTRADAS' | 'BEBIDAS' | 'SOBREMESAS';
 
 interface ProdutoParaCategorizar {
   nome: string;
@@ -72,6 +75,8 @@ interface ProdutoParaCategorizar {
 }
 
 const SINONIMOS_CATEGORIA: Record<string, CategoriaPerucho> = {
+  COMBO: 'COMBOS',
+  COMBOS: 'COMBOS',
   HAMBURGUER: 'HAMBURGUERES',
   HAMBÚRGUER: 'HAMBURGUERES',
   HAMBURGUERES: 'HAMBURGUERES',
@@ -93,6 +98,7 @@ const SINONIMOS_CATEGORIA: Record<string, CategoriaPerucho> = {
 };
 
 function categoriaPorNome(nome: string): CategoriaPerucho {
+  if (/^combo\b/i.test(nome.trim())) return 'COMBOS';
   if (/sobremesa|doce|pudim|sorvete|mousse|brownie|torta|petit ?gateau|cheesecake|picaron/i.test(nome)) return 'SOBREMESAS';
   if (/suco|refrigerante|água|bebida|cerveja|drink|guaran[aá]|coca|milkshake|chicha|inca ?kola/i.test(nome)) return 'BEBIDAS';
   if (/batata|anel de cebola|onion|nugget|porç[ãa]o|molho|crispy|isca/i.test(nome)) return 'ENTRADAS';
@@ -106,6 +112,7 @@ function categoriaDoProduto(produto: ProdutoParaCategorizar): CategoriaPerucho {
 }
 
 const ORDEM_CATEGORIAS: { chave: CategoriaPerucho; rotulo: string }[] = [
+  { chave: 'COMBOS', rotulo: 'Combos' },
   { chave: 'HAMBURGUERES', rotulo: 'Hambúrgueres' },
   { chave: 'ENTRADAS', rotulo: 'Entradas' },
   { chave: 'BEBIDAS', rotulo: 'Bebidas' },
@@ -143,6 +150,16 @@ function IconeCategoria({
   style?: React.CSSProperties;
 }) {
   const CAMINHOS: Record<CategoriaPerucho, React.ReactNode> = {
+    COMBOS: (
+      <>
+        <path d="M3 14c0-3.6 3.6-6 8-6s8 2.4 8 6" />
+        <path d="M3 14h16" />
+        <path d="M4 18h14" />
+        <path d="M3 21c0 2 3.4 3.5 8 3.5s8-1.5 8-3.5" />
+        <path d="M22 13h7l-1.2 14h-4.6z" />
+        <path d="M23.5 13l1-4h3" />
+      </>
+    ),
     HAMBURGUERES: (
       <>
         <path d="M4 13c0-4.4 5.4-8 12-8s12 3.6 12 8" />
@@ -226,6 +243,101 @@ function SeloPB({ tom = 'escuro', className }: { tom?: 'claro' | 'escuro'; class
    ============================================================= */
 const TAMANHO_FOTO = 96;
 
+/* =============================================================
+   Arte dos combos — cartaz "vem de COMBO" desenhado em SVG (laranja,
+   vinho e branco do cartaz de referência). Aparece no lugar da
+   foto enquanto o combo não tiver imagem cadastrada; o número (ou
+   "Família") vem do próprio nome do item, então combos novos já
+   nascem com a arte certa.
+   ============================================================= */
+// cores tiradas do cartaz "Vem de COMBO" de referência
+const ARTE_COMBO_VINHO = '#6C120A';
+const ARTE_COMBO_SOMBRA = '#3A0B06';
+const ARTE_COMBO_BRANCO = '#F7F7F5';
+const ARTE_COMBO_RAIO = '#DC8630';
+
+const RAIOS_ARTE_COMBO = (() => {
+  const cx = 100;
+  const cy = 150;
+  const raio = 260;
+  const total = 16;
+  const passo = (Math.PI * 2) / total;
+  const ponto = (angulo: number) => `${(cx + raio * Math.cos(angulo)).toFixed(1)} ${(cy + raio * Math.sin(angulo)).toFixed(1)}`;
+  return Array.from({ length: total }, (_, i) => {
+    const inicio = i * passo;
+    return `M${cx} ${cy}L${ponto(inicio)}L${ponto(inicio + passo / 2)}Z`;
+  });
+})();
+
+function ArteCombo({ nome, className, style }: { nome: string; className?: string; style?: React.CSSProperties }) {
+  const idGradiente = `arte-combo-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const sufixo = nome.replace(/^combo\s*/i, '').trim();
+  const ehNumero = /^\d{1,2}$/.test(sufixo);
+  const ehPilula = !ehNumero && sufixo.length > 0;
+  const larguraPilula = 30 + sufixo.length * 11;
+
+  return (
+    <svg
+      className={`${fonteCartaz.className} ${className ?? ''}`}
+      style={style}
+      viewBox="0 0 200 200"
+      role="img"
+      aria-label={nome}
+    >
+      <defs>
+        <linearGradient id={idGradiente} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#EF9235" />
+          <stop offset="1" stopColor="#F2A83B" />
+        </linearGradient>
+      </defs>
+      <rect width="200" height="200" fill={`url(#${idGradiente})`} />
+      <g fill={ARTE_COMBO_RAIO} opacity="0.6">
+        {RAIOS_ARTE_COMBO.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </g>
+
+      {/* "vem de" (sombra + texto) */}
+      <g className={fonteExibicao.className} fontStyle="italic" fontWeight={700} fontSize={40} textAnchor="middle">
+        <text x="101.5" y="56.5" fill={ARTE_COMBO_SOMBRA}>
+          vem de
+        </text>
+        <text x="100" y="54" fill={ARTE_COMBO_BRANCO}>
+          vem de
+        </text>
+      </g>
+
+      {/* "COMBO" (sombra + texto) */}
+      <g fontSize={72}>
+        <text x="15" y="132" textLength="176" lengthAdjust="spacingAndGlyphs" fill={ARTE_COMBO_SOMBRA}>
+          COMBO
+        </text>
+        <text x="12" y="129" textLength="176" lengthAdjust="spacingAndGlyphs" fill={ARTE_COMBO_VINHO}>
+          COMBO
+        </text>
+      </g>
+
+      {/* número do combo (ou "Família") */}
+      {ehNumero && (
+        <>
+          <circle cx="100" cy="162" r="21" fill={ARTE_COMBO_VINHO} />
+          <text x="100" y="172.5" textAnchor="middle" fontSize={30} fill={ARTE_COMBO_BRANCO}>
+            {sufixo}
+          </text>
+        </>
+      )}
+      {ehPilula && (
+        <>
+          <rect x={100 - larguraPilula / 2} y="147" width={larguraPilula} height="30" rx="15" fill={ARTE_COMBO_VINHO} />
+          <text x="100" y="169" textAnchor="middle" fontSize={20} letterSpacing="1" fill={ARTE_COMBO_BRANCO}>
+            {sufixo.toUpperCase()}
+          </text>
+        </>
+      )}
+    </svg>
+  );
+}
+
 function FotoProduto({
   produto,
   categoria,
@@ -251,6 +363,15 @@ function FotoProduto({
           loading="lazy"
           unoptimized
         />
+      </div>
+    );
+  }
+
+  // combo sem foto: cartaz "vem de COMBO" em vez do ícone genérico
+  if (categoria === 'COMBOS') {
+    return (
+      <div className="relative flex-none overflow-hidden rounded-2xl" style={dimensoes}>
+        <ArteCombo nome={produto.nome} className="block h-full w-full" />
       </div>
     );
   }
@@ -344,7 +465,7 @@ interface CartaoPratoPeruchoProps {
    Card de item (mobile-first) — um único contêiner com borda e
    sombra suave, em 3 faixas:
      1. foto 96px + nome/descrição/preço (grid flex, sem absolute)
-     2. barra de ação: "Adicionais" (se houver) + Adicionar/quantidade
+     2. barra de ação: "adicionais" (se houver) + Adicionar/quantidade
      3. painel de adicionais, agrupado por `grupo`, aberto por baixo
    A barra de ação fica SEMPRE visível: dá pra pedir o lanche
    simples sem abrir os adicionais.
@@ -376,10 +497,10 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPrat
   const idPainel = `adicionais-${produto.id}`;
   const painelAberto = expandido && temComplementos;
 
-  // agrupa os adicionais pelo campo `grupo` (sem grupo → "Adicionais")
+  // agrupa os adicionais pelo campo `grupo` (sem grupo → "adicionais")
   const gruposDeComplementos = complementosDisponiveis.reduce<{ titulo: string; itens: ComplementoProduto[] }[]>(
     (acc, complemento) => {
-      const titulo = complemento.grupo?.trim() || 'Adicionais';
+      const titulo = complemento.grupo?.trim() || 'adicionais';
       const existente = acc.find((grupo) => grupo.titulo === titulo);
       if (existente) existente.itens.push(complemento);
       else acc.push({ titulo, itens: [complemento] });
@@ -458,14 +579,14 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPrat
               onClick={onToggleExpandir}
               aria-expanded={painelAberto}
               aria-controls={idPainel}
-              className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-xs font-bold uppercase tracking-wide transition-colors ${CLASSE_FOCO}`}
+              className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-bold lowercase transition-colors ${CLASSE_FOCO}`}
               style={{
                 color: COR_MARROM,
                 borderColor: COR_LINHA,
                 backgroundColor: painelAberto ? COR_CREME_ESCURO : 'transparent',
               }}
             >
-              Adicionais
+              adicionais
               {complementosSelecionados.length > 0 && (
                 <span
                   className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] leading-none"
@@ -501,7 +622,7 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPrat
         >
           {gruposDeComplementos.map((grupo) => (
             <div key={grupo.titulo}>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: COR_TERRACOTA }}>
+              <p className="mb-2 text-xs font-bold" style={{ color: COR_TERRACOTA }}>
                 {grupo.titulo}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -641,6 +762,7 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
     : undefined;
 
   const status = obterStatusFuncionamento(restaurante.horariosFuncionamento, new Date());
+  const faixaTaxas = faixaTaxasEntrega(obterConfigLojaEspecial(slug));
 
   return (
     <div className={`${fonteCorpo.className} min-h-screen w-full`} style={{ backgroundColor: COR_FUNDO_PAGINA }}>
@@ -674,39 +796,33 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </Link>
         </div>
 
-        {/* ---------- herói: foto cheia + selo de status real + título serifado ---------- */}
-        <div className="relative">
-          <Image
-            src="/perucho-burguer-classico.webp"
-            alt="Hambúrguer Clássico Perucho Burguer, servido em pão brioche com queijo, alface e tomate"
-            width={560}
-            height={300}
-            className="block h-[280px] w-full object-cover"
-            priority
-          />
-          <div
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(180deg, rgba(59,32,17,0) 38%, rgba(59,32,17,0.82) 100%)' }}
-          />
-          <div className="absolute bottom-4 left-5 right-5">
-            <span
-              className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
-              style={{ backgroundColor: status.aberto ? COR_DOURADO : '#D9CBB0', color: COR_MARROM }}
-            >
-              {status.texto}
-            </span>
-            <h1 className={`${fonteExibicao.className} mt-2.5 text-[32px] font-bold leading-[0.98]`} style={{ color: COR_CREME }}>
-              {(restaurante.nome || 'Perucho Burguer').split(' ')[0]}
-              <br />
-              <span style={{ color: COR_DOURADO }}>
-                {(restaurante.nome || 'Perucho Burguer').split(' ').slice(1).join(' ') || 'Burguer'}
-              </span>
-            </h1>
-            <p className="mt-1 text-[13px]" style={{ color: COR_CREME_ESCURO }}>
-              Sabor de verdade, do jeito certo.
-            </p>
-          </div>
+        {/* ---------- herói: banner da marca (já traz logo e nome) + status real ---------- */}
+        <h1 className="sr-only">{restaurante.nome || 'Perucho Burguer'}</h1>
+        <Image
+          src="/perucho-burguer-banner.webp"
+          alt="Perucho Burguer, sabores del Perú: hambúrguer artesanal, batatas rústicas e chicha morada"
+          width={1242}
+          height={689}
+          sizes="(max-width: 560px) 100vw, 560px"
+          className="block h-auto w-full"
+          priority
+        />
+        <div className="flex items-center justify-between gap-3 px-5 py-3">
+          <span
+            className="rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide"
+            style={{ backgroundColor: status.aberto ? COR_DOURADO : '#D9CBB0', color: COR_MARROM }}
+          >
+            {status.texto}
+          </span>
+          <span className="text-[13px]" style={{ color: '#8a6a4a' }}>
+            Sabor de verdade, do jeito certo.
+          </span>
         </div>
+        {faixaTaxas && (
+          <p className="px-5 pb-3 text-xs leading-relaxed" style={{ color: '#8a6a4a' }}>
+            Entrega com taxa por bairro, a partir de {formatarMoeda(faixaTaxas.minima)}. Retirada no balcão sem taxa.
+          </p>
+        )}
 
         {/* ---------- barra de categorias (sticky, pills com rolagem horizontal) ---------- */}
         {grupos.length > 0 && (
