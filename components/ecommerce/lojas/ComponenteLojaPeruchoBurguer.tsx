@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Fraunces, Work_Sans } from 'next/font/google';
-import { ItemCardapio } from '@/types/database';
+import { ComplementoProduto, ItemCardapio } from '@/types/database';
 import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
 import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
 import {
@@ -49,7 +49,10 @@ const COR_LINHA = 'rgba(107, 74, 51, 0.25)';
 const COR_FUNDO_PAGINA = '#E9DCC4';
 const COR_INDISPONIVEL = '#F1EAD9';
 const SOMBRA = '0 10px 26px rgba(59, 32, 17, 0.16)';
-const SOMBRA_FOTO = '0 10px 14px rgba(59, 32, 17, 0.18)';
+const SOMBRA_CARD = '0 2px 10px rgba(59, 32, 17, 0.07)';
+const COR_FUNDO_CARDAPIO = '#FBF7EE';
+/* anel de foco visível só pra teclado (não aparece no toque) */
+const CLASSE_FOCO = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3B2011]';
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -215,39 +218,37 @@ function SeloPB({ tom = 'escuro', className }: { tom?: 'claro' | 'escuro'; class
 }
 
 /* =============================================================
-   Foto do prato — moldura quadrada de cantos arredondados, com
-   leve rotação. Padrão único pra TODAS as categorias (Hambúrgueres,
-   Entradas, Bebidas, Sobremesas): fundo branco, foto real do banco
-   (`produto.imagem_url`, sem depender de arquivo em /public), com
-   um ícone da categoria como retrato de espera quando o produto
-   ainda não tem foto cadastrada.
+   Foto do prato — miniatura quadrada 1:1 de cantos arredondados,
+   sempre DENTRO do fluxo do card (nada de position:absolute: na v1
+   a foto era centralizada no artigo inteiro e "escapava" por cima
+   do painel de adicionais quando o card crescia). Sem foto
+   cadastrada, mostra o ícone da categoria como retrato de espera.
    ============================================================= */
+const TAMANHO_FOTO = 96;
+
 function FotoProduto({
   produto,
   categoria,
-  tamanho,
-  rotacaoGraus,
   apagada,
 }: {
   produto: Pick<ItemCardapio, 'nome' | 'imagem_url'>;
   categoria: CategoriaPerucho;
-  tamanho: number;
-  rotacaoGraus: number;
   apagada?: boolean;
 }) {
+  const dimensoes = { width: TAMANHO_FOTO, height: TAMANHO_FOTO, opacity: apagada ? 0.55 : 1 };
+
   if (produto.imagem_url) {
     return (
-      <div
-        className="relative overflow-hidden rounded-[20px]"
-        style={{ width: tamanho, height: tamanho, boxShadow: SOMBRA_FOTO, opacity: apagada ? 0.6 : 1 }}
-      >
+      <div className="relative flex-none overflow-hidden rounded-2xl" style={{ ...dimensoes, backgroundColor: COR_CREME_ESCURO }}>
         <Image
           src={produto.imagem_url}
           alt={produto.nome}
-          width={tamanho}
-          height={tamanho}
+          width={TAMANHO_FOTO * 2}
+          height={TAMANHO_FOTO * 2}
+          sizes={`${TAMANHO_FOTO}px`}
           className="h-full w-full object-cover"
-          style={{ transform: `rotate(${rotacaoGraus}deg) scale(1.15)` }}
+          style={{ objectPosition: '50% 55%' }}
+          loading="lazy"
           unoptimized
         />
       </div>
@@ -256,13 +257,10 @@ function FotoProduto({
 
   return (
     <div
-      className="flex items-center justify-center rounded-[20px]"
+      className="flex flex-none items-center justify-center rounded-2xl"
       style={{
-        width: tamanho,
-        height: tamanho,
+        ...dimensoes,
         background: 'radial-gradient(circle at 38% 30%, #ffe0b0, #e2a860 65%, #c67d43)',
-        boxShadow: SOMBRA_FOTO,
-        opacity: apagada ? 0.6 : 1,
       }}
     >
       <IconeCategoria categoria={categoria} className="h-10 w-10" style={{ color: COR_MARROM }} />
@@ -302,7 +300,7 @@ function SeletorQuantidade({
         <button
           type="button"
           onClick={() => onRemover(idUnicoCarrinho)}
-          className="flex h-11 w-11 items-center justify-center rounded-full text-lg font-bold"
+          className={`flex h-11 w-11 items-center justify-center rounded-full text-lg font-bold ${CLASSE_FOCO}`}
           style={{ color: corTexto }}
           aria-label="Remover um"
         >
@@ -314,7 +312,7 @@ function SeletorQuantidade({
         <button
           type="button"
           onClick={() => onAdicionar(produto, complementosSelecionados)}
-          className="flex h-11 w-11 items-center justify-center rounded-full text-lg font-bold"
+          className={`flex h-11 w-11 items-center justify-center rounded-full text-lg font-bold ${CLASSE_FOCO}`}
           style={{ backgroundColor: corBotaoPreenchido, color: corTextoPreenchido }}
           aria-label="Adicionar mais um"
         >
@@ -328,7 +326,7 @@ function SeletorQuantidade({
     <button
       type="button"
       onClick={() => onAdicionar(produto, complementosSelecionados)}
-      className="flex h-11 items-center justify-center rounded-full px-5 text-xs font-bold uppercase tracking-wide"
+      className={`flex h-11 items-center justify-center rounded-full px-5 text-xs font-bold uppercase tracking-wide ${CLASSE_FOCO}`}
       style={{ backgroundColor: corBotaoPreenchido, color: corTextoPreenchido }}
     >
       Adicionar
@@ -340,17 +338,18 @@ interface CartaoPratoPeruchoProps {
   produto: ItemCardapio;
   expandido: boolean;
   onToggleExpandir: () => void;
-  rotacaoFoto: number;
 }
 
 /* =============================================================
-   Card de item — padrão único usado em TODAS as categorias:
-   fundo branco, sem borda, foto real numa moldura quadrada de
-   cantos arredondados posicionada por dentro do card e
-   centralizada verticalmente (metade acima, metade abaixo do
-   meio do card).
+   Card de item (mobile-first) — um único contêiner com borda e
+   sombra suave, em 3 faixas:
+     1. foto 96px + nome/descrição/preço (grid flex, sem absolute)
+     2. barra de ação: "Adicionais" (se houver) + Adicionar/quantidade
+     3. painel de adicionais, agrupado por `grupo`, aberto por baixo
+   A barra de ação fica SEMPRE visível: dá pra pedir o lanche
+   simples sem abrir os adicionais.
    ============================================================= */
-function CartaoPratoPerucho({ produto, expandido, onToggleExpandir, rotacaoFoto }: CartaoPratoPeruchoProps) {
+function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPratoPeruchoProps) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const [complementosSelecionadosIds, setComplementosSelecionadosIds] = useState<string[]>([]);
 
@@ -374,6 +373,20 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir, rotacaoFoto 
   const valorComplementos = complementosSelecionados.reduce((acc, c) => acc + Number(c.preco_adicional), 0);
   const disponivelHoje = produtoDisponivelHoje(produto);
   const categoria = categoriaDoProduto(produto);
+  const idPainel = `adicionais-${produto.id}`;
+  const painelAberto = expandido && temComplementos;
+
+  // agrupa os adicionais pelo campo `grupo` (sem grupo → "Adicionais")
+  const gruposDeComplementos = complementosDisponiveis.reduce<{ titulo: string; itens: ComplementoProduto[] }[]>(
+    (acc, complemento) => {
+      const titulo = complemento.grupo?.trim() || 'Adicionais';
+      const existente = acc.find((grupo) => grupo.titulo === titulo);
+      if (existente) existente.itens.push(complemento);
+      else acc.push({ titulo, itens: [complemento] });
+      return acc;
+    },
+    []
+  );
 
   const togglePill = (id: string) => {
     setComplementosSelecionadosIds((atuais) =>
@@ -381,126 +394,157 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir, rotacaoFoto 
     );
   };
 
+  const seletor = (
+    <SeletorQuantidade
+      qtd={qtd}
+      idUnicoCarrinho={idUnicoCarrinho}
+      produto={produto}
+      complementosSelecionados={complementosSelecionados}
+      onAdicionar={adicionarItem}
+      onRemover={removerItem}
+      variante="claro"
+    />
+  );
+
   return (
-    <article className="relative" style={{ marginBottom: 22 }}>
-      <div className="absolute z-[3]" style={{ left: 8, top: '50%', transform: 'translateY(-50%)' }}>
-        <FotoProduto produto={produto} categoria={categoria} tamanho={104} rotacaoGraus={rotacaoFoto} apagada={!disponivelHoje} />
-      </div>
+    <article
+      className="mb-3 rounded-[20px] p-3"
+      style={{
+        backgroundColor: disponivelHoje ? '#FFFFFF' : COR_INDISPONIVEL,
+        border: `1px solid ${COR_LINHA}`,
+        boxShadow: SOMBRA_CARD,
+      }}
+    >
+      <div className="flex gap-3">
+        <FotoProduto produto={produto} categoria={categoria} apagada={!disponivelHoje} />
 
-      <div
-        className="min-h-[112px] rounded-[22px] py-3.5 pr-4"
-        style={{ backgroundColor: disponivelHoje ? '#FFFFFF' : COR_INDISPONIVEL, paddingLeft: 118 }}
-      >
-        <div className="mb-1 flex flex-wrap items-center gap-2">
-          <h3
-            className={`${fonteExibicao.className} text-base font-extrabold leading-tight`}
-            style={{ color: COR_MARROM }}
-          >
-            {produto.nome}
-          </h3>
-          {NOME_ITEM_DESTAQUE && produto.nome.toLowerCase().includes(NOME_ITEM_DESTAQUE.toLowerCase()) && disponivelHoje && (
-            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}>
-              Mais pedido
-            </span>
-          )}
-        </div>
-
-        {disponivelHoje ? (
-          <>
-            <p className="mb-2 text-[12.5px] leading-snug" style={{ color: COR_MARROM_SUAVE }}>
-              {produto.descricao || 'Feito na hora, no ponto certo.'}
-            </p>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[15px] font-bold" style={{ color: COR_TERRACOTA }}>
-                {formatarMoeda(Number(produto.preco_venda))}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h3
+              className={`${fonteExibicao.className} text-[17px] font-extrabold leading-tight`}
+              style={{ color: COR_MARROM }}
+            >
+              {produto.nome}
+            </h3>
+            {NOME_ITEM_DESTAQUE && produto.nome.toLowerCase().includes(NOME_ITEM_DESTAQUE.toLowerCase()) && disponivelHoje && (
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}>
+                Mais pedido
               </span>
-              {!temComplementos && (
-                <SeletorQuantidade
-                  qtd={qtd}
-                  idUnicoCarrinho={idUnicoCarrinho}
-                  produto={produto}
-                  complementosSelecionados={complementosSelecionados}
-                  onAdicionar={adicionarItem}
-                  onRemover={removerItem}
-                  variante="claro"
-                />
-              )}
-            </div>
-          </>
-        ) : (
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#8a6a4a' }}>
-            Indisponível hoje
-          </p>
-        )}
-      </div>
-
-      {disponivelHoje && temComplementos && (
-        <button
-          type="button"
-          onClick={onToggleExpandir}
-          className="mt-2 flex min-h-[36px] items-center gap-1 text-xs font-bold uppercase tracking-wide"
-          style={{ color: COR_MARROM_SUAVE }}
-        >
-          {expandido ? 'Ocultar adicionais' : 'Ver adicionais'}
-          <svg
-            className={`h-3 w-3 transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke={COR_MARROM_SUAVE}
-            strokeWidth="2.5"
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-          </svg>
-        </button>
-      )}
-
-      {disponivelHoje && expandido && temComplementos && (
-        <div className="animate-in fade-in mt-2 space-y-3 rounded-2xl border px-3 py-3 duration-200" style={{ borderColor: COR_LINHA, backgroundColor: COR_CREME_ESCURO }}>
-          <span className="text-[11px] font-bold uppercase tracking-[0.15em]" style={{ color: COR_TERRACOTA }}>
-            Adicionais
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {complementosDisponiveis.map((complemento) => {
-              const selecionado = complementosSelecionadosIds.includes(complemento.id);
-              return (
-                <button
-                  key={complemento.id}
-                  type="button"
-                  onClick={() => togglePill(complemento.id)}
-                  className="min-h-[36px] rounded-full px-3 py-1.5 text-[12px] font-bold transition-all"
-                  style={
-                    selecionado
-                      ? { backgroundColor: COR_MARROM, color: '#fff', border: `1.5px solid ${COR_MARROM}` }
-                      : { backgroundColor: '#fff', color: COR_MARROM, border: `1.5px solid ${COR_LINHA}` }
-                  }
-                >
-                  {complemento.nome}
-                  <span className={selecionado ? 'ml-1 text-white/80' : 'ml-1'} style={selecionado ? undefined : { color: COR_MARROM_SUAVE }}>
-                    +{formatarMoeda(Number(complemento.preco_adicional))}
-                  </span>
-                </button>
-              );
-            })}
+            )}
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <div className="text-xs" style={{ color: COR_MARROM_SUAVE }}>
+          {disponivelHoje ? (
+            <>
+              <p className="mt-1 line-clamp-3 text-[13px] leading-snug" style={{ color: COR_MARROM_SUAVE }}>
+                {produto.descricao || 'Feito na hora, no ponto certo.'}
+              </p>
+              <span className="mt-auto pt-2 text-base font-bold leading-none" style={{ color: COR_TERRACOTA }}>
+                {formatarMoeda(Number(produto.preco_venda))}
+              </span>
+            </>
+          ) : (
+            <p className="mt-2 text-xs font-bold uppercase tracking-wide" style={{ color: '#8a6a4a' }}>
+              Indisponível hoje
+            </p>
+          )}
+        </div>
+      </div>
+
+      {disponivelHoje && (
+        <div className="mt-3 flex min-h-[44px] items-center justify-between gap-2">
+          {temComplementos ? (
+            <button
+              type="button"
+              onClick={onToggleExpandir}
+              aria-expanded={painelAberto}
+              aria-controls={idPainel}
+              className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-xs font-bold uppercase tracking-wide transition-colors ${CLASSE_FOCO}`}
+              style={{
+                color: COR_MARROM,
+                borderColor: COR_LINHA,
+                backgroundColor: painelAberto ? COR_CREME_ESCURO : 'transparent',
+              }}
+            >
+              Adicionais
               {complementosSelecionados.length > 0 && (
-                <>
-                  Adicionais <span className="font-bold" style={{ color: COR_MARROM }}>+{formatarMoeda(valorComplementos)}</span>
-                </>
+                <span
+                  className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] leading-none"
+                  style={{ backgroundColor: COR_MARROM, color: '#fff' }}
+                >
+                  {complementosSelecionados.length}
+                </span>
               )}
+              <svg
+                className={`h-3 w-3 transition-transform duration-200 ${painelAberto ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke={COR_MARROM}
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+          ) : (
+            <span aria-hidden />
+          )}
+          {/* com o painel aberto, o seletor vive no rodapé do painel (perto das opções) */}
+          {!painelAberto && seletor}
+        </div>
+      )}
+
+      {disponivelHoje && painelAberto && (
+        <div
+          id={idPainel}
+          className="mt-3 space-y-4 rounded-2xl px-3 py-3.5"
+          style={{ backgroundColor: COR_CREME_ESCURO, border: `1px solid ${COR_LINHA}` }}
+        >
+          {gruposDeComplementos.map((grupo) => (
+            <div key={grupo.titulo}>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: COR_TERRACOTA }}>
+                {grupo.titulo}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {grupo.itens.map((complemento) => {
+                  const selecionado = complementosSelecionadosIds.includes(complemento.id);
+                  return (
+                    <button
+                      key={complemento.id}
+                      type="button"
+                      onClick={() => togglePill(complemento.id)}
+                      aria-pressed={selecionado}
+                      className={`min-h-[40px] rounded-full px-3.5 py-2 text-[13px] font-bold transition-colors ${CLASSE_FOCO}`}
+                      style={
+                        selecionado
+                          ? { backgroundColor: COR_MARROM, color: '#fff', border: `1.5px solid ${COR_MARROM}` }
+                          : { backgroundColor: '#fff', color: COR_MARROM, border: `1.5px solid ${COR_LINHA}` }
+                      }
+                    >
+                      {complemento.nome}
+                      <span className="ml-1.5 font-semibold" style={{ color: selecionado ? 'rgba(255,255,255,0.8)' : COR_MARROM_SUAVE }}>
+                        +{formatarMoeda(Number(complemento.preco_adicional))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <SeletorQuantidade
-              qtd={qtd}
-              idUnicoCarrinho={idUnicoCarrinho}
-              produto={produto}
-              complementosSelecionados={complementosSelecionados}
-              onAdicionar={adicionarItem}
-              onRemover={removerItem}
-              variante="claro"
-            />
+          ))}
+
+          <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: COR_LINHA }}>
+            <p className="min-w-0 text-xs leading-snug" style={{ color: COR_MARROM_SUAVE }}>
+              {complementosSelecionados.length > 0 ? (
+                <>
+                  Extras{' '}
+                  <span className="font-bold" style={{ color: COR_MARROM }}>
+                    +{formatarMoeda(valorComplementos)}
+                  </span>
+                </>
+              ) : (
+                'Toque para escolher os extras'
+              )}
+            </p>
+            {seletor}
           </div>
         </div>
       )}
@@ -534,6 +578,8 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
   const { totalItens } = useCarrinho();
   const [produtoExpandidoId, setProdutoExpandidoId] = useState<string | null>(null);
   const secoesRef = useRef<Partial<Record<CategoriaPerucho, HTMLElement>>>({});
+  const navRef = useRef<HTMLElement | null>(null);
+  const botoesNavRef = useRef<Partial<Record<CategoriaPerucho, HTMLElement>>>({});
 
   const alternarExpandido = (produtoId: string) => {
     setProdutoExpandidoId((atual) => (atual === produtoId ? null : produtoId));
@@ -577,6 +623,16 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
     setCategoriaAtiva(chave);
     secoesRef.current[chave]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // mantém a pill da categoria ativa visível/centralizada na barra
+  // (rola só a barra horizontal, nunca a página)
+  useEffect(() => {
+    const nav = navRef.current;
+    const botao = botoesNavRef.current[categoriaAtiva];
+    if (!nav || !botao) return;
+    const alvo = botao.offsetLeft - (nav.clientWidth - botao.offsetWidth) / 2;
+    nav.scrollTo({ left: Math.max(0, alvo), behavior: 'smooth' });
+  }, [categoriaAtiva]);
 
   const itemDestaque = NOME_ITEM_DESTAQUE
     ? produtos.find(
@@ -652,11 +708,12 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </div>
         </div>
 
-        {/* ---------- barra de categorias (sticky, com rolagem horizontal) ---------- */}
+        {/* ---------- barra de categorias (sticky, pills com rolagem horizontal) ---------- */}
         {grupos.length > 0 && (
           <nav
+            ref={navRef}
             aria-label="Categorias do cardápio"
-            className="sticky top-0 z-30 flex gap-2 overflow-x-auto px-3.5 py-3"
+            className="sticky top-0 z-30 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ backgroundColor: COR_CREME, boxShadow: '0 6px 14px rgba(59, 32, 17, 0.08)' }}
           >
             {grupos.map((grupo) => {
@@ -664,28 +721,23 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
               return (
                 <a
                   key={grupo.chave}
+                  ref={(el) => {
+                    if (el) botoesNavRef.current[grupo.chave] = el;
+                  }}
                   href={`#${grupo.chave.toLowerCase()}`}
                   onClick={(e) => {
                     e.preventDefault();
                     irParaCategoria(grupo.chave);
                   }}
                   aria-current={ativa ? 'true' : undefined}
-                  className="flex min-h-[44px] w-20 flex-none flex-col items-center gap-1.5 px-0.5 py-1"
+                  className={`flex h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-xs font-bold uppercase tracking-wide transition-colors ${CLASSE_FOCO}`}
+                  style={{
+                    backgroundColor: ativa ? COR_DOURADO : COR_PAINEL,
+                    color: ativa ? COR_MARROM : '#fff',
+                  }}
                 >
-                  <IconeCategoria
-                    categoria={grupo.chave}
-                    className="h-6 w-6"
-                    style={{ color: ativa ? COR_TERRACOTA : COR_MARROM }}
-                  />
-                  <span
-                    className="w-full rounded-full px-1 py-1.5 text-center text-xs font-bold uppercase tracking-wide"
-                    style={{
-                      backgroundColor: ativa ? COR_DOURADO : COR_PAINEL,
-                      color: ativa ? COR_MARROM : '#fff',
-                    }}
-                  >
-                    {grupo.rotulo}
-                  </span>
+                  <IconeCategoria categoria={grupo.chave} className="h-5 w-5 flex-none" />
+                  {grupo.rotulo}
                 </a>
               );
             })}
@@ -743,7 +795,7 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
 
         {/* ---------- cardápio: todas as categorias em sequência, cada uma
             com id próprio (compartilhável / acessível) ---------- */}
-        <section className="relative mt-3.5 rounded-t-[26px] px-6 pb-10 pt-7" style={{ backgroundColor: '#fff' }}>
+        <section className="relative mt-3 rounded-t-[26px] px-4 pb-10 pt-6" style={{ backgroundColor: COR_FUNDO_CARDAPIO }}>
           {grupos.length === 0 ? (
             <div className="py-16 text-center">
               <p className="text-sm italic" style={{ color: COR_MARROM_SUAVE }}>
@@ -760,19 +812,18 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
                   if (el) secoesRef.current[grupo.chave] = el;
                 }}
                 className="mb-8 last:mb-0"
-                style={{ scrollMarginTop: '76px' }}
+                style={{ scrollMarginTop: '72px' }}
               >
-                <h2 className={`${fonteExibicao.className} mb-5 text-xl font-extrabold`} style={{ color: COR_MARROM }}>
+                <h2 className={`${fonteExibicao.className} mb-4 text-[22px] font-extrabold leading-tight`} style={{ color: COR_MARROM }}>
                   {grupo.rotulo}
                 </h2>
                 <div className="flex flex-col">
-                  {grupo.produtos.map((produto, indice) => (
+                  {grupo.produtos.map((produto) => (
                     <CartaoPratoPerucho
                       key={produto.id}
                       produto={produto}
                       expandido={produtoExpandidoId === produto.id}
                       onToggleExpandir={() => alternarExpandido(produto.id)}
-                      rotacaoFoto={indice % 2 === 0 ? -4 : 3}
                     />
                   ))}
                 </div>
