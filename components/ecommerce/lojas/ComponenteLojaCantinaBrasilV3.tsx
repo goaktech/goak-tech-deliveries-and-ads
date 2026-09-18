@@ -577,7 +577,7 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
                 <span className="mb-2 block text-[10.5px] font-bold uppercase tracking-wide" style={{ color: COR_TEXTO_SUAVE }}>
                   Cardápio da semana
                 </span>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {pratosPorDia.map((prato) => {
                     const ehHoje = prato.dia_semana === diaHoje;
                     return (
