@@ -194,7 +194,7 @@ function SeletorQuantidade({
     <button
       type="button"
       onClick={() => onAdicionar(produto, complementosSelecionados)}
-      className="rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide"
+      className="rounded-full px-[9px] py-[3px] text-[9px] font-bold uppercase tracking-wide"
       style={{ backgroundColor: corBotaoPreenchido, color: corTextoPreenchido }}
     >
       Adicionar
@@ -530,25 +530,25 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
                   {rotuloDiaSemana(diaHoje)} · Hoje
                 </span>
                 <div className="mb-4 flex items-start gap-3.5">
-                  <div
-                    className="h-[92px] w-[92px] shrink-0 overflow-hidden rounded-2xl"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-                  >
-                    {produtoDestaque.imagem_url ? (
+                  {produtoDestaque.imagem_url ? (
+                    <div className="h-[100px] w-[144px] shrink-0 overflow-hidden rounded-2xl">
                       <Image
                         src={produtoDestaque.imagem_url}
                         alt={produtoDestaque.nome}
-                        width={92}
-                        height={92}
+                        width={144}
+                        height={100}
                         unoptimized
-                        className="h-full w-full object-contain p-1"
+                        className="h-full w-full object-cover"
                       />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <IconeCategoria categoria="PRATOS" className="h-[34px] w-[34px]" style={{ color: COR_DOURADO }} />
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex h-[100px] w-[144px] shrink-0 items-center justify-center overflow-hidden rounded-2xl"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                    >
+                      <IconeCategoria categoria="PRATOS" className="h-[34px] w-[34px]" style={{ color: COR_DOURADO }} />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-grow text-right">
                     <h2 className={`${fonteExibicao.className} mb-1.5 text-[21px] font-bold`}>{produtoDestaque.nome}</h2>
                     <p className="text-[12.5px] leading-snug" style={{ color: 'rgba(255,255,255,0.8)' }}>
@@ -583,8 +583,8 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
                     return (
                       <div
                         key={prato.id}
-                        className="w-[88px] shrink-0 rounded-xl p-2.5"
-                        style={{ backgroundColor: ehHoje ? COR_INK : COR_CREME_2 }}
+                        className="flex w-[88px] shrink-0 flex-col rounded-xl p-2.5"
+                        style={{ backgroundColor: ehHoje ? COR_INK : COR_CREME_2, minHeight: 96 }}
                       >
                         <span
                           className="block text-[9px] font-extrabold"
@@ -593,9 +593,8 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
                           {rotuloDiaSemana(prato.dia_semana as number).slice(0, 3).toUpperCase()}
                         </span>
                         <span
-                          className="mt-1 block truncate text-[10.5px] font-semibold"
+                          className="mt-1 block flex-grow text-[10.5px] font-semibold leading-snug"
                           style={{ color: ehHoje ? '#fff' : COR_TEXTO }}
-                          title={prato.nome}
                         >
                           {prato.nome}
                         </span>
