@@ -166,6 +166,7 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
   const menuContaRef = useRef<HTMLDivElement | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [slugLoja, setSlugLoja] = useState<string | null>(null);
+  const [nomeLoja, setNomeLoja] = useState<string | null>(null);
   const [carregandoLogo, setCarregandoLogo] = useState(false);
   const [enviandoLogo, setEnviandoLogo] = useState(false);
   const [menuContaAberto, setMenuContaAberto] = useState(false);
@@ -195,6 +196,7 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
         if (ativo) {
           setLogoUrl(typeof body?.logo_url === 'string' ? body.logo_url : null);
           setSlugLoja(typeof body?.slug === 'string' ? body.slug : null);
+          setNomeLoja(typeof body?.nome === 'string' && body.nome.trim() ? body.nome.trim() : null);
         }
       } catch (error) {
         console.error('Falha ao carregar logo do restaurante:', error);
@@ -291,8 +293,12 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
           />
 
           <div className="leading-tight">
-            <h2 className="text-lg font-bold tracking-tight text-[#1A1A1A]">{APP_BRAND_NAME}</h2>
-            <span className="mt-0.5 block text-[11px] font-semibold tracking-wide text-[#E16349]">Painel Administrativo</span>
+            <h2 className="text-lg font-bold tracking-tight text-[#1A1A1A]">{nomeLoja ?? APP_BRAND_NAME}</h2>
+            {nomeLoja ? (
+              <span className="mt-0.5 block text-[10px] font-medium tracking-wide text-zinc-400">{APP_BRAND_NAME}</span>
+            ) : (
+              <span className="mt-0.5 block text-[11px] font-semibold tracking-wide text-[#E16349]">Painel Administrativo</span>
+            )}
           </div>
 
           {showAccountActions ? (

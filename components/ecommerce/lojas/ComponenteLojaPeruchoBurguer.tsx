@@ -770,30 +770,45 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
         className="relative mx-auto min-h-screen w-full max-w-[560px] pb-32 antialiased"
         style={{ backgroundColor: COR_CREME, boxShadow: '0 0 60px rgba(59, 32, 17, 0.18)' }}
       >
-        {/* ---------- topo: selo "PB" + nome da loja + sacola ---------- */}
-        <div className="flex items-center justify-between px-5 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <SeloPB className="h-9 w-9 text-sm" />
+        {/* ---------- topo: logo + nome da loja | status + sacola ---------- */}
+        <div className="flex items-center justify-between gap-2 px-5 py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Image
+              src="/perucho-burguer-logo.webp"
+              alt="Logo Perucho Burguer"
+              width={96}
+              height={96}
+              className="h-12 w-12 flex-none"
+              priority
+            />
             <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: COR_MARROM }}>
               {restaurante.nome || 'Perucho Burguer'}
             </span>
           </div>
-          <Link
-            href={`/${slug}/checkout`}
-            className="relative flex h-11 w-11 items-center justify-center rounded-full"
-            style={{ backgroundColor: '#fff', color: COR_MARROM, boxShadow: '0 4px 10px rgba(59,32,17,0.12)' }}
-            aria-label="Ver sacola"
-          >
-            <IconeSacola className="h-5 w-5" />
-            {totalItens > 0 && (
-              <span
-                className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
-                style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}
-              >
-                {totalItens}
-              </span>
-            )}
-          </Link>
+          <div className="flex flex-none items-center gap-2">
+            <span
+              className="max-w-[112px] rounded-full px-2.5 py-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide"
+              style={{ backgroundColor: status.aberto ? COR_DOURADO : '#D9CBB0', color: COR_MARROM }}
+            >
+              {status.texto}
+            </span>
+            <Link
+              href={`/${slug}/checkout`}
+              className="relative flex h-11 w-11 items-center justify-center rounded-full"
+              style={{ backgroundColor: '#fff', color: COR_MARROM, boxShadow: '0 4px 10px rgba(59,32,17,0.12)' }}
+              aria-label="Ver sacola"
+            >
+              <IconeSacola className="h-5 w-5" />
+              {totalItens > 0 && (
+                <span
+                  className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
+                  style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}
+                >
+                  {totalItens}
+                </span>
+              )}
+            </Link>
+          </div>
         </div>
 
         {/* ---------- herói: banner da marca (já traz logo e nome) + status real ---------- */}
@@ -807,19 +822,8 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           className="block h-auto w-full"
           priority
         />
-        <div className="flex items-center justify-between gap-3 px-5 py-3">
-          <span
-            className="rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide"
-            style={{ backgroundColor: status.aberto ? COR_DOURADO : '#D9CBB0', color: COR_MARROM }}
-          >
-            {status.texto}
-          </span>
-          <span className="text-[13px]" style={{ color: '#8a6a4a' }}>
-            Sabor de verdade, do jeito certo.
-          </span>
-        </div>
         {faixaTaxas && (
-          <p className="px-5 pb-3 text-xs leading-relaxed" style={{ color: '#8a6a4a' }}>
+          <p className="px-5 py-3 text-xs leading-relaxed" style={{ color: '#8a6a4a' }}>
             Entrega com taxa por bairro, a partir de {formatarMoeda(faixaTaxas.minima)}. Retirada no balcão sem taxa.
           </p>
         )}
