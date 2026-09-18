@@ -10,7 +10,6 @@ import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinh
 import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
 import {
   obterDiaSemanaAtualBrasil,
-  obterStatusFuncionamento,
   type HorarioFuncionamentoDia,
 } from '@/utils/horario-funcionamento';
 import { faixaTaxasEntrega, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
@@ -761,7 +760,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
       )
     : undefined;
 
-  const status = obterStatusFuncionamento(restaurante.horariosFuncionamento, new Date());
   const faixaTaxas = faixaTaxasEntrega(obterConfigLojaEspecial(slug));
 
   return (
@@ -770,8 +768,8 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
         className="relative mx-auto min-h-screen w-full max-w-[560px] pb-32 antialiased"
         style={{ backgroundColor: COR_CREME, boxShadow: '0 0 60px rgba(59, 32, 17, 0.18)' }}
       >
-        {/* ---------- topo: logo + nome da loja | status + sacola ---------- */}
-        <div className="flex items-center justify-between gap-2 px-5 py-3.5">
+        {/* ---------- topo: logo + nome da loja | sacola ---------- */}
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <Image
               src="/perucho-burguer-logo.webp"
@@ -781,34 +779,28 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
               className="h-12 w-12 flex-none"
               priority
             />
+            {/* badge "Aberto agora" removido por enquanto (posição a definir): usar
+                obterStatusFuncionamento(restaurante.horariosFuncionamento, new Date()) */}
             <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: COR_MARROM }}>
               {restaurante.nome || 'Perucho Burguer'}
             </span>
           </div>
-          <div className="flex flex-none items-center gap-2">
-            <span
-              className="max-w-[112px] rounded-full px-2.5 py-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide"
-              style={{ backgroundColor: status.aberto ? COR_DOURADO : '#D9CBB0', color: COR_MARROM }}
-            >
-              {status.texto}
-            </span>
-            <Link
-              href={`/${slug}/checkout`}
-              className="relative flex h-11 w-11 items-center justify-center rounded-full"
-              style={{ backgroundColor: '#fff', color: COR_MARROM, boxShadow: '0 4px 10px rgba(59,32,17,0.12)' }}
-              aria-label="Ver sacola"
-            >
-              <IconeSacola className="h-5 w-5" />
-              {totalItens > 0 && (
-                <span
-                  className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
-                  style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}
-                >
-                  {totalItens}
-                </span>
-              )}
-            </Link>
-          </div>
+          <Link
+            href={`/${slug}/checkout`}
+            className="relative flex h-11 w-11 flex-none items-center justify-center rounded-full"
+            style={{ backgroundColor: '#fff', color: COR_MARROM, boxShadow: '0 4px 10px rgba(59,32,17,0.12)' }}
+            aria-label="Ver sacola"
+          >
+            <IconeSacola className="h-5 w-5" />
+            {totalItens > 0 && (
+              <span
+                className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none"
+                style={{ backgroundColor: COR_DOURADO, color: COR_MARROM }}
+              >
+                {totalItens}
+              </span>
+            )}
+          </Link>
         </div>
 
         {/* ---------- herói: banner da marca (já traz logo e nome) + status real ---------- */}
