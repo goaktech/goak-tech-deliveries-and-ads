@@ -86,3 +86,47 @@ export function estaLojaAberta(horarios: HorarioFuncionamentoDia[] | null | unde
 
   return false;
 }
+
+export interface StatusFuncionamentoLoja {
+  aberto: boolean;
+  texto: string;
+}
+
+function formatarHoraCurta(horaMinuto: string): string {
+  const [horas, minutos] = horaMinuto.split(':');
+  return minutos === '00' ? `${horas}h` : `${horas}h${minutos}`;
+}
+
+/**
+ * Resumo em texto do status de funcionamento agora (pra tarjas tipo "Aberto
+ * agora · fecha às 15h"), a partir do mesmo `horarios_funcionamento` que
+ * `estaLojaAberta` já usa pra decidir se mostra a tela de loja fechada.
+ *
+ * Simplificação conhecida: quando a loja está aberta por causa da janela de
+ * ONTEM que vira a virada da meia-noite (`fechamento <= abertura`), o texto
+ * usa o horário de hoje mesmo assim — casos assim (loja que fecha de
+ * madrugada) são raros pra cantina de almoço e não valem a complexidade
+ * extra aqui.
+ */
+export function obterStatusFuncionamento(
+  horarios: HorarioFuncionamentoDia[] | null | undefined,
+  agora = new Date()
+): StatusFuncionamentoLoja {
+  if (!horarios || horarios.length === 0) {
+    return { aberto: true, texto: 'Aberto agora' };
+  }
+
+  const aberto = estaLojaAberta(horarios, agora);
+  const diaHoje = obterDiaSemanaAtualBrasil(agora);
+  const horarioHoje = horarios.find((h) => h.dia === diaHoje);
+
+  if (aberto && horarioHoje?.ativo) {
+    return { aberto: true, texto: `Aberto agora · fecha às ${formatarHoraCurta(horarioHoje.fechamento)}` };
+  }
+
+  if (!aberto && horarioHoje?.ativo) {
+    return { aberto: false, texto: `Fechado agora · abre às ${formatarHoraCurta(horarioHoje.abertura)}` };
+  }
+
+  return { aberto: false, texto: aberto ? 'Aberto agora' : 'Fechado hoje' };
+}

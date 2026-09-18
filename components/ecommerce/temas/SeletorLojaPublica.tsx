@@ -1,5 +1,6 @@
 import type { ComponentType, ReactElement } from 'react';
 import type { ItemCardapio } from '@/types/database';
+import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 import { normalizarTipoRestaurante, type TipoRestaurante } from '@/utils/tipos-restaurante';
 import ComponenteLojaHamburguer from '@/components/ecommerce/ComponenteLojaHamburguer';
 import ComponenteLojaAcai from '@/components/ecommerce/ComponenteLojaAcai';
@@ -15,12 +16,15 @@ import ComponenteLojaWcsAcaiteria from '@/components/ecommerce/lojas/ComponenteL
 import ComponenteLojaGoDog from '@/components/ecommerce/lojas/ComponenteLojaGoDog';
 import ComponenteLojaCantinaBrasil from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasil';
 import ComponenteLojaCantinaBrasilV2 from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV2';
+import ComponenteLojaCantinaBrasilV3 from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV3';
 import ComponenteLojaPeruchoBurguer from '@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguer';
 
 export interface RestaurantePropsLoja {
   id: string;
   nome: string;
   endereco: string | null;
+  /** Opcional: só as vitrines que mostram tarja de horário (ex.: V3 da Cantina Brasil) usam isso. */
+  horariosFuncionamento?: HorarioFuncionamentoDia[] | null;
 }
 
 export interface ComponenteLojaProps {
@@ -39,6 +43,7 @@ const LOJAS_CUSTOMIZADAS: Record<string, ComponenteLoja> = {
   godog: ComponenteLojaGoDog,
   'cantina-brasil': ComponenteLojaCantinaBrasil,
   'cantina-brasil-v2': ComponenteLojaCantinaBrasilV2,
+  'cantina-brasil-v3': ComponenteLojaCantinaBrasilV3,
   'perucho-burguer': ComponenteLojaPeruchoBurguer,
 };
 

@@ -87,6 +87,7 @@ export default async function PaginaCardapioPublico({ params }: PaginaCardapioPr
           id: restaurante.id,
           nome: restaurante.nome,
           endereco: restaurante.endereco ?? null,
+          horariosFuncionamento: horariosFuncionamento ?? null,
         },
         produtos: produtosNormalizados,
       })}
