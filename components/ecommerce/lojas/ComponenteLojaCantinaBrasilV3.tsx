@@ -541,7 +541,7 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
                         width={92}
                         height={92}
                         unoptimized
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain p-1"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center">
