@@ -165,6 +165,7 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
   const inputLogoRef = useRef<HTMLInputElement | null>(null);
   const menuContaRef = useRef<HTMLDivElement | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [slugLoja, setSlugLoja] = useState<string | null>(null);
   const [carregandoLogo, setCarregandoLogo] = useState(false);
   const [enviandoLogo, setEnviandoLogo] = useState(false);
   const [menuContaAberto, setMenuContaAberto] = useState(false);
@@ -193,6 +194,7 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
         const body = await resposta.json();
         if (ativo) {
           setLogoUrl(typeof body?.logo_url === 'string' ? body.logo_url : null);
+          setSlugLoja(typeof body?.slug === 'string' ? body.slug : null);
         }
       } catch (error) {
         console.error('Falha ao carregar logo do restaurante:', error);
@@ -352,6 +354,26 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
           <BarraAbasResponsiva activeTab={activeTab} />
         </div>
       </div>
+
+      {slugLoja ? (
+        <div className="mt-3">
+          <Link
+            href={`/${slugLoja}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:text-[#1A1A1A]"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.5 6H18m0 0v4.5M18 6l-8.25 8.25M6 4.5h3M4.5 6.75v10.5A2.25 2.25 0 006.75 19.5h10.5a2.25 2.25 0 002.25-2.25V15"
+              />
+            </svg>
+            Ir para cardápio
+          </Link>
+        </div>
+      ) : null}
     </header>
   );
 }

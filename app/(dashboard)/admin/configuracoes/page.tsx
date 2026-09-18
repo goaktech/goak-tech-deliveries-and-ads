@@ -2,6 +2,7 @@ import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
 import { ConfiguracaoTempoPreparo } from '@/components/admin/ConfiguracaoTempoPreparo';
 import { ConfiguracaoEnderecoLoja } from '@/components/admin/ConfiguracaoEnderecoLoja';
 import { ConfiguracaoHorarioFuncionamento } from '@/components/admin/ConfiguracaoHorarioFuncionamento';
+import { ConfiguracaoFotoCapaLoja } from '@/components/admin/ConfiguracaoFotoCapaLoja';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
@@ -14,7 +15,7 @@ export default async function PainelConfiguracoesAdmin() {
   const { data: restaurante } = await supabase
     .from('restaurantes')
     .select(
-      'nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento'
+      'nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url'
     )
     .eq('id', restauranteId)
     .maybeSingle();
@@ -53,6 +54,8 @@ export default async function PainelConfiguracoesAdmin() {
           <ConfiguracaoHorarioFuncionamento
             horariosIniciais={(restaurante?.horarios_funcionamento as HorarioFuncionamentoDia[] | null) ?? null}
           />
+
+          <ConfiguracaoFotoCapaLoja fotoCapaUrlInicial={restaurante?.foto_capa_url ?? null} />
         </section>
       </div>
     </div>

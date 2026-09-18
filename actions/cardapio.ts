@@ -393,7 +393,7 @@ export async function obterCardapioPorSlug(slug: string) {
 
   const { data: restaurante, error: erroRestaurante } = await supabase
     .from('restaurantes')
-    .select('id, nome, tipo, endereco, logo_url, horarios_funcionamento')
+    .select('id, nome, tipo, endereco, logo_url, foto_capa_url, horarios_funcionamento')
     .eq('slug', slugNormalizado)
     .maybeSingle()
 
