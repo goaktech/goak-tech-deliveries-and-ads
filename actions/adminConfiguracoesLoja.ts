@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
+import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { revalidatePath } from 'next/cache';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 import { FORMAS_PAGAMENTO_LOJA, ehFormaPagamentoLoja } from '@/utils/formas-pagamento';
@@ -181,10 +182,14 @@ export async function atualizarFormasPagamentoLoja(formas: string[]) {
     return { success: false, error: 'Escolha pelo menos uma forma de pagamento.' };
   }
 
+  // O id da loja vem SEMPRE da sessão do gestor logado (nunca do formulário). A gravação usa o
+  // cliente administrativo porque o papel `authenticated` só tem UPDATE em colunas específicas
+  // de `restaurantes` (ver o erro "permission denied for table restaurantes") — mesmo padrão
+  // da rota de upload de logo.
   const restauranteId = await obterRestauranteIdDoGestorLogado();
-  const supabase = await createClient();
+  const supabaseAdmin = createWebhookAdminClient();
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('restaurantes')
     .update({ formas_pagamento_aceitas: formasNormalizadas })
     .eq('id', restauranteId);

@@ -56,7 +56,7 @@ export function rotuloBotaoCartao(formas: FormaPagamentoLoja[]): string {
  * (fluxo próprio), então também fica de fora do checkout de cartão.
  */
 export function tiposMercadoPagoExcluidos(formas: FormaPagamentoLoja[]): Array<{ id: string }> {
-  const excluidos = new Set<string>(['ticket', 'atm', 'bank_transfer', 'account_money', 'prepaid_card']);
+  const excluidos = new Set<string>(['ticket', 'atm', 'bank_transfer', 'prepaid_card']);
   if (!formas.includes('CARTAO_CREDITO')) excluidos.add('credit_card');
   if (!formas.includes('CARTAO_DEBITO')) excluidos.add('debit_card');
   return Array.from(excluidos).map((id) => ({ id }));
