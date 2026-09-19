@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { revalidatePath } from 'next/cache';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
+import { FORMAS_PAGAMENTO_LOJA, ehFormaPagamentoLoja } from '@/utils/formas-pagamento';
 
 export interface ConfiguracaoTempoPreparoInput {
   tempoPreparoBaseMinutos: number;
@@ -167,4 +168,32 @@ export async function atualizarEnderecoLoja(endereco: string, latitude: number |
   revalidatePath(`/${restaurante.slug}/checkout`);
 
   return { success: true };
+}
+
+export async function atualizarFormasPagamentoLoja(formas: string[]) {
+  if (!Array.isArray(formas) || !formas.every(ehFormaPagamentoLoja)) {
+    return { success: false, error: 'Forma de pagamento inválida.' };
+  }
+
+  // sem repetição e em ordem fixa, independente da ordem em que o gestor clicou
+  const formasNormalizadas = FORMAS_PAGAMENTO_LOJA.filter((forma) => formas.includes(forma));
+  if (formasNormalizadas.length === 0) {
+    return { success: false, error: 'Escolha pelo menos uma forma de pagamento.' };
+  }
+
+  const restauranteId = await obterRestauranteIdDoGestorLogado();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('restaurantes')
+    .update({ formas_pagamento_aceitas: formasNormalizadas })
+    .eq('id', restauranteId);
+
+  if (error) {
+    return { success: false, error: `Erro ao salvar formas de pagamento: ${error.message}` };
+  }
+
+  revalidatePath('/admin/integracoes');
+
+  return { success: true, formas: formasNormalizadas };
 }

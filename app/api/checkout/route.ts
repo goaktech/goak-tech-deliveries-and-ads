@@ -14,6 +14,12 @@ import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodific
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
 import { calcularTaxaEntrega, ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import type { DadosClientePedido } from '@/utils/pedido-status';
+import {
+  aceitaCartao,
+  aceitaPix,
+  normalizarFormasPagamento,
+  tiposMercadoPagoExcluidos,
+} from '@/utils/formas-pagamento';
 
 const MP_API_BASE = 'https://api.mercadopago.com';
 
@@ -115,13 +121,23 @@ export async function POST(request: Request) {
     const { data: restaurante, error: errRestaurante } = await supabase
       .from('restaurantes')
       .select(
-        'id, nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos'
+        'id, nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, formas_pagamento_aceitas'
       )
       .eq('slug', slug)
       .maybeSingle();
 
     if (errRestaurante || !restaurante) {
       return NextResponse.json({ error: 'Restaurante não encontrado.' }, { status: 404 });
+    }
+
+    // Só aceita a forma de pagamento que o gestor habilitou para esta loja
+    // (a tela do cliente também esconde as demais, mas a regra vale aqui).
+    const formasAceitas = normalizarFormasPagamento(restaurante.formas_pagamento_aceitas);
+    if (paymentMethod === 'PIX' && !aceitaPix(formasAceitas)) {
+      return NextResponse.json({ error: 'Esta loja não está aceitando PIX no momento.' }, { status: 400 });
+    }
+    if (paymentMethod === 'CARTAO' && !aceitaCartao(formasAceitas)) {
+      return NextResponse.json({ error: 'Esta loja não está aceitando cartão no momento.' }, { status: 400 });
     }
 
     const idsProdutos = itens.map((item) => item.item_cardapio_id);
@@ -396,6 +412,10 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         items: itensPreferencia,
+        // mostra no checkout do Mercado Pago só crédito e/ou débito, conforme a loja aceita
+        payment_methods: {
+          excluded_payment_types: tiposMercadoPagoExcluidos(formasAceitas),
+        },
         payer: {
           email: emailPayer,
         },

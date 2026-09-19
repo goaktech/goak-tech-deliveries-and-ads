@@ -20,6 +20,8 @@ export interface Restaurante {
   email_corporativo: string | null;
   meta_access_token: string | null;
   meta_ad_account_id: string | null;
+  /** 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' — ver utils/formas-pagamento.ts */
+  formas_pagamento_aceitas: string[];
   created_at: string;
 }
 

@@ -201,6 +201,17 @@ export function encontrarZonaEntrega(config: ConfigLojaEspecial, bairro: string 
   );
 }
 
+/**
+ * Versão tolerante de `encontrarZonaEntrega` para textos vindos de fora (CEP,
+ * mapa): ignora complementos entre parênteses, ex.: "Centro (São Sebastião)"
+ * casa com a localidade "Centro". Não usar para validar o pedido no servidor.
+ */
+export function sugerirZonaEntrega(config: ConfigLojaEspecial, texto: string | null | undefined): ZonaEntrega | null {
+  const exata = encontrarZonaEntrega(config, texto);
+  if (exata) return exata;
+  return encontrarZonaEntrega(config, String(texto ?? '').replace(/\([^)]*\)/g, ' '));
+}
+
 /** Menor e maior taxa da tabela (para avisos do tipo "a partir de R$ 6,00"). */
 export function faixaTaxasEntrega(config: ConfigLojaEspecial): { minima: number; maxima: number } | null {
   const taxas = (config.zonasEntrega ?? []).map((zona) => zona.taxa);

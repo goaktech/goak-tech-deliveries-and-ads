@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
 import AbasEntrega from '@/components/ecommerce/checkout/AbasEntrega';
+import BotaoLocalizacaoGps from '@/components/ecommerce/checkout/BotaoLocalizacaoGps';
 import CampoCepEntrega from '@/components/ecommerce/checkout/CampoCepEntrega';
 import CartaoRetirada from '@/components/ecommerce/checkout/CartaoRetirada';
 import FormularioEnderecoEntrega from '@/components/ecommerce/checkout/FormularioEnderecoEntrega';
@@ -16,11 +17,20 @@ import { trackInitiateCheckout, trackPurchase, trackClicouPagarPix } from '@/uti
 import { registrarCheckoutIniciadoFunil } from '@/actions/metricasFunil';
 import {
   calcularTaxaEntrega,
-  encontrarZonaEntrega,
   faixaTaxasEntrega,
   lojaTemTaxaPorBairro,
   obterConfigLojaEspecial,
+  sugerirZonaEntrega,
 } from '@/utils/config-lojas-especiais';
+import { formatarCep, somenteDigitosCep } from '@/utils/cep';
+import {
+  FORMAS_PAGAMENTO_PADRAO,
+  aceitaCartao,
+  aceitaPix,
+  normalizarFormasPagamento,
+  rotuloBotaoCartao,
+  type FormaPagamentoLoja,
+} from '@/utils/formas-pagamento';
 
 export default function TelaDeCheckoutDedicada() {
   const params = useParams();
@@ -40,6 +50,13 @@ export default function TelaDeCheckoutDedicada() {
   const [bairro, setBairro] = useState('');
   // bairro devolvido pelo mapa/cadastro que não bate com a lista de localidades atendidas
   const [bairroDetectado, setBairroDetectado] = useState('');
+  // consulta de endereço pelo CEP
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [mensagemCep, setMensagemCep] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
+  const [cidadeCep, setCidadeCep] = useState('');
+  const ultimoCepConsultadoRef = useRef('');
+  // formas de pagamento habilitadas pelo gestor (até carregar, só PIX — o padrão de toda loja)
+  const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoLoja[]>(FORMAS_PAGAMENTO_PADRAO);
   const [nomeCliente, setNomeCliente] = useState('');
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [emailCliente, setEmailCliente] = useState('');
@@ -84,7 +101,7 @@ export default function TelaDeCheckoutDedicada() {
       setBairro(valor);
       return;
     }
-    const zona = encontrarZonaEntrega(configLoja, valor);
+    const zona = sugerirZonaEntrega(configLoja, valor);
     setBairro(zona?.nome ?? '');
     setBairroDetectado(zona ? '' : valor);
   };
@@ -105,6 +122,7 @@ export default function TelaDeCheckoutDedicada() {
           setLatitudeLoja(body.latitude);
           setLongitudeLoja(body.longitude);
         }
+        setFormasPagamento(normalizarFormasPagamento(body?.formas_pagamento_aceitas));
       } catch (error) {
         console.error('Erro ao carregar endereço da loja:', error);
       }
@@ -130,10 +148,10 @@ export default function TelaDeCheckoutDedicada() {
       rua,
       numero,
       bairro,
-      cidade: configLoja.cidadeEntrega ?? 'Cidade',
+      cidade: cidadeCep || configLoja.cidadeEntrega || 'Cidade',
       cep,
     }),
-    [bairro, cep, configLoja.cidadeEntrega, numero, rua]
+    [bairro, cep, cidadeCep, configLoja.cidadeEntrega, numero, rua]
   );
 
   const handleVoltarClique = () => {
@@ -249,10 +267,8 @@ export default function TelaDeCheckoutDedicada() {
       const resposta = await fetch(`/api/restaurantes/${slug}/clientes?telefone=${encodeURIComponent(digitos)}`);
       const dados = await resposta.json();
 
-      if (!dados?.encontrado) {
-        setModalMapaCepAberto(true);
-        return;
-      }
+      // cliente novo: nada a preencher (a localização é opcional, pelo botão "Abrir minha localização")
+      if (!dados?.encontrado) return;
 
       if (!nomeCliente && dados.nome) setNomeCliente(dados.nome);
       if (!emailCliente && dados.email) setEmailCliente(dados.email);
@@ -266,6 +282,65 @@ export default function TelaDeCheckoutDedicada() {
       }
     } catch (error) {
       console.error('Erro ao buscar cadastro do cliente:', error);
+    }
+  };
+
+  const buscarEnderecoPorCep = async (digitos: string) => {
+    ultimoCepConsultadoRef.current = digitos;
+    setBuscandoCep(true);
+    setMensagemCep(null);
+
+    try {
+      const resposta = await fetch(`/api/cep?cep=${digitos}`);
+      const body = await resposta.json().catch(() => null);
+      // o cliente já digitou outro CEP enquanto esta resposta vinha: descarta
+      if (ultimoCepConsultadoRef.current !== digitos) return;
+
+      if (!resposta.ok || !body) {
+        setMensagemCep({
+          tipo: 'erro',
+          texto:
+            resposta.status === 404
+              ? 'CEP não encontrado. Confira os números ou preencha o endereço abaixo.'
+              : 'Não foi possível consultar o CEP agora. Preencha o endereço abaixo.',
+        });
+        return;
+      }
+
+      if (typeof body.rua === 'string' && body.rua) setRua(body.rua);
+      if (typeof body.bairro === 'string' && body.bairro) aplicarBairroSugerido(body.bairro);
+      if (typeof body.cidade === 'string' && body.cidade) {
+        setCidadeCep(typeof body.uf === 'string' && body.uf ? `${body.cidade} - ${body.uf}` : body.cidade);
+      }
+
+      const resumo = [body.rua, body.bairro, body.cidade].filter((parte) => typeof parte === 'string' && parte).join(' · ');
+      setMensagemCep({ tipo: 'ok', texto: resumo ? `Endereço encontrado: ${resumo}` : 'CEP encontrado. Complete o endereço abaixo.' });
+
+      // próximo campo a preencher é o número
+      setTimeout(() => document.getElementById('input-numero')?.focus(), 50);
+    } catch (error) {
+      console.error('Erro ao consultar CEP:', error);
+      if (ultimoCepConsultadoRef.current !== digitos) return;
+      setMensagemCep({ tipo: 'erro', texto: 'Não foi possível consultar o CEP agora. Preencha o endereço abaixo.' });
+    } finally {
+      if (ultimoCepConsultadoRef.current === digitos) setBuscandoCep(false);
+    }
+  };
+
+  const handleAlterarCep = (valor: string) => {
+    setCep(formatarCep(valor));
+    const digitos = somenteDigitosCep(valor);
+
+    if (digitos.length < 8) {
+      // CEP incompleto: cancela qualquer consulta em andamento e limpa o aviso
+      ultimoCepConsultadoRef.current = '';
+      setBuscandoCep(false);
+      setMensagemCep(null);
+      return;
+    }
+
+    if (digitos !== ultimoCepConsultadoRef.current) {
+      void buscarEnderecoPorCep(digitos);
     }
   };
 
@@ -457,7 +532,27 @@ export default function TelaDeCheckoutDedicada() {
 
                 <div className="p-4 space-y-4">
                   {abaEntregaAtiva === 'CEP' && (
-                    <CampoCepEntrega cep={cep} onChangeCep={setCep} abaAtiva={abaEntregaAtiva} />
+                    <div className="space-y-2">
+                      <BotaoLocalizacaoGps
+                        rotulo="Abrir minha localização"
+                        onCapturarLocalizacao={() => setModalMapaCepAberto(true)}
+                      />
+                      {clienteLatitude !== null && clienteLongitude !== null && (
+                        <p className="text-[11px] font-semibold text-emerald-700">
+                          Localização marcada no mapa. O entregador receberá o ponto exato.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {abaEntregaAtiva === 'CEP' && (
+                    <CampoCepEntrega
+                      cep={cep}
+                      onChangeCep={handleAlterarCep}
+                      abaAtiva={abaEntregaAtiva}
+                      buscando={buscandoCep}
+                      mensagem={mensagemCep}
+                    />
                   )}
 
                   {abaEntregaAtiva === 'GPS' && (
@@ -541,33 +636,35 @@ export default function TelaDeCheckoutDedicada() {
               </div>
 
               <div className="grid gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    trackClicouPagarPix({
-                      valorTotal: valorTotalComTaxa,
-                      itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
-                    });
-                    criarPagamento('PIX');
-                  }}
-                  disabled={carregandoPagamento}
-                  className="rounded-2xl border border-[#E9B31E] bg-[#FFC72C] px-4 py-4 text-left text-zinc-900 shadow-sm disabled:opacity-50"
-                >
-                  <div className="text-xs font-bold uppercase tracking-widest">PIX</div>
-                  <div className="text-sm font-medium">Pagar com QR Code e copia e cola</div>
-                </button>
+                {aceitaPix(formasPagamento) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      trackClicouPagarPix({
+                        valorTotal: valorTotalComTaxa,
+                        itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
+                      });
+                      criarPagamento('PIX');
+                    }}
+                    disabled={carregandoPagamento}
+                    className="rounded-2xl border border-[#E9B31E] bg-[#FFC72C] px-4 py-4 text-left text-zinc-900 shadow-sm disabled:opacity-50"
+                  >
+                    <div className="text-xs font-bold uppercase tracking-widest">PIX</div>
+                    <div className="text-sm font-medium">Pagar com QR Code e copia e cola</div>
+                  </button>
+                )}
 
-                {/* Pagamento com cartão temporariamente oculto — reative removendo este comentário quando voltar a habilitar.
-                <button
-                  type="button"
-                  onClick={() => criarPagamento('CARTAO')}
-                  disabled={carregandoPagamento}
-                  className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-left text-zinc-900 shadow-sm disabled:opacity-50"
-                >
-                  <div className="text-xs font-bold uppercase tracking-widest">Cartão de crédito</div>
-                  <div className="text-sm font-medium">Finalizar no checkout do Mercado Pago</div>
-                </button>
-                */}
+                {aceitaCartao(formasPagamento) && (
+                  <button
+                    type="button"
+                    onClick={() => criarPagamento('CARTAO')}
+                    disabled={carregandoPagamento}
+                    className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-left text-zinc-900 shadow-sm disabled:opacity-50"
+                  >
+                    <div className="text-xs font-bold uppercase tracking-widest">{rotuloBotaoCartao(formasPagamento)}</div>
+                    <div className="text-sm font-medium">Finalizar no checkout seguro do Mercado Pago</div>
+                  </button>
+                )}
               </div>
 
               {dadosPix && (
@@ -710,8 +807,8 @@ export default function TelaDeCheckoutDedicada() {
           <div className="shrink-0 border-b border-zinc-100 p-5 pb-3">
             <h2 className="text-sm font-extrabold text-zinc-900">Marque sua localização no mapa</h2>
             <p className="mt-1 text-xs text-zinc-500">
-              Não encontramos um cadastro para esse telefone. Mova o mapa até posicionar o pino no endereço de
-              entrega — a gente preenche os campos automaticamente.
+              Mova o mapa até posicionar o pino no endereço de entrega — a gente preenche os campos
+              automaticamente e o entregador recebe o ponto exato.
             </p>
           </div>
 

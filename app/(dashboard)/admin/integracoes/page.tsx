@@ -1,4 +1,5 @@
 import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
+import { ConfiguracaoFormasPagamento } from '@/components/admin/ConfiguracaoFormasPagamento';
 import { ConfiguracaoPixelFacebook } from '@/components/admin/ConfiguracaoPixelFacebook';
 import {
   obterIntegracaoMercadoPagoPorRestauranteId,
@@ -21,7 +22,7 @@ export default async function PainelIntegracoesAdmin() {
   const supabase = createWebhookAdminClient();
   const { data: restaurante } = await supabase
     .from('restaurantes')
-    .select('nome, slug, meta_pixel_id')
+    .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas')
     .eq('id', restauranteId)
     .maybeSingle();
 
@@ -85,6 +86,8 @@ export default async function PainelIntegracoesAdmin() {
               </form>
             </div>
           </div>
+
+          <ConfiguracaoFormasPagamento formasIniciais={restaurante?.formas_pagamento_aceitas} />
 
           <div className="rounded-2xl border border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between gap-4">
