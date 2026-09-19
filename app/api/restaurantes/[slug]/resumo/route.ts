@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
-import { normalizarFormasPagamento } from '@/utils/formas-pagamento';
+import { aceitaCartao, normalizarFormasPagamento } from '@/utils/formas-pagamento';
+import { obterChavePublicaMercadoPago } from '@/utils/mercado-pago';
 
 interface Params {
   params: Promise<{ slug: string }>;
@@ -28,7 +29,7 @@ export async function GET(_request: Request, { params }: Params) {
     // Se essa leitura falhar, o checkout cai no padrão (só PIX) sem perder o resto do resumo.
     const { data: configPagamento, error: erroPagamento } = await createWebhookAdminClient()
       .from('restaurantes')
-      .select('formas_pagamento_aceitas')
+      .select('id, formas_pagamento_aceitas')
       .eq('slug', slug)
       .maybeSingle();
 
@@ -36,9 +37,23 @@ export async function GET(_request: Request, { params }: Params) {
       console.error('Erro ao ler formas de pagamento do restaurante:', erroPagamento);
     }
 
+    const formasAceitas = normalizarFormasPagamento(configPagamento?.formas_pagamento_aceitas);
+
+    // Chave PÚBLICA do Mercado Pago da loja: é feita para ir ao navegador (tokeniza o cartão no
+    // formulário embutido). Sem ela, o checkout usa o Checkout Pro do Mercado Pago como antes.
+    let mpPublicKey: string | null = null;
+    if (configPagamento?.id && aceitaCartao(formasAceitas)) {
+      try {
+        mpPublicKey = await obterChavePublicaMercadoPago(configPagamento.id);
+      } catch (erroChave) {
+        console.error('Erro ao obter chave pública do Mercado Pago:', erroChave);
+      }
+    }
+
     return NextResponse.json({
       ...restaurante,
-      formas_pagamento_aceitas: normalizarFormasPagamento(configPagamento?.formas_pagamento_aceitas),
+      formas_pagamento_aceitas: formasAceitas,
+      mp_public_key: mpPublicKey,
     });
   } catch (error) {
     console.error('Erro ao obter resumo do restaurante:', error);

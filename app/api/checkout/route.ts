@@ -7,15 +7,18 @@ import {
   normalizarEmailPayer,
   obterEmailPrincipalPix,
   obterIntegracaoMercadoPagoPorRestauranteId,
+  obterTipoMeioPagamentoMercadoPago,
   obterTokenMercadoPagoValido,
 } from '@/utils/mercado-pago';
-import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
+import { atualizarStatusPedidoComNotificacoes, criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
 import { calcularTaxaEntrega, ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import type { DadosClientePedido } from '@/utils/pedido-status';
 import {
   aceitaCartao,
+  aceitaCartaoCredito,
+  aceitaCartaoDebito,
   aceitaPix,
   normalizarFormasPagamento,
   tiposMercadoPagoExcluidos,
@@ -29,9 +32,21 @@ interface ItemCliente {
   complementoIds?: string[];
 }
 
+/** Dados gerados pelo formulário de cartão embutido (Card Payment Brick). O cartão em si nunca chega aqui: só o token. */
+interface DadosCartaoEmbutido {
+  token: string;
+  payment_method_id: string;
+  issuer_id?: string | number | null;
+  installments?: number;
+  payer?: { email?: string; identification?: { type?: string; number?: string } };
+  device_id?: string | null;
+}
+
 interface RequestBody {
   slug: string;
   paymentMethod: 'PIX' | 'CARTAO';
+  /** Presente quando o cartão é pago no formulário embutido; ausente = Checkout Pro do Mercado Pago. */
+  cartao?: DadosCartaoEmbutido;
   itens: ItemCliente[];
   dadosCliente: DadosClientePedido;
   clienteLatitude?: number | null;
@@ -59,6 +74,29 @@ interface ItemPrecificado {
   precoUnitario: number;
   adicionais: Array<{ id: string; nome: string; preco_adicional: number }>;
 }
+
+function lerDadosCartaoEmbutido(valor: unknown): DadosCartaoEmbutido | null {
+  if (!valor || typeof valor !== 'object') return null;
+  const cartao = valor as DadosCartaoEmbutido;
+  const documento = cartao.payer?.identification;
+  if (typeof cartao.token !== 'string' || !cartao.token.trim()) return null;
+  if (typeof cartao.payment_method_id !== 'string' || !cartao.payment_method_id.trim()) return null;
+  if (typeof documento?.type !== 'string' || typeof documento?.number !== 'string') return null;
+  return cartao;
+}
+
+const MENSAGENS_RECUSA_CARTAO: Record<string, string> = {
+  cc_rejected_insufficient_amount: 'Saldo ou limite insuficiente no cartão. Tente outro cartão.',
+  cc_rejected_bad_filled_card_number: 'Confira o número do cartão.',
+  cc_rejected_bad_filled_date: 'Confira a data de validade do cartão.',
+  cc_rejected_bad_filled_security_code: 'Confira o código de segurança (CVV).',
+  cc_rejected_bad_filled_other: 'Confira os dados do cartão e tente novamente.',
+  cc_rejected_call_for_authorize: 'Seu banco precisa autorizar este pagamento. Fale com o banco ou use outro cartão.',
+  cc_rejected_card_disabled: 'Este cartão está desabilitado. Ative-o com o banco ou use outro cartão.',
+  cc_rejected_duplicated_payment: 'Você já fez um pagamento igual a este. Confira o acompanhamento do pedido.',
+  cc_rejected_high_risk: 'Não foi possível aprovar este pagamento por segurança. Tente outro cartão ou PIX.',
+  cc_rejected_max_attempts: 'Limite de tentativas atingido. Tente outro cartão ou PIX.',
+};
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Falha no servidor de checkout.';
@@ -95,6 +133,10 @@ export async function POST(request: Request) {
     const slug = String(body.slug ?? '').trim();
     const paymentMethod = body.paymentMethod;
     const itens = Array.isArray(body.itens) ? body.itens : [];
+    const cartaoEmbutido = paymentMethod === 'CARTAO' ? lerDadosCartaoEmbutido(body.cartao) : null;
+    if (paymentMethod === 'CARTAO' && body.cartao && !cartaoEmbutido) {
+      return NextResponse.json({ error: 'Dados do cartão inválidos. Confira e tente novamente.' }, { status: 400 });
+    }
     const dadosCliente = (body.dadosCliente ?? {}) as DadosClientePedido;
     const coordenadaClienteRecebida =
       typeof body.clienteLatitude === 'number' && typeof body.clienteLongitude === 'number'
@@ -241,6 +283,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Mercado Pago não conectado para este restaurante.' }, { status: 409 });
     }
 
+    // Cartão embutido: confere ANTES de criar o pedido se o tipo do cartão (crédito/débito) é aceito pela loja.
+    if (cartaoEmbutido) {
+      const tokenParaValidacao = await obterTokenMercadoPagoValido(restaurante.id);
+      const tipoCartao = await obterTipoMeioPagamentoMercadoPago(tokenParaValidacao, cartaoEmbutido.payment_method_id);
+      const tipoAceito =
+        tipoCartao === null ||
+        (tipoCartao === 'credit_card' && aceitaCartaoCredito(formasAceitas)) ||
+        (tipoCartao === 'debit_card' && aceitaCartaoDebito(formasAceitas));
+      if (!tipoAceito) {
+        return NextResponse.json({ error: 'Esta loja não aceita este tipo de cartão.' }, { status: 400 });
+      }
+    }
+
     let clienteLatitude: number | null = null;
     let clienteLongitude: number | null = null;
     let distanciaEntregaKm: number | null = null;
@@ -380,6 +435,100 @@ export async function POST(request: Request) {
         tempo_preparo_estimado_min: tempoPreparoEstimadoMin,
         tempo_deslocamento_min: tempoDeslocamentoMin,
       });
+    }
+
+    if (cartaoEmbutido) {
+      const nomeCompleto = dadosCliente.nome.trim();
+      const headers: Record<string, string> = {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        'x-idempotency-key': idempotencyKey,
+      };
+      if (cartaoEmbutido.device_id) {
+        headers['x-meli-session-id'] = String(cartaoEmbutido.device_id);
+      }
+
+      const emissor = Number(cartaoEmbutido.issuer_id);
+      const pagamentoResponse = await fetch(`${MP_API_BASE}/v1/payments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          // o valor é SEMPRE o calculado aqui no servidor, nunca o do navegador
+          transaction_amount: Number(valorTotal.toFixed(2)),
+          token: cartaoEmbutido.token,
+          description: `${restaurante.nome} - Pedido`,
+          installments: 1,
+          payment_method_id: cartaoEmbutido.payment_method_id,
+          ...(Number.isFinite(emissor) && emissor > 0 ? { issuer_id: emissor } : {}),
+          notification_url: notificationUrl,
+          external_reference: externalReference,
+          payer: {
+            email: cartaoEmbutido.payer?.email?.trim() || emailPayer,
+            first_name: nomeCompleto.split(/\s+/)[0],
+            last_name: nomeCompleto.split(/\s+/).slice(1).join(' ') || 'Cliente',
+            identification: {
+              type: String(cartaoEmbutido.payer?.identification?.type),
+              number: String(cartaoEmbutido.payer?.identification?.number).replace(/\D/g, ''),
+            },
+          },
+          additional_info: {
+            items: itensPrecificados.map((item) => ({
+              id: item.item_cardapio_id,
+              title: item.nome,
+              quantity: item.quantidade,
+              unit_price: item.precoUnitario,
+            })),
+          },
+          metadata,
+        }),
+      });
+
+      const pagamento = await pagamentoResponse.json();
+      if (!pagamentoResponse.ok) {
+        console.error('Mercado Pago recusou a criação do pagamento com cartão:', pagamento);
+        return NextResponse.json(
+          { error: 'Não foi possível processar o cartão. Confira os dados e tente novamente.' },
+          { status: 400 }
+        );
+      }
+
+      const statusPagamento = String(pagamento?.status ?? '');
+      const respostaBase = {
+        pedido_id: pedido.id,
+        codigo_acompanhamento: pedido.codigoAcompanhamento,
+        tracking_url: trackingUrl,
+        payment_id: pagamento.id,
+        tempo_preparo_estimado_min: tempoPreparoEstimadoMin,
+        tempo_deslocamento_min: tempoDeslocamentoMin,
+      };
+
+      if (statusPagamento === 'approved') {
+        try {
+          // o webhook também fará isso (é idempotente); aqui só adianta a confirmação para o cliente
+          await atualizarStatusPedidoComNotificacoes({
+            pedidoId: pedido.id,
+            novoStatus: 'PAGO',
+            mercadoPagoPaymentId: String(pagamento.id),
+          });
+        } catch (erroAtualizacao) {
+          console.error('Pagamento aprovado, mas falhou ao atualizar o pedido (o webhook concilia):', erroAtualizacao);
+        }
+        return NextResponse.json({ ...respostaBase, status: 'approved' });
+      }
+
+      if (statusPagamento === 'rejected') {
+        const detalhe = String(pagamento?.status_detail ?? '');
+        return NextResponse.json({
+          ...respostaBase,
+          status: 'rejected',
+          mensagem:
+            MENSAGENS_RECUSA_CARTAO[detalhe] ??
+            'O pagamento foi recusado. Tente outro cartão ou escolha PIX.',
+        });
+      }
+
+      // in_process / pending: o webhook confirma depois; a tela de acompanhamento atualiza sozinha
+      return NextResponse.json({ ...respostaBase, status: 'in_process' });
     }
 
     const itensPreferencia = itensPrecificados.map((item) => ({

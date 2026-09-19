@@ -13,6 +13,7 @@ export interface RestauranteIntegracaoPagamento {
   provedor: string;
   provider_user_id: string | null;
   access_token: string | null;
+  public_key?: string | null;
   refresh_token: string | null;
   token_expires_at: string | null;
   connection_status: 'pendente' | 'conectado' | 'desconectado';
@@ -258,6 +259,7 @@ export async function salvarIntegracaoMercadoPago(
       provedor: 'mercado_pago',
       provider_user_id: String(usuario.id),
       access_token: tokens.access_token,
+      ...(tokens.public_key ? { public_key: tokens.public_key } : {}),
       refresh_token: tokens.refresh_token,
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       connection_status: 'conectado',
@@ -356,3 +358,36 @@ export function montarMetadataPedido(params: {
   return metadata;
 }
 
+
+/**
+ * Chave pública da conta Mercado Pago da loja (usada no navegador para tokenizar o cartão).
+ * Se ainda não foi guardada (loja conectada antes deste recurso), renova o token — a resposta
+ * do OAuth traz a chave — e salva. Retorna null se não for possível obter.
+ */
+export async function obterChavePublicaMercadoPago(restauranteId: string): Promise<string | null> {
+  const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
+  if (!integracao || integracao.connection_status !== 'conectado') return null;
+  if (integracao.public_key) return integracao.public_key;
+  if (!integracao.refresh_token) return null;
+
+  const tokens = await renovarTokenMercadoPago(integracao.refresh_token);
+  await salvarIntegracaoMercadoPago(restauranteId, tokens, {
+    id: integracao.provider_user_id ?? '',
+    email: integracao.account_email ?? undefined,
+  });
+  return tokens.public_key ?? null;
+}
+
+/** Tipo (credit_card, debit_card, prepaid_card...) de um meio de pagamento, ou null se não der para saber. */
+export async function obterTipoMeioPagamentoMercadoPago(accessToken: string, paymentMethodId: string) {
+  try {
+    const response = await fetch(`${MP_API_BASE}/v1/payment_methods`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) return null;
+    const lista = (await response.json()) as Array<{ id?: string; payment_type_id?: string }>;
+    return lista.find((meio) => meio.id === paymentMethodId)?.payment_type_id ?? null;
+  } catch {
+    return null;
+  }
+}

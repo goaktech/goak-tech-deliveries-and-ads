@@ -9,6 +9,7 @@ import AbasEntrega from '@/components/ecommerce/checkout/AbasEntrega';
 import BotaoLocalizacaoGps from '@/components/ecommerce/checkout/BotaoLocalizacaoGps';
 import CampoCepEntrega from '@/components/ecommerce/checkout/CampoCepEntrega';
 import CartaoRetirada from '@/components/ecommerce/checkout/CartaoRetirada';
+import PagamentoCartaoBrick, { type DadosCartaoBrick } from '@/components/ecommerce/checkout/PagamentoCartaoBrick';
 import FormularioEnderecoEntrega from '@/components/ecommerce/checkout/FormularioEnderecoEntrega';
 import SeletorBairroEntrega from '@/components/ecommerce/checkout/SeletorBairroEntrega';
 import { SeletorLocalizacaoMapa, type ResultadoLocalizacaoMapa } from '@/components/shared/SeletorLocalizacaoMapa';
@@ -26,6 +27,8 @@ import { formatarCep, somenteDigitosCep } from '@/utils/cep';
 import {
   FORMAS_PAGAMENTO_PADRAO,
   aceitaCartao,
+  aceitaCartaoCredito,
+  aceitaCartaoDebito,
   aceitaPix,
   normalizarFormasPagamento,
   rotuloBotaoCartao,
@@ -57,6 +60,8 @@ export default function TelaDeCheckoutDedicada() {
   const ultimoCepConsultadoRef = useRef('');
   // formas de pagamento habilitadas pelo gestor (até carregar, só PIX — o padrão de toda loja)
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoLoja[]>(FORMAS_PAGAMENTO_PADRAO);
+  const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [cartaoEmbutidoAberto, setCartaoEmbutidoAberto] = useState(false);
   const [nomeCliente, setNomeCliente] = useState('');
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [emailCliente, setEmailCliente] = useState('');
@@ -123,6 +128,7 @@ export default function TelaDeCheckoutDedicada() {
           setLongitudeLoja(body.longitude);
         }
         setFormasPagamento(normalizarFormasPagamento(body?.formas_pagamento_aceitas));
+        setMpPublicKey(typeof body?.mp_public_key === 'string' && body.mp_public_key ? body.mp_public_key : null);
       } catch (error) {
         console.error('Erro ao carregar endereço da loja:', error);
       }
@@ -180,6 +186,51 @@ export default function TelaDeCheckoutDedicada() {
     }
   };
 
+  const montarCorpoPedido = (novoMetodo: 'PIX' | 'CARTAO', cartao?: DadosCartaoBrick) => ({
+    slug,
+    paymentMethod: novoMetodo,
+    ...(cartao ? { cartao } : {}),
+    itens: itens.map((item) => ({
+      item_cardapio_id: item.produto.id,
+      quantidade: item.quantidade,
+      complementoIds: item.adicionaisEscolhidos.map((adicional) => adicional.id),
+    })),
+    dadosCliente: {
+      nome: nomeCliente,
+      telefone: telefoneCliente,
+      email: emailCliente,
+      tipoEntrega: abaEntregaAtiva === 'RETIRADA' ? 'RETIRADA' : 'ENTREGA',
+      endereco: abaEntregaAtiva === 'RETIRADA' ? undefined : dadosEndereco,
+    },
+    clienteLatitude: abaEntregaAtiva === 'RETIRADA' ? null : clienteLatitude,
+    clienteLongitude: abaEntregaAtiva === 'RETIRADA' ? null : clienteLongitude,
+  });
+
+  // Pagamento com o formulário de cartão embutido: o servidor cria o pedido e cobra com o token do cartão.
+  // Lança erro (mensagem amigável) se o pagamento não for concluído, o que libera o formulário para nova tentativa.
+  const pagarComCartaoEmbutido = async (dadosCartao: DadosCartaoBrick) => {
+    const resposta = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(montarCorpoPedido('CARTAO', dadosCartao)),
+    });
+    const body = await resposta.json().catch(() => null);
+    if (!resposta.ok || !body) {
+      throw new Error(body?.error || 'Falha ao processar o pagamento. Tente novamente.');
+    }
+    if (body.status === 'rejected') {
+      throw new Error(body.mensagem || 'O pagamento foi recusado. Tente outro cartão ou escolha PIX.');
+    }
+
+    trackPurchase({
+      pedidoId: body.pedido_id,
+      valorTotal: valorTotalComTaxa,
+      itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
+    });
+    limparCarrinho();
+    router.push(body.status === 'approved' ? body.tracking_url : `${body.tracking_url}?pagamento=pendente`);
+  };
+
   const criarPagamento = async (novoMetodo: 'PIX' | 'CARTAO') => {
     setCarregandoPagamento(true);
     setDadosPix(null);
@@ -191,24 +242,7 @@ export default function TelaDeCheckoutDedicada() {
       const resposta = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          slug,
-          paymentMethod: novoMetodo,
-          itens: itens.map((item) => ({
-            item_cardapio_id: item.produto.id,
-            quantidade: item.quantidade,
-            complementoIds: item.adicionaisEscolhidos.map((adicional) => adicional.id),
-          })),
-          dadosCliente: {
-            nome: nomeCliente,
-            telefone: telefoneCliente,
-            email: emailCliente,
-            tipoEntrega: abaEntregaAtiva === 'RETIRADA' ? 'RETIRADA' : 'ENTREGA',
-            endereco: abaEntregaAtiva === 'RETIRADA' ? undefined : dadosEndereco,
-          },
-          clienteLatitude: abaEntregaAtiva === 'RETIRADA' ? null : clienteLatitude,
-          clienteLongitude: abaEntregaAtiva === 'RETIRADA' ? null : clienteLongitude,
-        }),
+        body: JSON.stringify(montarCorpoPedido(novoMetodo)),
       });
 
       const body = await resposta.json();
@@ -655,15 +689,46 @@ export default function TelaDeCheckoutDedicada() {
                 )}
 
                 {aceitaCartao(formasPagamento) && (
-                  <button
-                    type="button"
-                    onClick={() => criarPagamento('CARTAO')}
-                    disabled={carregandoPagamento}
-                    className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-left text-zinc-900 shadow-sm disabled:opacity-50"
-                  >
-                    <div className="text-xs font-bold uppercase tracking-widest">{rotuloBotaoCartao(formasPagamento)}</div>
-                    <div className="text-sm font-medium">Finalizar no checkout seguro do Mercado Pago</div>
-                  </button>
+                  <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mpPublicKey) {
+                          setCartaoEmbutidoAberto((aberto) => !aberto);
+                        } else {
+                          void criarPagamento('CARTAO');
+                        }
+                      }}
+                      disabled={carregandoPagamento}
+                      aria-expanded={mpPublicKey ? cartaoEmbutidoAberto : undefined}
+                      className="w-full px-4 py-4 text-left text-zinc-900 disabled:opacity-50"
+                    >
+                      <div className="text-xs font-bold uppercase tracking-widest">{rotuloBotaoCartao(formasPagamento)}</div>
+                      <div className="text-sm font-medium">
+                        {mpPublicKey ? 'Pagar aqui mesmo, sem sair do site' : 'Finalizar no checkout seguro do Mercado Pago'}
+                      </div>
+                    </button>
+
+                    {mpPublicKey && cartaoEmbutidoAberto && (
+                      <div className="space-y-3 border-t border-zinc-100 px-4 pb-4 pt-4">
+                        <PagamentoCartaoBrick
+                          chavePublica={mpPublicKey}
+                          valor={valorTotalComTaxa}
+                          aceitaCredito={aceitaCartaoCredito(formasPagamento)}
+                          aceitaDebito={aceitaCartaoDebito(formasPagamento)}
+                          aoEnviar={pagarComCartaoEmbutido}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void criarPagamento('CARTAO')}
+                          disabled={carregandoPagamento}
+                          className="w-full text-center text-xs font-semibold text-zinc-500 underline underline-offset-2 disabled:opacity-50"
+                        >
+                          Prefiro pagar no ambiente do Mercado Pago (aceita saldo em conta)
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

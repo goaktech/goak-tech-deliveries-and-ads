@@ -410,9 +410,11 @@ export async function POST(request: Request) {
         dados: { pedido_id: pedidoExistente.id, status_atual: pedidoExistente.status },
       });
 
+      // Só PENDENTE vira PAGO. Um webhook repetido/atrasado nunca pode "voltar" um pedido que a
+      // loja já avançou (preparando, pronto, saiu para entrega...).
       const resultado = await atualizarStatusPedidoComNotificacoes({
         pedidoId: pedidoExistente.id,
-        novoStatus: 'PAGO',
+        novoStatus: pedidoExistente.status === 'PENDENTE' ? 'PAGO' : pedidoExistente.status,
         mercadoPagoPaymentId: paymentId,
       });
 

@@ -42,6 +42,14 @@ export function aceitaCartao(formas: FormaPagamentoLoja[]): boolean {
   return formas.includes('CARTAO_CREDITO') || formas.includes('CARTAO_DEBITO');
 }
 
+export function aceitaCartaoCredito(formas: FormaPagamentoLoja[]): boolean {
+  return formas.includes('CARTAO_CREDITO');
+}
+
+export function aceitaCartaoDebito(formas: FormaPagamentoLoja[]): boolean {
+  return formas.includes('CARTAO_DEBITO');
+}
+
 /** Texto do botão de cartão no checkout, conforme o que a loja aceita. */
 export function rotuloBotaoCartao(formas: FormaPagamentoLoja[]): string {
   const credito = formas.includes('CARTAO_CREDITO');
