@@ -60,6 +60,7 @@ export default function TelaDeCheckoutDedicada() {
   const ultimoCepConsultadoRef = useRef('');
   // formas de pagamento habilitadas pelo gestor (até carregar, só PIX — o padrão de toda loja)
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoLoja[]>(FORMAS_PAGAMENTO_PADRAO);
+  const pedidoRecusadoRef = useRef<{ codigo: string; assinatura: string } | null>(null);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
   const [cartaoEmbutidoAberto, setCartaoEmbutidoAberto] = useState(false);
   const [nomeCliente, setNomeCliente] = useState('');
@@ -209,18 +210,33 @@ export default function TelaDeCheckoutDedicada() {
   // Pagamento com o formulário de cartão embutido: o servidor cria o pedido e cobra com o token do cartão.
   // Lança erro (mensagem amigável) se o pagamento não for concluído, o que libera o formulário para nova tentativa.
   const pagarComCartaoEmbutido = async (dadosCartao: DadosCartaoBrick) => {
-    const resposta = await fetch('/api/checkout', {
+    const corpoPedido = montarCorpoPedido('CARTAO', dadosCartao);
+    const assinatura = JSON.stringify([corpoPedido.itens, corpoPedido.dadosCliente, valorTotalComTaxa]);
+    const retentativa = pedidoRecusadoRef.current;
+    // Depois de uma recusa, as próximas tentativas (outro cartão) reaproveitam o MESMO pedido,
+    // em vez de criar um pedido novo a cada tentativa. Se a sacola/dados mudaram, cria um novo.
+    const reaproveitar = retentativa && retentativa.assinatura === assinatura ? retentativa.codigo : null;
+
+    const resposta = await fetch(reaproveitar ? '/api/checkout/retomar' : '/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(montarCorpoPedido('CARTAO', dadosCartao)),
+      body: JSON.stringify(
+        reaproveitar
+          ? { slug, codigoAcompanhamento: reaproveitar, paymentMethod: 'CARTAO', cartao: dadosCartao }
+          : corpoPedido
+      ),
     });
     const body = await resposta.json().catch(() => null);
     if (!resposta.ok || !body) {
       throw new Error(body?.error || 'Falha ao processar o pagamento. Tente novamente.');
     }
     if (body.status === 'rejected') {
+      if (body.codigo_acompanhamento) {
+        pedidoRecusadoRef.current = { codigo: String(body.codigo_acompanhamento), assinatura };
+      }
       throw new Error(body.mensagem || 'O pagamento foi recusado. Tente outro cartão ou escolha PIX.');
     }
+    pedidoRecusadoRef.current = null;
 
     trackPurchase({
       pedidoId: body.pedido_id,
@@ -669,6 +685,15 @@ export default function TelaDeCheckoutDedicada() {
                 </div>
               </div>
 
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Escolher pagamento</span>
+                {carregandoPagamento && (
+                  <span className="text-[10px] font-semibold text-zinc-500" aria-live="polite">
+                    Processando...
+                  </span>
+                )}
+              </div>
+
               <div className="grid gap-3">
                 {aceitaPix(formasPagamento) && (
                   <button
@@ -847,22 +872,22 @@ export default function TelaDeCheckoutDedicada() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleAcaoPrincipal}
-            disabled={
-              itens.length === 0 || (etapaCheckout === 'ENTREGA' && (!dadosContatoPreenchidos || !entregaValida))
-            }
-            className="w-full py-4 px-6 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 active:scale-[0.99] shadow-sm disabled:opacity-30 disabled:pointer-events-none"
-          >
-            {etapaCheckout === 'SACOLA'
-              ? 'Avançar para Entrega'
-              : etapaCheckout === 'ENTREGA'
-                ? 'Ir para o Pagamento'
-                : carregandoPagamento
-                  ? 'Processando...'
-                  : 'Escolher pagamento'}
-          </button>
+          {etapaCheckout !== 'PAGAMENTO' && (
+            <button
+              type="button"
+              onClick={handleAcaoPrincipal}
+              disabled={
+                itens.length === 0 || (etapaCheckout === 'ENTREGA' && (!dadosContatoPreenchidos || !entregaValida))
+              }
+              className="w-full py-4 px-6 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 active:scale-[0.99] shadow-sm disabled:opacity-30 disabled:pointer-events-none"
+            >
+              {etapaCheckout === 'SACOLA'
+                ? 'Avançar para Entrega'
+                : etapaCheckout === 'ENTREGA'
+                  ? 'Ir para o Pagamento'
+                  : null}
+            </button>
+          )}
         </footer>
 
       </div>

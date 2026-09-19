@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AtivadorPushPedido } from '@/components/ecommerce/acompanhamento/AtivadorPushPedido';
+import { RetentarPagamentoPedido } from '@/components/ecommerce/acompanhamento/RetentarPagamentoPedido';
 import {
   type DadosClientePedido,
   type StatusPedido,
@@ -86,7 +87,7 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
     if (pagamento === 'falhou') {
       return {
         classe: 'border-red-200 bg-red-50 text-red-700',
-        texto: 'O pagamento não foi concluído. Se necessário, tente novamente com a loja.',
+        texto: 'O pagamento não foi concluído. Você pode tentar novamente logo abaixo.',
       };
     }
     if (pagamento) {
@@ -151,6 +152,14 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
               {bannerPagamento.texto}
             </div>
           ) : null}
+
+          {pedido.status === 'PENDENTE' && (
+            <RetentarPagamentoPedido
+              slug={pedido.restaurante.slug}
+              codigoAcompanhamento={pedido.codigo_acompanhamento}
+              valorTotal={pedido.valor_total}
+            />
+          )}
 
           <div className="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
             <div className="flex items-center justify-between gap-3">

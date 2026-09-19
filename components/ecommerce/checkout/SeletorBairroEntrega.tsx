@@ -24,7 +24,7 @@ export default function SeletorBairroEntrega({ zonas, valor, onChange, bairroDet
   return (
     <div className="space-y-1.5">
       <label htmlFor="select-bairro-entrega" className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">
-        Bairro
+        Taxa de entrega
       </label>
       <select
         id="select-bairro-entrega"

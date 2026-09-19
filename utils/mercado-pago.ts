@@ -378,16 +378,22 @@ export async function obterChavePublicaMercadoPago(restauranteId: string): Promi
   return tokens.public_key ?? null;
 }
 
-/** Tipo (credit_card, debit_card, prepaid_card...) de um meio de pagamento, ou null se não der para saber. */
-export async function obterTipoMeioPagamentoMercadoPago(accessToken: string, paymentMethodId: string) {
+/**
+ * Tipos (credit_card, debit_card, prepaid_card...) que o Mercado Pago associa a um meio de pagamento.
+ * Pode haver mais de um registro com o mesmo id; lista vazia = não foi possível saber.
+ */
+export async function obterTiposMeioPagamentoMercadoPago(accessToken: string, paymentMethodId: string) {
   try {
     const response = await fetch(`${MP_API_BASE}/v1/payment_methods`, {
       headers: { authorization: `Bearer ${accessToken}` },
     });
-    if (!response.ok) return null;
+    if (!response.ok) return [] as string[];
     const lista = (await response.json()) as Array<{ id?: string; payment_type_id?: string }>;
-    return lista.find((meio) => meio.id === paymentMethodId)?.payment_type_id ?? null;
+    const tipos = lista
+      .filter((meio) => meio.id === paymentMethodId && typeof meio.payment_type_id === 'string')
+      .map((meio) => meio.payment_type_id as string);
+    return Array.from(new Set(tipos));
   } catch {
-    return null;
+    return [] as string[];
   }
 }

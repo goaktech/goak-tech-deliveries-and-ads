@@ -50,12 +50,13 @@ export function aceitaCartaoDebito(formas: FormaPagamentoLoja[]): boolean {
   return formas.includes('CARTAO_DEBITO');
 }
 
-/** Texto do botão de cartão no checkout, conforme o que a loja aceita. */
+/**
+ * Texto do botão de cartão no checkout. Na tela do cliente não citamos "débito": no Mercado Pago o débito
+ * é bem restrito, então mostramos "Cartão de crédito" (ou só "Cartão" se a loja aceitar apenas débito).
+ * A configuração e a validação de débito continuam funcionando normalmente.
+ */
 export function rotuloBotaoCartao(formas: FormaPagamentoLoja[]): string {
-  const credito = formas.includes('CARTAO_CREDITO');
-  const debito = formas.includes('CARTAO_DEBITO');
-  if (credito && debito) return 'Cartão de crédito ou débito';
-  return credito ? ROTULO_FORMA_PAGAMENTO.CARTAO_CREDITO : ROTULO_FORMA_PAGAMENTO.CARTAO_DEBITO;
+  return formas.includes('CARTAO_CREDITO') ? ROTULO_FORMA_PAGAMENTO.CARTAO_CREDITO : 'Cartão';
 }
 
 /**

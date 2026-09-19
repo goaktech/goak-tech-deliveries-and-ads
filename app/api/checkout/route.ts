@@ -2,15 +2,17 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import {
-  montarMetadataPedido,
-  montarNotificationUrlMercadoPago,
-  normalizarEmailPayer,
-  obterEmailPrincipalPix,
   obterIntegracaoMercadoPagoPorRestauranteId,
-  obterTipoMeioPagamentoMercadoPago,
+  obterTiposMeioPagamentoMercadoPago,
   obterTokenMercadoPagoValido,
 } from '@/utils/mercado-pago';
-import { atualizarStatusPedidoComNotificacoes, criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
+import {
+  cobrarPedidoMercadoPago,
+  lerDadosCartaoEmbutido,
+  type DadosCartaoEmbutido,
+  type ItemPrecificado,
+} from '@/utils/cobranca-pedido-mercado-pago';
+import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
 import { calcularTaxaEntrega, ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
@@ -21,25 +23,12 @@ import {
   aceitaCartaoDebito,
   aceitaPix,
   normalizarFormasPagamento,
-  tiposMercadoPagoExcluidos,
 } from '@/utils/formas-pagamento';
-
-const MP_API_BASE = 'https://api.mercadopago.com';
 
 interface ItemCliente {
   item_cardapio_id: string;
   quantidade: number;
   complementoIds?: string[];
-}
-
-/** Dados gerados pelo formulário de cartão embutido (Card Payment Brick). O cartão em si nunca chega aqui: só o token. */
-interface DadosCartaoEmbutido {
-  token: string;
-  payment_method_id: string;
-  issuer_id?: string | number | null;
-  installments?: number;
-  payer?: { email?: string; identification?: { type?: string; number?: string } };
-  device_id?: string | null;
 }
 
 interface RequestBody {
@@ -66,37 +55,6 @@ interface ComplementoPrecificado {
   preco_adicional: number;
   disponivel: boolean;
 }
-
-interface ItemPrecificado {
-  item_cardapio_id: string;
-  quantidade: number;
-  nome: string;
-  precoUnitario: number;
-  adicionais: Array<{ id: string; nome: string; preco_adicional: number }>;
-}
-
-function lerDadosCartaoEmbutido(valor: unknown): DadosCartaoEmbutido | null {
-  if (!valor || typeof valor !== 'object') return null;
-  const cartao = valor as DadosCartaoEmbutido;
-  const documento = cartao.payer?.identification;
-  if (typeof cartao.token !== 'string' || !cartao.token.trim()) return null;
-  if (typeof cartao.payment_method_id !== 'string' || !cartao.payment_method_id.trim()) return null;
-  if (typeof documento?.type !== 'string' || typeof documento?.number !== 'string') return null;
-  return cartao;
-}
-
-const MENSAGENS_RECUSA_CARTAO: Record<string, string> = {
-  cc_rejected_insufficient_amount: 'Saldo ou limite insuficiente no cartão. Tente outro cartão.',
-  cc_rejected_bad_filled_card_number: 'Confira o número do cartão.',
-  cc_rejected_bad_filled_date: 'Confira a data de validade do cartão.',
-  cc_rejected_bad_filled_security_code: 'Confira o código de segurança (CVV).',
-  cc_rejected_bad_filled_other: 'Confira os dados do cartão e tente novamente.',
-  cc_rejected_call_for_authorize: 'Seu banco precisa autorizar este pagamento. Fale com o banco ou use outro cartão.',
-  cc_rejected_card_disabled: 'Este cartão está desabilitado. Ative-o com o banco ou use outro cartão.',
-  cc_rejected_duplicated_payment: 'Você já fez um pagamento igual a este. Confira o acompanhamento do pedido.',
-  cc_rejected_high_risk: 'Não foi possível aprovar este pagamento por segurança. Tente outro cartão ou PIX.',
-  cc_rejected_max_attempts: 'Limite de tentativas atingido. Tente outro cartão ou PIX.',
-};
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Falha no servidor de checkout.';
@@ -284,15 +242,33 @@ export async function POST(request: Request) {
     }
 
     // Cartão embutido: confere ANTES de criar o pedido se o tipo do cartão (crédito/débito) é aceito pela loja.
-    if (cartaoEmbutido) {
+    // A conferência do tipo do cartão só importa quando a loja aceita APENAS crédito ou APENAS débito.
+    // Aceitando os dois, qualquer crédito/débito serve (o formulário já esconde pré-pago), e uma consulta
+    // que falhe ou devolva algo inesperado não deve barrar um pagamento legítimo.
+    if (cartaoEmbutido && !(aceitaCartaoCredito(formasAceitas) && aceitaCartaoDebito(formasAceitas))) {
       const tokenParaValidacao = await obterTokenMercadoPagoValido(restaurante.id);
-      const tipoCartao = await obterTipoMeioPagamentoMercadoPago(tokenParaValidacao, cartaoEmbutido.payment_method_id);
+      const tiposCartao = await obterTiposMeioPagamentoMercadoPago(tokenParaValidacao, cartaoEmbutido.payment_method_id);
+      // sem informação do Mercado Pago, o formulário (que já filtra por tipo) prevalece;
+      // com informação, basta que algum dos tipos do cartão seja aceito pela loja
       const tipoAceito =
-        tipoCartao === null ||
-        (tipoCartao === 'credit_card' && aceitaCartaoCredito(formasAceitas)) ||
-        (tipoCartao === 'debit_card' && aceitaCartaoDebito(formasAceitas));
+        tiposCartao.length === 0 ||
+        tiposCartao.some(
+          (tipo) =>
+            (tipo === 'credit_card' && aceitaCartaoCredito(formasAceitas)) ||
+            (tipo === 'debit_card' && aceitaCartaoDebito(formasAceitas))
+        );
       if (!tipoAceito) {
-        return NextResponse.json({ error: 'Esta loja não aceita este tipo de cartão.' }, { status: 400 });
+        console.error('Cartão recusado pela regra da loja:', {
+          payment_method_id: cartaoEmbutido.payment_method_id,
+          payment_type_ids: tiposCartao,
+          formas_aceitas: formasAceitas,
+        });
+        return NextResponse.json(
+          {
+            error: `Esta loja não aceita este tipo de cartão (${tiposCartao.join(', ') || 'desconhecido'} / ${cartaoEmbutido.payment_method_id}).`,
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -378,219 +354,23 @@ export async function POST(request: Request) {
       })),
     });
 
-    const trackingUrl = `${appUrl}/${slug}/acompanhar/${pedido.codigoAcompanhamento}`;
-    const accessToken = await obterTokenMercadoPagoValido(restaurante.id);
-    const notificationUrl = montarNotificationUrlMercadoPago(appUrl, restaurante.id);
-    const metadata = montarMetadataPedido({
+    return await cobrarPedidoMercadoPago({
+      appUrl,
       slug,
-      pedidoId: pedido.id,
-      codigoAcompanhamento: pedido.codigoAcompanhamento,
+      restaurante: { id: restaurante.id, nome: restaurante.nome },
+      pedido: { id: pedido.id, codigoAcompanhamento: pedido.codigoAcompanhamento },
       externalReference,
-      restauranteId: restaurante.id,
-      metodoPagamento: paymentMethod,
+      paymentMethod,
+      cartaoEmbutido,
       dadosCliente,
-      itens,
-    });
-    const emailPayer = normalizarEmailPayer(dadosCliente.email, slug, dadosCliente.telefone);
-    const idempotencyKey = `${externalReference}-${paymentMethod.toLowerCase()}`;
-
-    if (paymentMethod === 'PIX') {
-      const response = await fetch(`${MP_API_BASE}/v1/payments`, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          'content-type': 'application/json',
-          'x-idempotency-key': idempotencyKey,
-        },
-        body: JSON.stringify({
-          transaction_amount: Number(valorTotal.toFixed(2)),
-          description: `${restaurante.nome} - Pedido`,
-          payment_method_id: 'pix',
-          notification_url: notificationUrl,
-          external_reference: externalReference,
-          payer: {
-            email: obterEmailPrincipalPix(),
-            first_name: dadosCliente.nome.trim().split(/\s+/)[0],
-            last_name: dadosCliente.nome.trim().split(/\s+/).slice(1).join(' ') || 'Cliente',
-          },
-          metadata,
-        }),
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.message || 'Falha ao gerar pagamento PIX.');
-      }
-
-      const transactionData = payload?.point_of_interaction?.transaction_data ?? {};
-
-      return NextResponse.json({
-        pedido_id: pedido.id,
-        codigo_acompanhamento: pedido.codigoAcompanhamento,
-        tracking_url: trackingUrl,
-        payment_id: payload.id,
-        qr_code: transactionData.qr_code ?? '',
-        qr_code_base64: transactionData.qr_code_base64 ?? '',
-        ticket_url: transactionData.ticket_url ?? '',
-        tempo_preparo_estimado_min: tempoPreparoEstimadoMin,
-        tempo_deslocamento_min: tempoDeslocamentoMin,
-      });
-    }
-
-    if (cartaoEmbutido) {
-      const nomeCompleto = dadosCliente.nome.trim();
-      const headers: Record<string, string> = {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-        'x-idempotency-key': idempotencyKey,
-      };
-      if (cartaoEmbutido.device_id) {
-        headers['x-meli-session-id'] = String(cartaoEmbutido.device_id);
-      }
-
-      const emissor = Number(cartaoEmbutido.issuer_id);
-      const pagamentoResponse = await fetch(`${MP_API_BASE}/v1/payments`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          // o valor é SEMPRE o calculado aqui no servidor, nunca o do navegador
-          transaction_amount: Number(valorTotal.toFixed(2)),
-          token: cartaoEmbutido.token,
-          description: `${restaurante.nome} - Pedido`,
-          installments: 1,
-          payment_method_id: cartaoEmbutido.payment_method_id,
-          ...(Number.isFinite(emissor) && emissor > 0 ? { issuer_id: emissor } : {}),
-          notification_url: notificationUrl,
-          external_reference: externalReference,
-          payer: {
-            email: cartaoEmbutido.payer?.email?.trim() || emailPayer,
-            first_name: nomeCompleto.split(/\s+/)[0],
-            last_name: nomeCompleto.split(/\s+/).slice(1).join(' ') || 'Cliente',
-            identification: {
-              type: String(cartaoEmbutido.payer?.identification?.type),
-              number: String(cartaoEmbutido.payer?.identification?.number).replace(/\D/g, ''),
-            },
-          },
-          additional_info: {
-            items: itensPrecificados.map((item) => ({
-              id: item.item_cardapio_id,
-              title: item.nome,
-              quantity: item.quantidade,
-              unit_price: item.precoUnitario,
-            })),
-          },
-          metadata,
-        }),
-      });
-
-      const pagamento = await pagamentoResponse.json();
-      if (!pagamentoResponse.ok) {
-        console.error('Mercado Pago recusou a criação do pagamento com cartão:', pagamento);
-        return NextResponse.json(
-          { error: 'Não foi possível processar o cartão. Confira os dados e tente novamente.' },
-          { status: 400 }
-        );
-      }
-
-      const statusPagamento = String(pagamento?.status ?? '');
-      const respostaBase = {
-        pedido_id: pedido.id,
-        codigo_acompanhamento: pedido.codigoAcompanhamento,
-        tracking_url: trackingUrl,
-        payment_id: pagamento.id,
-        tempo_preparo_estimado_min: tempoPreparoEstimadoMin,
-        tempo_deslocamento_min: tempoDeslocamentoMin,
-      };
-
-      if (statusPagamento === 'approved') {
-        try {
-          // o webhook também fará isso (é idempotente); aqui só adianta a confirmação para o cliente
-          await atualizarStatusPedidoComNotificacoes({
-            pedidoId: pedido.id,
-            novoStatus: 'PAGO',
-            mercadoPagoPaymentId: String(pagamento.id),
-          });
-        } catch (erroAtualizacao) {
-          console.error('Pagamento aprovado, mas falhou ao atualizar o pedido (o webhook concilia):', erroAtualizacao);
-        }
-        return NextResponse.json({ ...respostaBase, status: 'approved' });
-      }
-
-      if (statusPagamento === 'rejected') {
-        const detalhe = String(pagamento?.status_detail ?? '');
-        return NextResponse.json({
-          ...respostaBase,
-          status: 'rejected',
-          mensagem:
-            MENSAGENS_RECUSA_CARTAO[detalhe] ??
-            'O pagamento foi recusado. Tente outro cartão ou escolha PIX.',
-        });
-      }
-
-      // in_process / pending: o webhook confirma depois; a tela de acompanhamento atualiza sozinha
-      return NextResponse.json({ ...respostaBase, status: 'in_process' });
-    }
-
-    const itensPreferencia = itensPrecificados.map((item) => ({
-      id: item.item_cardapio_id,
-      title:
-        item.adicionais.length > 0
-          ? `${item.nome} (+ ${item.adicionais.map((adicional) => adicional.nome).join(', ')})`
-          : item.nome,
-      quantity: item.quantidade,
-      unit_price: item.precoUnitario,
-      currency_id: 'BRL',
-    }));
-
-    if (taxaEntrega > 0) {
-      itensPreferencia.push({
-        id: 'taxa-entrega',
-        title: 'Taxa de entrega',
-        quantity: 1,
-        unit_price: taxaEntrega,
-        currency_id: 'BRL',
-      });
-    }
-
-    const preferenceResponse = await fetch(`${MP_API_BASE}/checkout/preferences`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-        'x-idempotency-key': idempotencyKey,
-      },
-      body: JSON.stringify({
-        items: itensPreferencia,
-        // mostra no checkout do Mercado Pago só crédito e/ou débito, conforme a loja aceita
-        payment_methods: {
-          excluded_payment_types: tiposMercadoPagoExcluidos(formasAceitas),
-        },
-        payer: {
-          email: emailPayer,
-        },
-        external_reference: externalReference,
-        notification_url: notificationUrl,
-        back_urls: {
-          success: `${trackingUrl}?pagamento=aprovado`,
-          pending: `${trackingUrl}?pagamento=pendente`,
-          failure: `${trackingUrl}?pagamento=falhou`,
-        },
-        auto_return: 'approved',
-        metadata,
-      }),
-    });
-
-    const preferencePayload = await preferenceResponse.json();
-    if (!preferenceResponse.ok) {
-      throw new Error(preferencePayload?.message || 'Falha ao gerar checkout com cartão.');
-    }
-
-    return NextResponse.json({
-      pedido_id: pedido.id,
-      codigo_acompanhamento: pedido.codigoAcompanhamento,
-      tracking_url: trackingUrl,
-      preference_id: preferencePayload.id,
-      checkout_url: preferencePayload.init_point ?? preferencePayload.sandbox_init_point ?? '',
+      itensMetadata: itens,
+      itensPrecificados,
+      taxaEntrega,
+      valorTotal,
+      formasAceitas,
+      tempoPreparoEstimadoMin,
+      tempoDeslocamentoMin,
+      idempotencyKey: `${externalReference}-${paymentMethod.toLowerCase()}`,
     });
   } catch (error: unknown) {
     console.error('Erro crítico na rota de checkout Mercado Pago:', error);
