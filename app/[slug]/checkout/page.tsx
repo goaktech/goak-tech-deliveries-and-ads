@@ -423,12 +423,14 @@ export default function TelaDeCheckoutDedicada() {
     setResultadoMapaCepPendente(null);
   };
 
+  // h-dvh: altura visível de verdade no celular (descontando as barras do navegador).
+  // A página em si não rola: só o miolo; cabeçalho e rodapé (total + botão) ficam sempre à vista.
   return (
-    <main className="min-h-screen w-full bg-[#F8F8F8] text-[#1A1A1A] font-sans antialiased flex flex-col justify-between selection:bg-zinc-900 selection:text-white">
+    <main className="h-dvh w-full overflow-hidden bg-[#F8F8F8] text-[#1A1A1A] font-sans antialiased flex flex-col selection:bg-zinc-900 selection:text-white">
 
-      <div className="w-full max-w-xl mx-auto bg-white flex-1 flex flex-col shadow-sm border-x border-zinc-200/40">
+      <div className="w-full max-w-xl mx-auto bg-white flex-1 min-h-0 flex flex-col shadow-sm border-x border-zinc-200/40">
 
-        <header className="p-6 border-b border-zinc-100 flex items-center gap-4 bg-white sticky top-0 z-10 shrink-0">
+        <header className="p-6 border-b border-zinc-100 flex items-center gap-4 bg-white shrink-0">
           <button
             type="button"
             onClick={handleVoltarClique}
@@ -456,7 +458,7 @@ export default function TelaDeCheckoutDedicada() {
           </div>
         </header>
 
-        <div className="p-6 space-y-6 flex-1 bg-white">
+        <div className="p-6 space-y-6 flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white">
 
           {etapaCheckout === 'SACOLA' && (
             <div className="space-y-4">
