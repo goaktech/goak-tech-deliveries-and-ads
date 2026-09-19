@@ -227,6 +227,7 @@ async function buscarPagamentoMercadoPago(accessToken: string, paymentId: string
     id: string;
     status: string;
     payment_method_id?: string;
+    payment_type_id?: string;
     metadata?: MetadataPedido;
     external_reference?: string;
     transaction_amount?: number;
@@ -260,9 +261,25 @@ export async function POST(request: Request) {
     }
 
     const body = await extrairCorpo(request);
-    const paymentId = String(body?.data?.id ?? body?.id ?? '').trim();
-    const tipoEvento = String(body?.type ?? body?.action ?? 'desconhecido');
-    const restauranteIdQuery = new URL(request.url).searchParams.get('restaurante_id');
+    const urlWebhook = new URL(request.url);
+    const restauranteIdQuery = urlWebhook.searchParams.get('restaurante_id');
+    const topicoIpn = String(body?.topic ?? urlWebhook.searchParams.get('topic') ?? '').trim();
+    const tipoEvento = String(body?.type ?? body?.action ?? (topicoIpn || 'desconhecido'));
+
+    // O Mercado Pago envia notificações "webhooks" (data.id) e IPN (topic + resource/id).
+    // Notificações de merchant_order não trazem um pagamento e são ignoradas de propósito.
+    if (topicoIpn === 'merchant_order' || tipoEvento === 'topic_merchant_order_wh') {
+      return NextResponse.json({ received: true, ignored: 'merchant_order' });
+    }
+
+    const recursoIpn = String(body?.resource ?? '').trim();
+    const idRecursoIpn = /^\d+$/.test(recursoIpn) ? recursoIpn : recursoIpn.split('/').pop() ?? '';
+    const paymentId = String(
+      body?.data?.id ??
+        urlWebhook.searchParams.get('data.id') ??
+        (topicoIpn === 'payment' ? urlWebhook.searchParams.get('id') ?? idRecursoIpn : '') ??
+        ''
+    ).trim();
 
     if (!paymentId) {
       await registrarLogWebhook({
@@ -300,7 +317,8 @@ export async function POST(request: Request) {
         paymentId,
         tipoEvento,
       });
-      return NextResponse.json({ error: 'restaurante_id ausente.' }, { status: 400 });
+      // 200 para o Mercado Pago não reenviar: sem restaurante_id não há como conciliar (ex.: notificação de outra aplicação).
+      return NextResponse.json({ received: true, ignored: 'restaurante_id_ausente' });
     }
 
     etapaAtual = 'carregamento_integracao_restaurante';
@@ -339,6 +357,9 @@ export async function POST(request: Request) {
       dados: {
         status_pagamento: pagamento.status,
         external_reference: pagamento.external_reference ?? null,
+        payment_type_id: pagamento.payment_type_id ?? null,
+        payment_method_id: pagamento.payment_method_id ?? null,
+        valor: pagamento.transaction_amount ?? null,
       },
     });
 

@@ -72,6 +72,32 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
 
   const emFaseEntrega = pedido.status === 'SAIU_PARA_ENTREGA';
 
+  // O aviso de pagamento reflete o status REAL do pedido (confirmado pelo webhook do Mercado Pago),
+  // e não apenas o parâmetro ?pagamento= da URL, que vem do redirecionamento do checkout e não prova nada.
+  const bannerPagamento = useMemo(() => {
+    if (pedido.status !== 'PENDENTE') {
+      return pagamento
+        ? {
+            classe: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            texto: 'Pagamento confirmado. Acompanhe as próximas etapas abaixo.',
+          }
+        : null;
+    }
+    if (pagamento === 'falhou') {
+      return {
+        classe: 'border-red-200 bg-red-50 text-red-700',
+        texto: 'O pagamento não foi concluído. Se necessário, tente novamente com a loja.',
+      };
+    }
+    if (pagamento) {
+      return {
+        classe: 'border-amber-200 bg-amber-50 text-amber-700',
+        texto: 'Aguardando a confirmação do pagamento pelo Mercado Pago. Esta página atualiza sozinha.',
+      };
+    }
+    return null;
+  }, [pagamento, pedido.status]);
+
   useEffect(() => {
     let ativo = true;
 
@@ -120,13 +146,9 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
             </Link>
           </div>
 
-          {pagamento ? (
-            <div className={`mt-4 rounded-2xl border px-4 py-3 text-xs ${pagamento === 'aprovado' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : pagamento === 'falhou' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-              {pagamento === 'aprovado'
-                ? 'Pagamento confirmado. Acompanhe as próximas etapas abaixo.'
-                : pagamento === 'falhou'
-                  ? 'O pagamento não foi concluído. Se necessário, tente novamente com a loja.'
-                  : 'Pagamento em análise. Atualizaremos assim que houver confirmação.'}
+          {bannerPagamento ? (
+            <div className={`mt-4 rounded-2xl border px-4 py-3 text-xs ${bannerPagamento.classe}`}>
+              {bannerPagamento.texto}
             </div>
           ) : null}
 
