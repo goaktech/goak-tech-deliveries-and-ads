@@ -16,7 +16,7 @@ import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
 import { calcularTaxaEntrega, ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
-import type { DadosClientePedido } from '@/utils/pedido-status';
+import { type DadosClientePedido, normalizarObservacoesPedido } from '@/utils/pedido-status';
 import {
   aceitaCartao,
   aceitaCartaoCredito,
@@ -96,6 +96,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dados do cartão inválidos. Confira e tente novamente.' }, { status: 400 });
     }
     const dadosCliente = (body.dadosCliente ?? {}) as DadosClientePedido;
+    const observacoesCliente = normalizarObservacoesPedido(dadosCliente.observacoes);
+    if (observacoesCliente) {
+      dadosCliente.observacoes = observacoesCliente;
+    } else {
+      delete dadosCliente.observacoes;
+    }
     const coordenadaClienteRecebida =
       typeof body.clienteLatitude === 'number' && typeof body.clienteLongitude === 'number'
         ? { latitude: body.clienteLatitude, longitude: body.clienteLongitude }

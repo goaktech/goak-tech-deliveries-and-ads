@@ -1,4 +1,6 @@
-export type StatusPedido = 'PENDENTE' | 'PAGO' | 'PREPARANDO' | 'PRONTO' | 'SAIU_PARA_ENTREGA' | 'ENTREGUE';
+export type StatusPedido = 'PENDENTE' | 'PAGO' | 'PREPARANDO' | 'PRONTO' | 'SAIU_PARA_ENTREGA' | 'ENTREGUE' | 'CANCELADO';
+
+export const STATUS_PEDIDO_TERMINAIS: StatusPedido[] = ['ENTREGUE', 'CANCELADO'];
 export type TipoEntregaPedido = 'ENTREGA' | 'RETIRADA';
 
 export interface DadosClientePedido {
@@ -6,6 +8,7 @@ export interface DadosClientePedido {
   telefone: string;
   email?: string;
   tipoEntrega?: TipoEntregaPedido;
+  observacoes?: string;
   endereco?: {
     rua?: string;
     numero?: string;
@@ -81,11 +84,51 @@ export function obterIndiceStatusPedido(status: StatusPedido, tipoEntrega: TipoE
 }
 
 export function obterTituloStatusPedido(status: StatusPedido, tipoEntrega: TipoEntregaPedido): string {
+  if (status === 'CANCELADO') {
+    return 'Pedido cancelado';
+  }
   return obterEtapasStatusPedido(tipoEntrega).find((etapa) => etapa.chave === status)?.titulo ?? status;
 }
 
 export function obterDescricaoStatusPedido(status: StatusPedido, tipoEntrega: TipoEntregaPedido): string {
+  if (status === 'CANCELADO') {
+    return 'A loja cancelou este pedido. Se você já pagou, fale com a loja sobre a devolução do valor.';
+  }
   return obterEtapasStatusPedido(tipoEntrega).find((etapa) => etapa.chave === status)?.descricao ?? '';
+}
+
+export function obterProximoStatusPedido(status: StatusPedido, tipoEntrega: TipoEntregaPedido): StatusPedido | null {
+  switch (status) {
+    case 'PAGO':
+      return 'PREPARANDO';
+    case 'PREPARANDO':
+      return 'PRONTO';
+    case 'PRONTO':
+      return tipoEntrega === 'RETIRADA' ? 'ENTREGUE' : 'SAIU_PARA_ENTREGA';
+    case 'SAIU_PARA_ENTREGA':
+      return 'ENTREGUE';
+    default:
+      return null;
+  }
+}
+
+export function ehStatusPedidoTerminal(status: StatusPedido): boolean {
+  return STATUS_PEDIDO_TERMINAIS.includes(status);
+}
+
+export function formatarNumeroPedido(numeroPedido: number | null | undefined, idReserva: string): string {
+  if (typeof numeroPedido === 'number' && Number.isFinite(numeroPedido) && numeroPedido > 0) {
+    return String(numeroPedido).padStart(3, '0');
+  }
+  return idReserva.replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+export function normalizarObservacoesPedido(valor: unknown): string | undefined {
+  if (typeof valor !== 'string') {
+    return undefined;
+  }
+  const texto = valor.replace(/\s+/g, ' ').trim().slice(0, 280);
+  return texto.length > 0 ? texto : undefined;
 }
 
 export function formatarEnderecoPedido(dadosCliente: Partial<DadosClientePedido> | null | undefined): string | null {

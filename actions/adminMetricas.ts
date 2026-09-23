@@ -92,7 +92,7 @@ export async function obterMetricasGrowthDoDia(): Promise<ResumoMetricasFunil> {
         )
       `)
       .eq('restaurante_id', restauranteId)
-      .eq('status', 'PAGO')
+      .in('status', ['PAGO', 'PREPARANDO', 'PRONTO', 'SAIU_PARA_ENTREGA', 'ENTREGUE'])
       .gte('created_at', `${hoje}T00:00:00.000Z`)
       .lte('created_at', `${hoje}T23:59:59.999Z`);
 

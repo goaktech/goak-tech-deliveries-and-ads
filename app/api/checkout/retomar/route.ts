@@ -88,6 +88,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Pedido não encontrado.' }, { status: 404 });
     }
 
+    if (pedido.status === 'CANCELADO') {
+      return NextResponse.json({ error: 'Este pedido foi cancelado pela loja. Faça um novo pedido pelo cardápio.' }, { status: 409 });
+    }
+
     if (pedido.status !== 'PENDENTE') {
       return NextResponse.json({ error: 'Este pedido já foi pago ou está em andamento.' }, { status: 409 });
     }

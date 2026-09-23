@@ -66,6 +66,7 @@ export default function TelaDeCheckoutDedicada() {
   const [nomeCliente, setNomeCliente] = useState('');
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [emailCliente, setEmailCliente] = useState('');
+  const [observacoesCliente, setObservacoesCliente] = useState('');
   const [carregandoPagamento, setCarregandoPagamento] = useState(false);
   const [dadosPix, setDadosPix] = useState<{ qr_code: string; qr_code_base64?: string; payment_id: string } | null>(null);
   const [pixCopiado, setPixCopiado] = useState(false);
@@ -200,6 +201,7 @@ export default function TelaDeCheckoutDedicada() {
       nome: nomeCliente,
       telefone: telefoneCliente,
       email: emailCliente,
+      observacoes: observacoesCliente.trim() || undefined,
       tipoEntrega: abaEntregaAtiva === 'RETIRADA' ? 'RETIRADA' : 'ENTREGA',
       endereco: abaEntregaAtiva === 'RETIRADA' ? undefined : dadosEndereco,
     },
@@ -672,6 +674,22 @@ export default function TelaDeCheckoutDedicada() {
                     </p>
                   )}
                 </div>
+              </div>
+
+              <div className="bg-white border border-zinc-200/60 rounded-2xl p-4 space-y-1 shadow-sm">
+                <label htmlFor="observacoes-pedido" className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">
+                  Observações do pedido (opcional)
+                </label>
+                <textarea
+                  id="observacoes-pedido"
+                  rows={2}
+                  maxLength={280}
+                  placeholder="Ex.: sem cebola, portão azul, interfone 12"
+                  value={observacoesCliente}
+                  onChange={(e) => setObservacoesCliente(e.target.value)}
+                  className="w-full resize-none bg-zinc-50/50 border border-zinc-200/60 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-zinc-400 transition-all text-zinc-900 placeholder-zinc-400"
+                />
+                <p className="text-right text-[10px] text-zinc-400">{observacoesCliente.length}/280</p>
               </div>
             </div>
           )}

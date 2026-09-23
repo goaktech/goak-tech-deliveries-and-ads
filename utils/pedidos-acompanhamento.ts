@@ -5,9 +5,11 @@ import { calcularRotaEntrega } from '@/utils/google-maps';
 import {
   type DadosClientePedido,
   type StatusPedido,
+  ehStatusPedidoTerminal,
   formatarEnderecoPedido,
   obterTipoEntregaPedido,
 } from '@/utils/pedido-status';
+
 
 export interface AdicionalPedidoInput {
   id: string;
@@ -63,6 +65,9 @@ interface PedidoPublicoBruto {
   distancia_entrega_km?: number | null;
   tempo_deslocamento_min?: number | null;
   tempo_preparo_estimado_min?: number | null;
+  numero_pedido?: number | null;
+  motivo_cancelamento?: string | null;
+  cancelado_em?: string | null;
   restaurantes: RestauranteRelacionadoBruto | RestauranteRelacionadoBruto[] | null;
   itens_pedido: PedidoPublicoLinhaBruta[] | null;
 }
@@ -84,6 +89,9 @@ export interface PedidoPublico {
   distancia_entrega_km: number | null;
   tempo_deslocamento_min: number | null;
   tempo_preparo_estimado_min: number | null;
+  numero_pedido: number | null;
+  motivo_cancelamento: string | null;
+  cancelado_em: string | null;
   restaurante: {
     nome: string;
     slug: string;
@@ -170,6 +178,9 @@ function normalizarPedidoPublico(bruto: PedidoPublicoBruto): PedidoPublico {
     tempo_deslocamento_min: bruto.tempo_deslocamento_min != null ? Number(bruto.tempo_deslocamento_min) : null,
     tempo_preparo_estimado_min:
       bruto.tempo_preparo_estimado_min != null ? Number(bruto.tempo_preparo_estimado_min) : null,
+    numero_pedido: bruto.numero_pedido != null ? Number(bruto.numero_pedido) : null,
+    motivo_cancelamento: bruto.motivo_cancelamento ?? null,
+    cancelado_em: bruto.cancelado_em ?? null,
     restaurante: {
       nome: restaurante?.nome ?? 'Restaurante',
       slug: restaurante?.slug ?? '',
@@ -302,6 +313,9 @@ export async function buscarPedidoPublicoPorToken(slug: string, token: string) {
       distancia_entrega_km,
       tempo_deslocamento_min,
       tempo_preparo_estimado_min,
+      numero_pedido,
+      motivo_cancelamento,
+      cancelado_em,
       restaurantes ( nome, slug, endereco, latitude, longitude ),
       itens_pedido ( id, quantidade, preco_unitario, itens_cardapio ( nome, imagem_url ), itens_pedido_complementos ( id, nome, preco_adicional ) )
     `)
@@ -340,6 +354,9 @@ export async function buscarPedidoInternoPorId(pedidoId: string) {
       distancia_entrega_km,
       tempo_deslocamento_min,
       tempo_preparo_estimado_min,
+      numero_pedido,
+      motivo_cancelamento,
+      cancelado_em,
       restaurantes ( nome, slug, endereco, latitude, longitude ),
       itens_pedido ( id, quantidade, preco_unitario, item_cardapio_id, itens_cardapio ( nome, imagem_url ), itens_pedido_complementos ( id, nome, preco_adicional ) )
     `)
@@ -460,6 +477,14 @@ export async function atualizarStatusPedidoComNotificacoes(params: {
   }
 
   const statusAnterior = pedidoAtual.status;
+
+  if (ehStatusPedidoTerminal(statusAnterior) && params.novoStatus !== statusAnterior) {
+    return {
+      mudouStatus: false,
+      pedido: normalizarPedidoPublico(pedidoAtual),
+    };
+  }
+
   const mudouStatus = statusAnterior !== params.novoStatus;
   const precisaAtualizarPagamentoId = params.mercadoPagoPaymentId && pedidoAtual.mercado_pago_payment_id !== params.mercadoPagoPaymentId;
 
@@ -506,16 +531,22 @@ export async function atualizarStatusPedidoComNotificacoes(params: {
     }
   }
 
-  const { error: errUpdate } = await supabase
+  const { data: linhasAtualizadas, error: errUpdate } = await supabase
     .from('pedidos')
     .update(payloadAtualizacao)
-    .eq('id', params.pedidoId);
+    .eq('id', params.pedidoId)
+    .eq('status', statusAnterior)
+    .select('id');
 
   if (errUpdate) {
     throw errUpdate;
   }
 
-  if (params.novoStatus === 'PAGO' && statusAnterior !== 'PAGO') {
+  if (!linhasAtualizadas || linhasAtualizadas.length === 0) {
+    return atualizarStatusPedidoComNotificacoes(params);
+  }
+
+  if (params.novoStatus === 'PAGO' && statusAnterior === 'PENDENTE') {
     await processarEfeitosColateraisPagamentoAprovado(params.pedidoId, pedidoAtual.restaurante_id);
   }
 
@@ -540,4 +571,73 @@ export function obterResumoPedidoPublico(pedido: PedidoPublico) {
     ...pedido,
     tipo_entrega: tipoEntrega,
   };
+}
+
+export class ErroCancelamentoPedido extends Error {
+  constructor(message: string, readonly httpStatus: number) {
+    super(message);
+    this.name = 'ErroCancelamentoPedido';
+  }
+}
+
+export async function cancelarPedido(params: {
+  pedidoId: string;
+  restauranteId: string;
+  motivo: string;
+}): Promise<{ pedido: PedidoPublico; foiPago: boolean }> {
+  const supabase = getSupabase();
+  const motivo = params.motivo.replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!motivo) {
+    throw new ErroCancelamentoPedido('Informe o motivo.', 400);
+  }
+
+  for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+    const pedidoAtual = await buscarPedidoInternoPorId(params.pedidoId);
+    if (!pedidoAtual || pedidoAtual.restaurante_id !== params.restauranteId) {
+      throw new ErroCancelamentoPedido('Pedido não encontrado.', 404);
+    }
+
+    if (ehStatusPedidoTerminal(pedidoAtual.status)) {
+      throw new ErroCancelamentoPedido(
+        pedidoAtual.status === 'CANCELADO' ? 'Este pedido já foi cancelado.' : 'Este pedido já foi finalizado e não pode ser cancelado.',
+        409
+      );
+    }
+
+    const agora = new Date().toISOString();
+    const { data: linhas, error: errUpdate } = await supabase
+      .from('pedidos')
+      .update({
+        status: 'CANCELADO',
+        motivo_cancelamento: motivo,
+        cancelado_em: agora,
+        updated_at: agora,
+      })
+      .eq('id', params.pedidoId)
+      .eq('status', pedidoAtual.status)
+      .select('id');
+
+    if (errUpdate) {
+      throw errUpdate;
+    }
+
+    if (!linhas || linhas.length === 0) {
+      continue;
+    }
+
+    const pedidoAtualizado = await buscarPedidoInternoPorId(params.pedidoId);
+    if (!pedidoAtualizado) {
+      throw new ErroCancelamentoPedido('Pedido cancelado não localizado.', 500);
+    }
+
+    try {
+      await enviarNotificacoesStatusPedido(mapearPedidoParaNotificacao(pedidoAtualizado));
+    } catch (error) {
+      console.error('[pedido:cancelamento] Falha ao notificar cliente.', error);
+    }
+
+    return { pedido: normalizarPedidoPublico(pedidoAtualizado), foiPago: pedidoAtual.status !== 'PENDENTE' };
+  }
+
+  throw new ErroCancelamentoPedido('O pedido mudou de etapa enquanto era cancelado. Tente novamente.', 409);
 }
