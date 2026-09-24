@@ -9,6 +9,7 @@ import {
   obterTipoEntregaPedido,
 } from '@/utils/pedido-status';
 import { rotuloNumeroPedido } from '@/utils/cozinha';
+import { type LarguraPapelImpressao, LARGURA_PAPEL_PADRAO, normalizarLarguraPapel } from '@/utils/impressao';
 
 export type StatusPedidoCozinha = StatusPedido;
 export type EstadoConexaoCozinha = 'conectando' | 'online' | 'offline';
@@ -179,6 +180,7 @@ export function useCozinha() {
   const [statusAgendados, setStatusAgendados] = useState<Record<string, StatusPedidoCozinha>>({});
   const [entregadores, setEntregadores] = useState<EntregadorCozinha[]>([]);
   const [nomeLoja, setNomeLoja] = useState('');
+  const [larguraPapel, setLarguraPapel] = useState<LarguraPapelImpressao>(LARGURA_PAPEL_PADRAO);
   const [restauranteId, setRestauranteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
@@ -395,7 +397,7 @@ export function useCozinha() {
             .eq('ativo', true)
             .order('nome', { ascending: true }),
           fetch('/api/admin/restaurante', { cache: 'no-store' })
-            .then((resposta) => (resposta.ok ? (resposta.json() as Promise<{ nome?: string }>) : null))
+            .then((resposta) => (resposta.ok ? (resposta.json() as Promise<{ nome?: string; largura_papel_impressao?: number }>) : null))
             .catch(() => null),
         ]);
 
@@ -404,6 +406,7 @@ export function useCozinha() {
         aplicarListaDoBanco(lista);
         setEntregadores((respostaEntregadores.data || []) as EntregadorCozinha[]);
         setNomeLoja(typeof respostaLoja?.nome === 'string' ? respostaLoja.nome : '');
+        setLarguraPapel(normalizarLarguraPapel(respostaLoja?.largura_papel_impressao));
       } catch (erro) {
         console.error('Erro ao carregar a fila de pedidos da cozinha:', erro);
         if (ativo) mostrarAviso('Não foi possível carregar os pedidos. Toque em Sincronizar.', 'erro');
@@ -775,6 +778,7 @@ export function useCozinha() {
     pedidos,
     entregadores,
     nomeLoja,
+    larguraPapel,
     loading,
     sincronizando,
     conexao,

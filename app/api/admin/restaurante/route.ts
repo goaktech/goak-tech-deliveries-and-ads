@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createWebhookAdminClient } from '@/utils/supabase/webhook';
+import { normalizarLarguraPapel } from '@/utils/impressao';
 
 export async function GET() {
   try {
@@ -33,7 +35,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Restaurante não encontrado.' }, { status: 404 });
     }
 
-    return NextResponse.json(restaurante);
+    const { data: impressao } = await createWebhookAdminClient()
+      .from('restaurantes')
+      .select('largura_papel_impressao')
+      .eq('id', perfil.restaurante_id)
+      .maybeSingle();
+
+    return NextResponse.json({
+      ...restaurante,
+      largura_papel_impressao: normalizarLarguraPapel(impressao?.largura_papel_impressao),
+    });
   } catch (error) {
     console.error('Erro ao carregar restaurante do gestor:', error);
     return NextResponse.json({ error: 'Erro interno ao carregar restaurante.' }, { status: 500 });

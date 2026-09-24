@@ -6,6 +6,7 @@ import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { revalidatePath } from 'next/cache';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 import { FORMAS_PAGAMENTO_LOJA, ehFormaPagamentoLoja } from '@/utils/formas-pagamento';
+import { ehLarguraPapelValida } from '@/utils/impressao';
 
 export interface ConfiguracaoTempoPreparoInput {
   tempoPreparoBaseMinutos: number;
@@ -201,4 +202,26 @@ export async function atualizarFormasPagamentoLoja(formas: string[]) {
   revalidatePath('/admin/integracoes');
 
   return { success: true, formas: formasNormalizadas };
+}
+
+export async function atualizarLarguraPapelImpressaoLoja(largura: number) {
+  if (!ehLarguraPapelValida(largura)) {
+    return { success: false, error: 'Largura de papel inválida.' };
+  }
+
+  const restauranteId = await obterRestauranteIdDoGestorLogado();
+  const supabaseAdmin = createWebhookAdminClient();
+
+  const { error } = await supabaseAdmin
+    .from('restaurantes')
+    .update({ largura_papel_impressao: largura })
+    .eq('id', restauranteId);
+
+  if (error) {
+    return { success: false, error: `Erro ao salvar a largura do papel: ${error.message}` };
+  }
+
+  revalidatePath('/admin/configuracoes');
+
+  return { success: true, largura };
 }

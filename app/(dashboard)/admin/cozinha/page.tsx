@@ -39,6 +39,7 @@ export default function PainelCozinhaAdmin() {
     pedidos,
     entregadores,
     nomeLoja,
+    larguraPapel,
     loading,
     sincronizando,
     conexao,
@@ -60,6 +61,7 @@ export default function PainelCozinhaAdmin() {
   const [etapaAtiva, setEtapaAtiva] = useState<EtapaCozinha>('novos');
   const [busca, setBusca] = useState('');
   const [pedidoParaCancelarId, setPedidoParaCancelarId] = useState<string | null>(null);
+  const impressao = useMemo(() => ({ nomeLoja, largura: larguraPapel }), [larguraPapel, nomeLoja]);
 
   const filtrados = useMemo(() => pedidos.filter((p) => pedidoCorrespondeBusca(p, busca)), [busca, pedidos]);
 
@@ -219,12 +221,12 @@ export default function PainelCozinhaAdmin() {
           )}
 
           {etapaAtiva === 'finalizados' ? (
-            grupos.finalizados.length > 0 && <ListaPedidosFinalizados pedidos={grupos.finalizados} agora={agora} nomeLoja={nomeLoja} />
+            grupos.finalizados.length > 0 && <ListaPedidosFinalizados pedidos={grupos.finalizados} agora={agora} impressao={impressao} />
           ) : (
             <ColunaEsteiraCozinha
               pedidos={pedidosDaEtapa}
               agora={agora}
-              nomeLoja={nomeLoja}
+              impressao={impressao}
               entregadores={entregadores}
               cancelandoIds={cancelandoIds}
               onAvancar={avancarPedido}

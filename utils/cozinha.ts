@@ -1,5 +1,7 @@
+import QRCode from 'qrcode';
 import type { PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
-import { formatarNumeroPedido, obterTipoEntregaPedido } from '@/utils/pedido-status';
+import type { LarguraPapelImpressao } from '@/utils/impressao';
+import { formatarNumeroPedido, montarUrlLocalizacaoEntrega, obterTipoEntregaPedido } from '@/utils/pedido-status';
 
 export function rotuloNumeroPedido(pedido: Pick<PedidoCozinha, 'numero_pedido' | 'id'>) {
   return `#${formatarNumeroPedido(pedido.numero_pedido, pedido.id)}`;
@@ -75,7 +77,61 @@ function escaparHtml(texto: string) {
     .replace(/'/g, '&#39;');
 }
 
-export function montarHtmlComanda(pedido: PedidoCozinha, nomeLoja: string) {
+export interface ConfigImpressaoComanda {
+  nomeLoja: string;
+  largura: LarguraPapelImpressao;
+}
+
+const ESTILOS_COMANDA: Record<LarguraPapelImpressao, string> = {
+  80: `
+@page{size:80mm auto;margin:4mm}
+*{box-sizing:border-box}
+body{margin:0;width:72mm;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;color:#000;overflow-wrap:anywhere}
+.centro{text-align:center}
+.loja{font-size:14px;font-weight:700;text-transform:uppercase}
+.sep{border-top:1px dashed #000;margin:8px 0}
+.topo{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.numero{font-size:28px;font-weight:800}
+.tipo{border:2px solid #000;padding:2px 6px;font-weight:800}
+.cliente{font-weight:700;text-transform:uppercase;margin-top:6px}
+.item{margin-bottom:6px}
+.nome-item{font-size:14px;font-weight:800}
+.adicional{padding-left:18px}
+.caixa{border:2px solid #000;padding:6px;margin:8px 0}
+.rotulo{font-size:10px;font-weight:800}
+.forte{font-weight:700}
+.linha{display:flex;justify-content:space-between;gap:6px}
+.total{font-size:15px;font-weight:800}
+.qr{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:10px}
+.qr svg{width:40mm;height:40mm;display:block}
+.legenda{font-size:10px;text-align:center}
+`,
+  58: `
+@page{size:58mm auto;margin:0}
+*{box-sizing:border-box}
+body{margin:0 auto;width:48mm;padding:2mm 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.3;color:#000;overflow-wrap:anywhere}
+.centro{text-align:center}
+.loja{font-size:12px;font-weight:700;text-transform:uppercase}
+.sep{border-top:1px dashed #000;margin:6px 0}
+.topo{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.numero{font-size:22px;font-weight:800}
+.tipo{border:2px solid #000;padding:1px 4px;font-size:10px;font-weight:800}
+.cliente{font-weight:700;text-transform:uppercase;margin-top:4px}
+.item{margin-bottom:5px}
+.nome-item{font-size:12px;font-weight:800}
+.adicional{padding-left:12px}
+.caixa{border:2px solid #000;padding:4px;margin:6px 0}
+.rotulo{font-size:9px;font-weight:800}
+.forte{font-weight:700}
+.linha{display:flex;justify-content:space-between;gap:4px}
+.total{font-size:13px;font-weight:800}
+.qr{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:8px}
+.qr svg{width:30mm;height:30mm;display:block}
+.legenda{font-size:9px;text-align:center}
+`,
+};
+
+export function montarHtmlComanda(pedido: PedidoCozinha, config: ConfigImpressaoComanda, qrSvg: string | null = null) {
   const tipoEntrega = obterTipoEntregaPedido(pedido.dados_cliente);
   const endereco = pedido.dados_cliente?.endereco;
   const criadoEm = new Date(pedido.created_at).toLocaleString('pt-BR', {
@@ -104,29 +160,13 @@ export function montarHtmlComanda(pedido: PedidoCozinha, nomeLoja: string) {
         )}</div>${endereco.cidade ? `<div>${escaparHtml(endereco.cidade)}</div>` : ''}${endereco.cep ? `<div>CEP ${escaparHtml(endereco.cep)}</div>` : ''}</div>`
       : '';
 
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comanda ${escaparHtml(rotuloNumeroPedido(pedido))}</title><style>
-@page{size:80mm auto;margin:4mm}
-*{box-sizing:border-box}
-body{margin:0;width:72mm;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;color:#000}
-.centro{text-align:center}
-.loja{font-size:14px;font-weight:700;text-transform:uppercase}
-.sep{border-top:1px dashed #000;margin:8px 0}
-.topo{display:flex;justify-content:space-between;align-items:center}
-.numero{font-size:28px;font-weight:800}
-.tipo{border:2px solid #000;padding:2px 6px;font-weight:800}
-.item{margin-bottom:6px}
-.nome-item{font-size:14px;font-weight:800}
-.adicional{padding-left:18px}
-.caixa{border:2px solid #000;padding:6px;margin:8px 0}
-.rotulo{font-size:10px;font-weight:800}
-.forte{font-weight:700}
-.linha{display:flex;justify-content:space-between}
-.total{font-size:15px;font-weight:800}
-</style></head><body>
-<div class="centro"><div class="loja">${escaparHtml(nomeLoja || 'Pedido')}</div><div>${escaparHtml(criadoEm)}</div></div>
+  const qrHtml = qrSvg ? `<div class="qr">${qrSvg}<div class="legenda">Escaneie para abrir a rota no Maps</div></div>` : '';
+
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comanda ${escaparHtml(rotuloNumeroPedido(pedido))}</title><style>${ESTILOS_COMANDA[config.largura]}</style></head><body>
+<div class="centro"><div class="loja">${escaparHtml(config.nomeLoja || 'Pedido')}</div><div>${escaparHtml(criadoEm)}</div></div>
 <div class="sep"></div>
 <div class="topo"><span class="numero">${escaparHtml(rotuloNumeroPedido(pedido))}</span><span class="tipo">${tipoEntrega === 'RETIRADA' ? 'RETIRADA' : 'ENTREGA'}</span></div>
-<div class="forte" style="text-transform:uppercase;margin-top:6px">${escaparHtml(pedido.dados_cliente?.nome ?? '')}</div>
+<div class="cliente">${escaparHtml(pedido.dados_cliente?.nome ?? '')}</div>
 <div>${escaparHtml(formatarTelefoneCozinha(pedido.dados_cliente?.telefone))}</div>
 <div class="sep"></div>
 ${itensHtml}
@@ -137,10 +177,25 @@ ${enderecoHtml}
 <div class="linha total"><span>TOTAL</span><span>${escaparHtml(formatarMoedaCozinha(pedido.valor_total))}</span></div>
 <div class="sep"></div>
 <div class="centro">Pedido pago online. Não cobrar na entrega.</div>
+${qrHtml}
 </body></html>`;
 }
 
-export function imprimirComanda(pedido: PedidoCozinha, nomeLoja: string) {
+async function gerarQrRotaEntrega(pedido: PedidoCozinha): Promise<string | null> {
+  if (obterTipoEntregaPedido(pedido.dados_cliente) !== 'ENTREGA') return null;
+  const url = montarUrlLocalizacaoEntrega(pedido.dados_cliente, pedido.cliente_latitude, pedido.cliente_longitude);
+  if (!url) return null;
+  try {
+    return await QRCode.toString(url, { type: 'svg', margin: 2, errorCorrectionLevel: 'M' });
+  } catch (erro) {
+    console.error('Falha ao gerar QR Code da rota de entrega:', erro);
+    return null;
+  }
+}
+
+export async function imprimirComanda(pedido: PedidoCozinha, config: ConfigImpressaoComanda) {
+  const qrSvg = await gerarQrRotaEntrega(pedido);
+
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.style.position = 'fixed';
@@ -159,7 +214,7 @@ export function imprimirComanda(pedido: PedidoCozinha, nomeLoja: string) {
   }
 
   documento.open();
-  documento.write(montarHtmlComanda(pedido, nomeLoja));
+  documento.write(montarHtmlComanda(pedido, config, qrSvg));
   documento.close();
 
   const remover = () => setTimeout(() => iframe.remove(), 500);

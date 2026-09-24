@@ -3,9 +3,11 @@ import { ConfiguracaoTempoPreparo } from '@/components/admin/ConfiguracaoTempoPr
 import { ConfiguracaoEnderecoLoja } from '@/components/admin/ConfiguracaoEnderecoLoja';
 import { ConfiguracaoHorarioFuncionamento } from '@/components/admin/ConfiguracaoHorarioFuncionamento';
 import { ConfiguracaoFotoCapaLoja } from '@/components/admin/ConfiguracaoFotoCapaLoja';
+import { ConfiguracaoImpressora } from '@/components/admin/ConfiguracaoImpressora';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
+import { normalizarLarguraPapel } from '@/utils/impressao';
 
 export const revalidate = 0;
 
@@ -17,6 +19,11 @@ export default async function PainelConfiguracoesAdmin() {
     .select(
       'nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url'
     )
+    .eq('id', restauranteId)
+    .maybeSingle();
+  const { data: impressao } = await supabase
+    .from('restaurantes')
+    .select('largura_papel_impressao')
     .eq('id', restauranteId)
     .maybeSingle();
 
@@ -54,6 +61,8 @@ export default async function PainelConfiguracoesAdmin() {
           <ConfiguracaoHorarioFuncionamento
             horariosIniciais={(restaurante?.horarios_funcionamento as HorarioFuncionamentoDia[] | null) ?? null}
           />
+
+          <ConfiguracaoImpressora larguraInicial={normalizarLarguraPapel(impressao?.largura_papel_impressao)} />
 
           <ConfiguracaoFotoCapaLoja fotoCapaUrlInicial={restaurante?.foto_capa_url ?? null} />
         </section>

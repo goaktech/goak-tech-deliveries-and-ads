@@ -1,12 +1,13 @@
 'use client';
 
 import type { EntregadorCozinha, PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
+import type { ConfigImpressaoComanda } from '@/utils/cozinha';
 import { CardPedidoCozinha } from './CardPedidoCozinha';
 
 interface ColunaEsteiraCozinhaProps {
   pedidos: PedidoCozinha[];
   agora: number;
-  nomeLoja: string;
+  impressao: ConfigImpressaoComanda;
   entregadores: EntregadorCozinha[];
   cancelandoIds: string[];
   onAvancar: (pedido: PedidoCozinha) => void;
@@ -17,7 +18,7 @@ interface ColunaEsteiraCozinhaProps {
 export function ColunaEsteiraCozinha({
   pedidos,
   agora,
-  nomeLoja,
+  impressao,
   entregadores,
   cancelandoIds,
   onAvancar,
@@ -33,7 +34,7 @@ export function ColunaEsteiraCozinha({
           key={pedido.id}
           pedido={pedido}
           agora={agora}
-          nomeLoja={nomeLoja}
+          impressao={impressao}
           entregadores={entregadores}
           cancelando={cancelandoIds.includes(pedido.id)}
           onAvancar={onAvancar}

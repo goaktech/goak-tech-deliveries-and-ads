@@ -1,16 +1,16 @@
 'use client';
 
 import type { PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
-import { formatarHoraPedido, formatarMoedaCozinha, imprimirComanda, rotuloNumeroPedido } from '@/utils/cozinha';
+import { type ConfigImpressaoComanda, formatarHoraPedido, formatarMoedaCozinha, imprimirComanda, rotuloNumeroPedido } from '@/utils/cozinha';
 import { obterTipoEntregaPedido } from '@/utils/pedido-status';
 
 interface ListaPedidosFinalizadosProps {
   pedidos: PedidoCozinha[];
   agora: number;
-  nomeLoja: string;
+  impressao: ConfigImpressaoComanda;
 }
 
-export function ListaPedidosFinalizados({ pedidos, agora, nomeLoja }: ListaPedidosFinalizadosProps) {
+export function ListaPedidosFinalizados({ pedidos, agora, impressao }: ListaPedidosFinalizadosProps) {
   const ordenados = [...pedidos].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   return (
@@ -38,7 +38,7 @@ export function ListaPedidosFinalizados({ pedidos, agora, nomeLoja }: ListaPedid
             {!cancelado && (
               <button
                 type="button"
-                onClick={() => imprimirComanda(pedido, nomeLoja)}
+                onClick={() => void imprimirComanda(pedido, impressao)}
                 aria-label={`Imprimir comanda do pedido ${rotuloNumeroPedido(pedido)}`}
                 title="Imprimir comanda"
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 transition hover:border-zinc-300 hover:text-[#1A1A1A]"

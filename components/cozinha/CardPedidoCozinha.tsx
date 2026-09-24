@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { EntregadorCozinha, PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
 import {
+  type ConfigImpressaoComanda,
   formatarDuracao,
   formatarHoraPedido,
   formatarMoedaCozinha,
@@ -19,7 +20,7 @@ import { montarUrlWhatsapp } from '@/utils/whatsapp';
 interface CardPedidoCozinhaProps {
   pedido: PedidoCozinha;
   agora: number;
-  nomeLoja: string;
+  impressao: ConfigImpressaoComanda;
   entregadores: EntregadorCozinha[];
   cancelando: boolean;
   onAvancar: (pedido: PedidoCozinha) => void;
@@ -58,7 +59,7 @@ function textoBotaoAcao(pedido: PedidoCozinha, ehEntrega: boolean) {
 export function CardPedidoCozinha({
   pedido,
   agora,
-  nomeLoja,
+  impressao,
   entregadores,
   cancelando,
   onAvancar,
@@ -283,7 +284,7 @@ export function CardPedidoCozinha({
         )}
         <button
           type="button"
-          onClick={() => imprimirComanda(pedido, nomeLoja)}
+          onClick={() => void imprimirComanda(pedido, impressao)}
           aria-label={`Imprimir comanda do pedido ${rotuloNumeroPedido(pedido)}`}
           title="Imprimir comanda"
           className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 transition hover:border-zinc-300 hover:text-[#1A1A1A]"
