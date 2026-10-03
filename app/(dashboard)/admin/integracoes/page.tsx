@@ -1,12 +1,14 @@
 import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
 import { ConfiguracaoFormasPagamento } from '@/components/admin/ConfiguracaoFormasPagamento';
 import { ConfiguracaoPixelFacebook } from '@/components/admin/ConfiguracaoPixelFacebook';
+import { ConfiguracaoIfoodEntrega } from '@/components/admin/ConfiguracaoIfoodEntrega';
 import {
   obterIntegracaoMercadoPagoPorRestauranteId,
   obterRestauranteIdDoGestorLogado,
 } from '@/utils/mercado-pago';
 import { obterIntegracaoWhatsappBusinessPorRestauranteId } from '@/utils/whatsapp-business';
 import { obterIntegracaoMetaAdsPorRestauranteId } from '@/utils/meta-ads';
+import { obterIntegracaoIfoodPorRestauranteId, paraIntegracaoIfoodPublica } from '@/utils/ifood';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 
 export const revalidate = 0;
@@ -22,13 +24,20 @@ export default async function PainelIntegracoesAdmin() {
   const supabase = createWebhookAdminClient();
   const { data: restaurante } = await supabase
     .from('restaurantes')
-    .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas')
+    .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas, endereco, latitude, longitude')
     .eq('id', restauranteId)
     .maybeSingle();
 
   const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
   const integracaoWhatsapp = await obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId);
   const integracaoMetaAds = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
+  // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
+  const integracaoIfood = await obterIntegracaoIfoodPorRestauranteId(restauranteId)
+    .then(paraIntegracaoIfoodPublica)
+    .catch((erro) => {
+      console.error('Falha ao carregar integração iFood:', erro);
+      return null;
+    });
 
   return (
     <div className="min-h-screen bg-[#F3F3F3] text-[#1A1A1A] font-sans antialiased flex items-start justify-center p-4 sm:p-8 md:py-12">
@@ -175,6 +184,13 @@ export default async function PainelIntegracoesAdmin() {
               </form>
             </div>
           </div>
+
+          <ConfiguracaoIfoodEntrega
+            integracaoInicial={integracaoIfood}
+            enderecoLoja={restaurante?.endereco ?? null}
+            latitudeLoja={restaurante?.latitude ?? null}
+            longitudeLoja={restaurante?.longitude ?? null}
+          />
 
           <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-5 text-sm text-zinc-500">
             Callbacks: <span className="font-mono">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
