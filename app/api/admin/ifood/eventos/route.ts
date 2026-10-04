@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { processarEventosIfood } from '@/utils/ifood-entrega';
+import { clientIdIfoodHomologacao } from '@/utils/ifood';
 
 // Polling de eventos do iFood da loja do gestor logado. A cozinha chama a
 // cada 30s enquanto estiver aberta (o goak roda serverless, sem processo
@@ -8,7 +9,7 @@ import { processarEventosIfood } from '@/utils/ifood-entrega';
 export async function POST() {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
-    return NextResponse.json(await processarEventosIfood(restauranteId));
+    return NextResponse.json({ ...(await processarEventosIfood(restauranteId)), clientIdHomologacao: clientIdIfoodHomologacao() });
   } catch (error) {
     console.error('Erro no polling de eventos do iFood:', error);
     const mensagem = error instanceof Error ? error.message : 'Erro ao buscar eventos do iFood.';

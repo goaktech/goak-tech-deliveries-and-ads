@@ -79,7 +79,13 @@ export interface EntregadorIfoodCozinha {
 export interface AlteracaoEnderecoIfoodCozinha {
   estado: string;
   solicitadoEm?: string;
-  endereco?: { streetName?: string; streetNumber?: string; neighborhood?: string; city?: string } | null;
+  endereco?: {
+    streetName?: string;
+    streetNumber?: string;
+    neighborhood?: string;
+    city?: string;
+    coordinates?: { latitude?: number; longitude?: number };
+  } | null;
 }
 
 export interface AvisoCozinha {
@@ -240,6 +246,7 @@ export function useCozinha() {
   const [audioBloqueado, setAudioBloqueado] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
   const [ifoodConectado, setIfoodConectado] = useState(false);
+  const [clientIdHomologacaoIfood, setClientIdHomologacaoIfood] = useState<string | null>(null);
 
   const pedidosRef = useRef<PedidoCozinha[]>([]);
   const entregadoresRef = useRef<EntregadorCozinha[]>([]);
@@ -833,9 +840,10 @@ export function useCozinha() {
     const buscarEventos = async () => {
       try {
         const resposta = await fetch('/api/admin/ifood/eventos', { method: 'POST', cache: 'no-store' });
-        const corpo = (await resposta.json().catch(() => ({}))) as { conectado?: boolean; novos?: number };
+        const corpo = (await resposta.json().catch(() => ({}))) as { conectado?: boolean; novos?: number; clientIdHomologacao?: string | null };
         if (!ativo) return;
         setIfoodConectado(corpo.conectado === true);
+        setClientIdHomologacaoIfood(corpo.clientIdHomologacao ?? null);
         if ((corpo.novos ?? 0) > 0) void sincronizar();
       } catch {
         // sem conexão: tenta de novo no próximo ciclo
@@ -871,5 +879,6 @@ export function useCozinha() {
     cancelarPedido,
     atribuirEntregador,
     ifoodConectado,
+    clientIdHomologacaoIfood,
   };
 }

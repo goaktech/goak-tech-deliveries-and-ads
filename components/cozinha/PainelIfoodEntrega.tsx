@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CotacaoIfoodCozinha, PedidoCozinha } from '@/app/(dashboard)/admin/cozinha/useCozinha';
 import { formatarMoedaCozinha } from '@/utils/cozinha';
 
@@ -16,6 +16,12 @@ const ROTULO_STATUS_IFOOD: Record<string, string> = {
   REGISTRADO: 'Entrega solicitada ao iFood',
   PLACED: 'Entrega solicitada ao iFood',
   CONFIRMED: 'iFood procurando entregador',
+  PREPARATION_STARTED: 'Em preparo — iFood avisado',
+  READY_TO_PICKUP: 'Pronto — aguardando o entregador',
+  DELIVERY_ADDRESS_CHANGE_REQUESTED: 'Cliente pediu outro endereço',
+  DELIVERY_ADDRESS_CHANGE_ACCEPTED: 'Endereço novo aceito',
+  DELIVERY_ADDRESS_CHANGE_DENIED: 'Endereço novo recusado',
+  DELIVERY_ADDRESS_CHANGE_USER_CONFIRMED: 'Cliente confirmou o endereço',
   ASSIGN_DRIVER: 'Entregador a caminho da loja',
   GOING_TO_ORIGIN: 'Entregador a caminho da loja',
   ARRIVED_AT_ORIGIN: 'Entregador na loja — peça o código de coleta',
@@ -39,6 +45,18 @@ function cotacaoDoCheckout(pedido: PedidoCozinha): CotacaoIfoodCozinha | null {
   return cotacao;
 }
 
+// Distância em metros entre dois pontos (haversine).
+function distanciaMetros(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+  const rad = (grau: number) => (grau * Math.PI) / 180;
+  const dLat = rad(b.latitude - a.latitude);
+  const dLon = rad(b.longitude - a.longitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+  return Math.round(6371000 * 2 * Math.asin(Math.sqrt(h)));
+}
+
+// O iFood recusa sozinho a alteração de endereço 15 min depois do pedido do cliente.
+const PRAZO_ALTERACAO_ENDERECO_MS = 15 * 60 * 1000;
+
 const BOTAO = 'h-9 rounded-xl px-3 text-[11px] font-bold uppercase tracking-wide transition disabled:opacity-50';
 const BOTAO_PRIMARIO = `${BOTAO} bg-[#EA1D2C] text-white hover:bg-[#c8101e]`;
 const BOTAO_SECUNDARIO = `${BOTAO} border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300`;
@@ -55,6 +73,31 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
 
   const comIfood = pedido.logistica === 'IFOOD';
   const alteracao = pedido.ifood_alteracao_endereco;
+  const alteracaoPendente = alteracao?.estado === 'PENDENTE';
+
+  // relógio do prazo da alteração de endereço (só roda enquanto está pendente)
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    if (!alteracaoPendente) return;
+    const intervalo = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(intervalo);
+  }, [alteracaoPendente]);
+
+  const enderecoAtual = pedido.dados_cliente?.endereco;
+  const coordenadaNova = alteracao?.endereco?.coordinates;
+  const distanciaAlteracao =
+    pedido.cliente_latitude !== null &&
+    pedido.cliente_longitude !== null &&
+    typeof coordenadaNova?.latitude === 'number' &&
+    typeof coordenadaNova?.longitude === 'number'
+      ? distanciaMetros(
+          { latitude: pedido.cliente_latitude, longitude: pedido.cliente_longitude },
+          { latitude: coordenadaNova.latitude, longitude: coordenadaNova.longitude }
+        )
+      : null;
+  const restanteAlteracaoMs = alteracao?.solicitadoEm
+    ? Math.max(0, new Date(alteracao.solicitadoEm).getTime() + PRAZO_ALTERACAO_ENDERECO_MS - agora)
+    : null;
 
   const chamar = async (corpo: Record<string, unknown>): Promise<Resposta | null> => {
     setCarregando(true);
@@ -152,6 +195,20 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
         ) : null}
       </div>
 
+      {alteracao && !alteracaoPendente ? (
+        <p className={`text-[11px] font-semibold ${alteracao.estado === 'DENIED' ? 'text-zinc-500' : 'text-emerald-700'}`}>
+          {alteracao.estado === 'ACCEPTED'
+            ? 'Alteração de endereço aceita — o entregador vai para o endereço novo.'
+            : alteracao.estado === 'DENIED'
+              ? 'Alteração de endereço recusada — entrega no endereço original.'
+              : alteracao.estado === 'USER_CONFIRMED'
+                ? 'O cliente confirmou o endereço original.'
+                : alteracao.estado === 'ACEITANDO' || alteracao.estado === 'REJEITANDO'
+                  ? 'Resposta enviada ao iFood — aguardando confirmação.'
+                : `Alteração de endereço: ${alteracao.estado}`}
+        </p>
+      ) : null}
+
       {pedido.ifood_entregador?.nome ? (
         <p className="text-xs text-zinc-600">
           Entregador: <b>{pedido.ifood_entregador.nome}</b>
@@ -159,17 +216,31 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
         </p>
       ) : null}
 
-      {alteracao?.estado === 'PENDENTE' ? (
+      {alteracaoPendente ? (
         <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-zinc-700">
           <div className="font-bold text-amber-900">O cliente pediu outro endereço</div>
-          {alteracao.endereco ? (
+          {enderecoAtual ? (
             <div>
-              {[alteracao.endereco.streetName, alteracao.endereco.streetNumber, alteracao.endereco.neighborhood, alteracao.endereco.city]
-                .filter(Boolean)
-                .join(', ')}
+              <span className="text-zinc-500">Atual: </span>
+              {[enderecoAtual.rua, enderecoAtual.numero, enderecoAtual.bairro, enderecoAtual.cidade].filter(Boolean).join(', ')}
             </div>
           ) : null}
-          <div className="text-[11px] text-amber-800">Responda em até 15 minutos — depois disso o iFood recusa sozinho.</div>
+          {alteracao.endereco ? (
+            <div>
+              <span className="text-zinc-500">Novo: </span>
+              <b>
+                {[alteracao.endereco.streetName, alteracao.endereco.streetNumber, alteracao.endereco.neighborhood, alteracao.endereco.city]
+                  .filter(Boolean)
+                  .join(', ')}
+              </b>
+              {distanciaAlteracao !== null ? <span className="text-zinc-500"> · {distanciaAlteracao} m do original</span> : null}
+            </div>
+          ) : null}
+          <div className="text-[11px] text-amber-800">
+            {restanteAlteracaoMs !== null
+              ? `Responda em ${Math.floor(restanteAlteracaoMs / 60000)} min ${Math.floor((restanteAlteracaoMs % 60000) / 1000)} s — depois disso o iFood recusa sozinho.`
+              : 'Responda em até 15 minutos — depois disso o iFood recusa sozinho.'}
+          </div>
           <div className="flex gap-2">
             <button
               type="button"

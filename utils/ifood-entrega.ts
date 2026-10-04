@@ -294,10 +294,8 @@ export async function chamarEntregadorIfood(restauranteId: string, pedidoId: str
     throw new Error(`Entrega registrada no iFood (${resposta.body.id}), mas houve falha ao salvar no pedido.`);
   }
 
-  if (pedido.status === 'PRONTO') {
-    // Já pronto: avisa logo (se o iFood ainda não aceitar, o evento CONFIRMED avisa de novo).
-    await avisarPedidoProntoIfood(restauranteId, pedidoId);
-  }
+  // Já em preparo/pronto: avisa logo (se o iFood ainda não aceitar, o CONFIRMED avisa de novo).
+  await sincronizarEtapasIfood(restauranteId, pedidoId, pedido.status);
 
   return { ifoodOrderId: resposta.body.id, trackingUrl: resposta.body.trackingUrl ?? null };
 }
@@ -305,29 +303,44 @@ export async function chamarEntregadorIfood(restauranteId: string, pedidoId: str
 // ------------------------------------------------------------ ações durante a entrega
 
 /**
- * Avisa o iFood que o pedido está pronto para coleta (readyToPickup). Sem esse
- * aviso o entregador chega e fica esperando na loja — visto no teste em
- * 04-10-2026: a coleta só saiu depois do READY_TO_PICKUP. Chamado quando a
- * cozinha marca PRONTO, ao chamar o entregador com o pedido já pronto e no
- * CONFIRMED do iFood. Não lança erro: falha aqui não pode travar a cozinha.
+ * Avisa o iFood da etapa do pedido na cozinha: startPreparation (em preparo)
+ * e readyToPickup (pronto para coleta). Sem o readyToPickup o entregador
+ * chega e fica esperando na loja — visto no teste em 04-10-2026: a coleta só
+ * saiu depois do READY_TO_PICKUP. Chamado quando a cozinha muda o status, ao
+ * chamar o entregador e no CONFIRMED do iFood. Não lança erro: falha aqui não
+ * pode travar a cozinha.
  */
-export async function avisarPedidoProntoIfood(restauranteId: string, pedidoId: string) {
+export async function avisarEtapaPedidoIfood(restauranteId: string, pedidoId: string, etapa: 'PREPARANDO' | 'PRONTO') {
+  const acao = etapa === 'PRONTO' ? 'readyToPickup' : 'startPreparation';
   try {
     const pedido = await carregarPedido(restauranteId, pedidoId);
     if (pedido.logistica !== 'IFOOD' || !pedido.ifood_order_id) return false;
     const { accessToken } = await lojaConectada(restauranteId);
-    const resposta = await requisicaoIfood(`/order/v1.0/orders/${pedido.ifood_order_id}/readyToPickup`, {
+    const resposta = await requisicaoIfood(`/order/v1.0/orders/${pedido.ifood_order_id}/${acao}`, {
       method: 'POST',
       accessToken,
     });
     if (resposta.status !== 202 && resposta.status !== 200) {
-      console.error('iFood não aceitou o aviso de pedido pronto:', { pedidoId, status: resposta.status, corpo: resposta.texto.slice(0, 300) });
+      console.error(`iFood não aceitou o ${acao}:`, { pedidoId, status: resposta.status, corpo: resposta.texto.slice(0, 300) });
       return false;
     }
     return true;
   } catch (erro) {
-    console.error('Falha ao avisar o iFood que o pedido está pronto:', { pedidoId, erro });
+    console.error(`Falha ao enviar ${acao} ao iFood:`, { pedidoId, erro });
     return false;
+  }
+}
+
+/**
+ * Envia ao iFood as etapas que o pedido já passou na cozinha (preparo e, se
+ * for o caso, pronto). Repetir uma etapa já enviada só gera log de recusa.
+ */
+export async function sincronizarEtapasIfood(restauranteId: string, pedidoId: string, status: StatusPedido) {
+  if (status === 'PREPARANDO' || status === 'PRONTO') {
+    await avisarEtapaPedidoIfood(restauranteId, pedidoId, 'PREPARANDO');
+  }
+  if (status === 'PRONTO') {
+    await avisarEtapaPedidoIfood(restauranteId, pedidoId, 'PRONTO');
   }
 }
 
@@ -453,7 +466,7 @@ export async function processarEventosIfood(restauranteId: string) {
     const { data: pedido } = evento.orderId
       ? await supabase
           .from('pedidos')
-          .select('id, restaurante_id, status, ifood_alteracao_endereco')
+          .select('id, restaurante_id, status, dados_cliente, ifood_alteracao_endereco')
           .eq('restaurante_id', restauranteId)
           .eq('ifood_order_id', evento.orderId)
           .maybeSingle()
@@ -500,7 +513,22 @@ async function avancarStatus(pedido: { id: string; status: StatusPedido }, desti
   await atualizarStatusPedidoComNotificacoes({ pedidoId: pedido.id, novoStatus: destino });
 }
 
-type PedidoDoEvento = { id: string; restaurante_id: string; status: StatusPedido; ifood_alteracao_endereco: Record<string, unknown> | null };
+type PedidoDoEvento = {
+  id: string;
+  restaurante_id: string;
+  status: StatusPedido;
+  dados_cliente: DadosClientePedido | null;
+  ifood_alteracao_endereco: Record<string, unknown> | null;
+};
+
+interface EnderecoEventoIfood {
+  streetName?: string;
+  streetNumber?: string;
+  neighborhood?: string;
+  city?: string;
+  postalCode?: string;
+  coordinates?: { latitude?: number; longitude?: number };
+}
 
 async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
   const codigo = evento.fullCode ?? evento.code ?? '';
@@ -534,6 +562,28 @@ async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
         ...(pedido.ifood_alteracao_endereco ?? {}),
         estado: codigo.replace('DELIVERY_ADDRESS_CHANGE_', ''),
       };
+      if (codigo === 'DELIVERY_ADDRESS_CHANGE_ACCEPTED') {
+        // O entregador vai para o endereço novo: o pedido passa a mostrar ele.
+        const novo = ((metadata.address ?? pedido.ifood_alteracao_endereco?.endereco) ?? null) as EnderecoEventoIfood | null;
+        if (novo) {
+          const cliente = pedido.dados_cliente ?? { nome: '', telefone: '' };
+          campos.dados_cliente = {
+            ...cliente,
+            endereco: {
+              ...(cliente.endereco ?? {}),
+              rua: novo.streetName ?? cliente.endereco?.rua,
+              numero: novo.streetNumber ?? cliente.endereco?.numero,
+              bairro: novo.neighborhood ?? cliente.endereco?.bairro,
+              cidade: novo.city ?? cliente.endereco?.cidade,
+              cep: novo.postalCode ?? cliente.endereco?.cep,
+            },
+          };
+          if (typeof novo.coordinates?.latitude === 'number' && typeof novo.coordinates?.longitude === 'number') {
+            campos.cliente_latitude = novo.coordinates.latitude;
+            campos.cliente_longitude = novo.coordinates.longitude;
+          }
+        }
+      }
       break;
     case 'CANCELLED':
     case 'DELIVERY_CANCELLED':
@@ -546,9 +596,9 @@ async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
 
   await getSupabase().from('pedidos').update(campos).eq('id', pedido.id);
 
-  if (codigo === 'CONFIRMED' && pedido.status === 'PRONTO') {
-    // A cozinha marcou PRONTO antes de o iFood confirmar a entrega.
-    await avisarPedidoProntoIfood(pedido.restaurante_id, pedido.id);
+  if (codigo === 'CONFIRMED') {
+    // A cozinha pode ter avançado antes de o iFood confirmar a entrega.
+    await sincronizarEtapasIfood(pedido.restaurante_id, pedido.id, pedido.status);
   } else if (['DISPATCHED', 'COLLECTED', 'DELIVERY_IN_TRANSIT'].includes(codigo)) {
     await avancarStatus(pedido, 'SAIU_PARA_ENTREGA');
   } else if (['CONCLUDED', 'DELIVERY_CONCLUDED'].includes(codigo)) {

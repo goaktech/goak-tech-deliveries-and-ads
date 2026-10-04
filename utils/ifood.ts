@@ -105,6 +105,14 @@ function getEnvOrThrow(value: string | undefined, name: string): string {
   return value;
 }
 
+/**
+ * client_id do app quando IFOOD_HOMOLOGACAO=true: a cozinha exibe numa faixa
+ * com relógio, como o iFood exige nos vídeos de homologação. Fora disso, null.
+ */
+export function clientIdIfoodHomologacao() {
+  return process.env.IFOOD_HOMOLOGACAO === 'true' ? process.env.IFOOD_CLIENT_ID ?? null : null;
+}
+
 function getIfoodConfig() {
   return {
     clientId: getEnvOrThrow(process.env.IFOOD_CLIENT_ID, 'IFOOD_CLIENT_ID'),
