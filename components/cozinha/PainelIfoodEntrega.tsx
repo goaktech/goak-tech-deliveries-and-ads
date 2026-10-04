@@ -89,7 +89,7 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
             }}
             className={`${BOTAO_SECUNDARIO} w-full border-[#EA1D2C]/30 text-[#EA1D2C]`}
           >
-            {carregando ? 'Consultando o iFood…' : 'Chamar entregador iFood'}
+            {carregando ? 'Consultando…' : 'Entregador iFood'}
           </button>
         ) : (
           <div className="space-y-2 rounded-xl border border-red-100 bg-red-50/60 p-3 text-xs text-zinc-700">
