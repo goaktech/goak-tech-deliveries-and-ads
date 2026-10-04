@@ -18,7 +18,7 @@ const ROTULO_STATUS_IFOOD: Record<string, string> = {
   CONFIRMED: 'iFood procurando entregador',
   ASSIGN_DRIVER: 'Entregador a caminho da loja',
   GOING_TO_ORIGIN: 'Entregador a caminho da loja',
-  ARRIVED_AT_ORIGIN: 'Entregador chegou na loja',
+  ARRIVED_AT_ORIGIN: 'Entregador na loja — peça o código de coleta',
   DELIVERY_PICKUP_CODE_REQUESTED: 'Entregador na loja — peça o código de coleta',
   COLLECTED: 'Pedido coletado',
   DISPATCHED: 'Saiu para entrega',
