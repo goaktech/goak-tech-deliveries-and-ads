@@ -147,3 +147,15 @@ Onde acontece:
 - Cozinha: `PainelIfoodEntrega` já abre com essa cotação se ainda estiver válida (senão cota de novo) e mostra quanto o cliente pagou.
 
 O `merchantFee` enviado ao iFood ao chamar o entregador continua sendo a taxa paga pelo cliente (`valor_total − itens`).
+
+## Aviso de "pronto para coleta" (readyToPickup)
+
+O entregador do iFood só retira o pedido depois que a loja avisa que ele está pronto (`POST /order/v1.0/orders/{id}/readyToPickup`). No teste de 04-10-2026 o entregador ficou parado na loja até esse aviso ser enviado.
+
+O goak envia o aviso automaticamente (`avisarPedidoProntoIfood` em `utils/ifood-entrega.ts`):
+
+- quando a cozinha marca o pedido como PRONTO (`POST /api/admin/pedidos/[pedidoId]/status`);
+- ao chamar o entregador com o pedido já PRONTO;
+- no evento CONFIRMED do iFood, se o pedido já estiver PRONTO (caso o primeiro aviso tenha saído cedo demais).
+
+Falha no aviso só gera log: não bloqueia a mudança de status da cozinha.

@@ -294,10 +294,42 @@ export async function chamarEntregadorIfood(restauranteId: string, pedidoId: str
     throw new Error(`Entrega registrada no iFood (${resposta.body.id}), mas houve falha ao salvar no pedido.`);
   }
 
+  if (pedido.status === 'PRONTO') {
+    // Já pronto: avisa logo (se o iFood ainda não aceitar, o evento CONFIRMED avisa de novo).
+    await avisarPedidoProntoIfood(restauranteId, pedidoId);
+  }
+
   return { ifoodOrderId: resposta.body.id, trackingUrl: resposta.body.trackingUrl ?? null };
 }
 
 // ------------------------------------------------------------ ações durante a entrega
+
+/**
+ * Avisa o iFood que o pedido está pronto para coleta (readyToPickup). Sem esse
+ * aviso o entregador chega e fica esperando na loja — visto no teste em
+ * 04-10-2026: a coleta só saiu depois do READY_TO_PICKUP. Chamado quando a
+ * cozinha marca PRONTO, ao chamar o entregador com o pedido já pronto e no
+ * CONFIRMED do iFood. Não lança erro: falha aqui não pode travar a cozinha.
+ */
+export async function avisarPedidoProntoIfood(restauranteId: string, pedidoId: string) {
+  try {
+    const pedido = await carregarPedido(restauranteId, pedidoId);
+    if (pedido.logistica !== 'IFOOD' || !pedido.ifood_order_id) return false;
+    const { accessToken } = await lojaConectada(restauranteId);
+    const resposta = await requisicaoIfood(`/order/v1.0/orders/${pedido.ifood_order_id}/readyToPickup`, {
+      method: 'POST',
+      accessToken,
+    });
+    if (resposta.status !== 202 && resposta.status !== 200) {
+      console.error('iFood não aceitou o aviso de pedido pronto:', { pedidoId, status: resposta.status, corpo: resposta.texto.slice(0, 300) });
+      return false;
+    }
+    return true;
+  } catch (erro) {
+    console.error('Falha ao avisar o iFood que o pedido está pronto:', { pedidoId, erro });
+    return false;
+  }
+}
 
 export async function listarMotivosCancelamentoIfood(restauranteId: string, pedidoId: string): Promise<MotivoCancelamentoIfood[]> {
   const ifoodOrderId = exigirIfood(await carregarPedido(restauranteId, pedidoId));
@@ -421,7 +453,7 @@ export async function processarEventosIfood(restauranteId: string) {
     const { data: pedido } = evento.orderId
       ? await supabase
           .from('pedidos')
-          .select('id, status, ifood_alteracao_endereco')
+          .select('id, restaurante_id, status, ifood_alteracao_endereco')
           .eq('restaurante_id', restauranteId)
           .eq('ifood_order_id', evento.orderId)
           .maybeSingle()
@@ -443,7 +475,7 @@ export async function processarEventosIfood(restauranteId: string) {
 
     if (pedido) {
       try {
-        await aplicarEvento(pedido as { id: string; status: StatusPedido; ifood_alteracao_endereco: Record<string, unknown> | null }, evento);
+        await aplicarEvento(pedido as PedidoDoEvento, evento);
       } catch (erro) {
         console.error('Falha ao aplicar evento do iFood no pedido:', { eventId: evento.id, pedidoId: pedido.id, erro });
       }
@@ -468,10 +500,9 @@ async function avancarStatus(pedido: { id: string; status: StatusPedido }, desti
   await atualizarStatusPedidoComNotificacoes({ pedidoId: pedido.id, novoStatus: destino });
 }
 
-async function aplicarEvento(
-  pedido: { id: string; status: StatusPedido; ifood_alteracao_endereco: Record<string, unknown> | null },
-  evento: EventoIfood
-) {
+type PedidoDoEvento = { id: string; restaurante_id: string; status: StatusPedido; ifood_alteracao_endereco: Record<string, unknown> | null };
+
+async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
   const codigo = evento.fullCode ?? evento.code ?? '';
   const metadata = evento.metadata ?? {};
   const campos: Record<string, unknown> = { ifood_status: codigo, ifood_atualizado_em: new Date().toISOString() };
@@ -515,7 +546,10 @@ async function aplicarEvento(
 
   await getSupabase().from('pedidos').update(campos).eq('id', pedido.id);
 
-  if (['DISPATCHED', 'COLLECTED', 'DELIVERY_IN_TRANSIT'].includes(codigo)) {
+  if (codigo === 'CONFIRMED' && pedido.status === 'PRONTO') {
+    // A cozinha marcou PRONTO antes de o iFood confirmar a entrega.
+    await avisarPedidoProntoIfood(pedido.restaurante_id, pedido.id);
+  } else if (['DISPATCHED', 'COLLECTED', 'DELIVERY_IN_TRANSIT'].includes(codigo)) {
     await avancarStatus(pedido, 'SAIU_PARA_ENTREGA');
   } else if (['CONCLUDED', 'DELIVERY_CONCLUDED'].includes(codigo)) {
     await avancarStatus(pedido, 'ENTREGUE');

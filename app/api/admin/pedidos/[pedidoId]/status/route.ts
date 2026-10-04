@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { atualizarStatusPedidoComNotificacoes } from '@/utils/pedidos-acompanhamento';
 import type { StatusPedido } from '@/utils/pedido-status';
+import { avisarPedidoProntoIfood } from '@/utils/ifood-entrega';
 
 const STATUS_VALIDOS: StatusPedido[] = ['PENDENTE', 'PAGO', 'PREPARANDO', 'PRONTO', 'SAIU_PARA_ENTREGA', 'ENTREGUE'];
 
@@ -57,6 +58,11 @@ export async function POST(request: Request, { params }: Params) {
       pedidoId,
       novoStatus,
     });
+
+    if (novoStatus === 'PRONTO' && resultado.mudouStatus) {
+      // Entrega pelo iFood: libera a coleta (não faz nada nos outros pedidos).
+      await avisarPedidoProntoIfood(perfil.restaurante_id as string, pedidoId);
+    }
 
     return NextResponse.json({ success: true, pedido: resultado.pedido, mudouStatus: resultado.mudouStatus });
   } catch (error) {
