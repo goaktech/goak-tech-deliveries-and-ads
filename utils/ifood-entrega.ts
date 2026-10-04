@@ -40,6 +40,7 @@ interface PedidoParaIfood {
   restaurante_id: string;
   numero_pedido: number | null;
   status: StatusPedido;
+  valor_total: number | string;
   dados_cliente: DadosClientePedido | null;
   cliente_latitude: number | null;
   cliente_longitude: number | null;
@@ -76,7 +77,7 @@ const MENSAGENS_ERRO_IFOOD: Record<string, string> = {
 };
 
 const SELECT_PEDIDO = `
-  id, restaurante_id, numero_pedido, status, dados_cliente, cliente_latitude, cliente_longitude,
+  id, restaurante_id, numero_pedido, status, valor_total, dados_cliente, cliente_latitude, cliente_longitude,
   tempo_preparo_estimado_min, created_at, logistica, ifood_order_id, ifood_alteracao_endereco,
   itens_pedido ( id, quantidade, preco_unitario, itens_cardapio ( nome ), itens_pedido_complementos ( preco_adicional ) )
 `;
@@ -222,6 +223,13 @@ export async function chamarEntregadorIfood(restauranteId: string, pedidoId: str
     };
   });
 
+  // Taxa de entrega que o CLIENTE pagou à loja (o goak não guarda à parte:
+  // é o total menos os itens, como em app/api/checkout/retomar). Vai em
+  // merchantFee só como informação — aparece na página de acompanhamento do
+  // iFood. Não é o que o iFood cobra da loja pelo entregador (isso é a cotação).
+  const totalItens = itens.reduce((soma, item) => soma + item.totalPrice, 0);
+  const taxaEntregaCliente = Math.max(0, Math.round((Number(pedido.valor_total) - totalItens) * 100) / 100);
+
   // Tempo de preparo restante, em segundos: o iFood aloca o entregador pra
   // chegar quando o pedido estiver pronto. Pronto → aloca já.
   let preparoSegundos = 0;
@@ -237,7 +245,7 @@ export async function chamarEntregadorIfood(restauranteId: string, pedidoId: str
       phone: { countryCode: '55', areaCode: telefone.slice(0, 2), number: telefone.slice(2), type: 'CUSTOMER' },
     },
     delivery: {
-      merchantFee: 0,
+      merchantFee: taxaEntregaCliente,
       quoteId: cotacao.id,
       preparationTime: preparoSegundos,
       deliveryAddress: {
