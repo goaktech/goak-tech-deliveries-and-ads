@@ -31,6 +31,14 @@ const ROTULO_STATUS_IFOOD: Record<string, string> = {
   CANCELLATION_REQUEST_FAILED: 'O iFood não aceitou o cancelamento',
 };
 
+// Cotação feita no checkout (loja com "Entregas pelo iFood") ainda dentro da validade.
+function cotacaoDoCheckout(pedido: PedidoCozinha): CotacaoIfoodCozinha | null {
+  const cotacao = pedido.ifood_cotacao;
+  if (!cotacao?.id || typeof cotacao.taxaCobradaCliente !== 'number') return null;
+  if (cotacao.expiraEm && new Date(cotacao.expiraEm).getTime() <= Date.now() + 30_000) return null;
+  return cotacao;
+}
+
 const BOTAO = 'h-9 rounded-xl px-3 text-[11px] font-bold uppercase tracking-wide transition disabled:opacity-50';
 const BOTAO_PRIMARIO = `${BOTAO} bg-[#EA1D2C] text-white hover:bg-[#c8101e]`;
 const BOTAO_SECUNDARIO = `${BOTAO} border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300`;
@@ -39,7 +47,8 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [cotacao, setCotacao] = useState<CotacaoIfoodCozinha | null>(null);
+  const [cotacao, setCotacao] = useState<CotacaoIfoodCozinha | null>(() => cotacaoDoCheckout(pedido));
+  const taxaCobradaCliente = typeof pedido.ifood_cotacao?.taxaCobradaCliente === 'number' ? pedido.ifood_cotacao.taxaCobradaCliente : null;
   const [motivos, setMotivos] = useState<Array<{ codigo: string; descricao: string }> | null>(null);
   const [motivoEscolhido, setMotivoEscolhido] = useState('');
   const [codigoColeta, setCodigoColeta] = useState('');
@@ -98,6 +107,11 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
               Taxa: <b>{formatarMoedaCozinha(cotacao.valor)}</b> (cobrada da loja pelo iFood) · {(cotacao.distanciaMetros / 1000).toFixed(1)} km ·{' '}
               {cotacao.tempoMinimoMin}–{cotacao.tempoMaximoMin} min
             </div>
+            {taxaCobradaCliente !== null ? (
+              <div className="text-[11px] text-zinc-500">
+                O cliente já pagou {formatarMoedaCozinha(taxaCobradaCliente)} de entrega no checkout.
+              </div>
+            ) : null}
             <div className="flex gap-2">
               <button
                 type="button"

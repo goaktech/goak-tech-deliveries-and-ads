@@ -66,6 +66,8 @@ export interface CotacaoIfoodCozinha {
   tempoMinimoMin: number;
   tempoMaximoMin: number;
   expiraEm: string | null;
+  /** Gravado pelo checkout quando a loja usa "Entregas pelo iFood". */
+  taxaCobradaCliente?: number;
 }
 
 export interface EntregadorIfoodCozinha {

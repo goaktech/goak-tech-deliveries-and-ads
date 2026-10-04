@@ -521,3 +521,66 @@ async function aplicarEvento(
     await avancarStatus(pedido, 'ENTREGUE');
   }
 }
+
+// ------------------------------------------------------------ taxa no checkout
+
+export interface TaxaEntregaIfoodCheckout {
+  /** O que o cliente paga de entrega: cotação do iFood + acréscimo da loja. */
+  taxaCliente: number;
+  cotacao: CotacaoIfood;
+  acrescimo: number;
+}
+
+/** A loja ligou "Entregas pelo iFood" (e está conectada)? Não chama o iFood. */
+export async function lojaEntregaPeloIfood(restauranteId: string) {
+  const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId).catch(() => null);
+  return Boolean(integracao?.merchant_id && integracao.connection_status === 'conectado' && integracao.entregas_pelo_ifood);
+}
+
+/**
+ * Taxa de entrega do checkout quando a loja entrega pelo iFood. Devolve null
+ * (e o checkout usa a taxa normal da loja) se a opção estiver desligada ou se
+ * o iFood não atender o endereço agora (fora de área/horário, sem frota).
+ */
+export async function cotarTaxaEntregaIfoodCheckout(
+  restauranteId: string,
+  coordenada: { latitude: number; longitude: number }
+): Promise<TaxaEntregaIfoodCheckout | null> {
+  try {
+    const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId);
+    if (!integracao?.merchant_id || integracao.connection_status !== 'conectado' || !integracao.entregas_pelo_ifood) {
+      return null;
+    }
+
+    const accessToken = await obterAccessTokenIfood(restauranteId);
+    const resposta = await requisicaoIfood<{
+      id: string;
+      expirationAt?: string;
+      distance?: number;
+      quote?: { netValue?: number };
+      deliveryTime?: { min?: number; max?: number };
+    }>(`/shipping/v1.0/merchants/${integracao.merchant_id}/deliveryAvailabilities`, {
+      accessToken,
+      query: { latitude: coordenada.latitude, longitude: coordenada.longitude },
+    });
+
+    if (resposta.status !== 200 || !resposta.body?.id) {
+      console.warn('iFood não atende a entrega no checkout (usando taxa da loja):', resposta.status, resposta.texto.slice(0, 200));
+      return null;
+    }
+
+    const cotacao: CotacaoIfood = {
+      id: resposta.body.id,
+      valor: Number(resposta.body.quote?.netValue ?? 0),
+      distanciaMetros: Number(resposta.body.distance ?? 0),
+      tempoMinimoMin: Math.round(Number(resposta.body.deliveryTime?.min ?? 0) / 60),
+      tempoMaximoMin: Math.round(Number(resposta.body.deliveryTime?.max ?? 0) / 60),
+      expiraEm: resposta.body.expirationAt ?? null,
+    };
+    const acrescimo = Number(integracao.acrescimo_taxa_entrega ?? 0);
+    return { cotacao, acrescimo, taxaCliente: Math.round((cotacao.valor + acrescimo) * 100) / 100 };
+  } catch (erro) {
+    console.error('Falha ao cotar a entrega no iFood durante o checkout (usando taxa da loja):', erro);
+    return null;
+  }
+}

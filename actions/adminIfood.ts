@@ -170,3 +170,29 @@ export async function desconectarIfood(): Promise<Resultado> {
     return { success: false, error: mensagemDeErro(erro, 'Falha ao desconectar o iFood.') };
   }
 }
+
+/**
+ * "Entregas pelo iFood": com a opção ligada, o checkout cobra do cliente a
+ * cotação do iFood (+ acréscimo) no lugar da taxa fixa/tabela por bairro.
+ */
+export async function salvarConfiguracaoEntregaIfood(ativo: boolean, acrescimo: number): Promise<Resultado> {
+  try {
+    const restauranteId = await obterRestauranteIdDoGestorLogado();
+    const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId);
+    if (ativo && integracao?.connection_status !== 'conectado') {
+      return { success: false, error: 'Conecte a loja do iFood antes de ligar as entregas pelo iFood.' };
+    }
+
+    const valor = Math.round(Number(acrescimo) * 100) / 100;
+    if (!Number.isFinite(valor) || valor < 0 || valor > 100) {
+      return { success: false, error: 'Acréscimo inválido. Use um valor entre R$ 0,00 e R$ 100,00.' };
+    }
+
+    await salvarIntegracaoIfood(restauranteId, { entregas_pelo_ifood: ativo, acrescimo_taxa_entrega: valor });
+    revalidatePath(PAGINA_INTEGRACOES);
+    return { success: true, integracao: await integracaoAtual(restauranteId) };
+  } catch (erro) {
+    console.error('Erro ao salvar configuração de entregas pelo iFood:', erro);
+    return { success: false, error: mensagemDeErro(erro, 'Falha ao salvar a configuração de entregas pelo iFood.') };
+  }
+}

@@ -48,6 +48,8 @@ export interface RestauranteIntegracaoIfood {
   user_code_expires_at: string | null;
   connection_status: StatusConexaoIfood;
   dados_atualizados_em: string | null;
+  entregas_pelo_ifood: boolean | null;
+  acrescimo_taxa_entrega: number | string | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +66,8 @@ export interface IntegracaoIfoodPublica {
   verificationUrl: string | null;
   userCodeExpiraEm: string | null;
   dadosAtualizadosEm: string | null;
+  entregasPeloIfood: boolean;
+  acrescimoTaxaEntrega: number;
 }
 
 export interface DadosLojaIfood {
@@ -286,6 +290,8 @@ export function paraIntegracaoIfoodPublica(integracao: RestauranteIntegracaoIfoo
     verificationUrl: integracao.verification_url,
     userCodeExpiraEm: integracao.user_code_expires_at,
     dadosAtualizadosEm: integracao.dados_atualizados_em,
+    entregasPeloIfood: integracao.entregas_pelo_ifood === true,
+    acrescimoTaxaEntrega: Number(integracao.acrescimo_taxa_entrega ?? 0),
   };
 }
 

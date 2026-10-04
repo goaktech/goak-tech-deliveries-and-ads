@@ -131,3 +131,19 @@ IFOOD_API_BASE_URL="https://merchant-api.ifood.com.br"   # opcional, esse é o p
 ```
 
 3. Em `/admin/integracoes`, card **iFood Entrega**: informar o ID da loja, aprovar o código no Portal do Parceiro com a conta dona da loja e colar o código de autorização.
+
+## Taxa de entrega cobrada do cliente — "Entregas pelo iFood"
+
+Opção por loja em **Integrações → iFood Entrega** (`supabase-scripts/ifood-entrega-taxa.sql`):
+
+- `entregas_pelo_ifood` (padrão desligado): quando ligado, o checkout **ignora a taxa fixa e a tabela por bairro** da loja e cobra a cotação do iFood para o endereço do cliente (`deliveryAvailabilities`).
+- `acrescimo_taxa_entrega` (padrão R$ 0,00, máx. R$ 100): valor somado à cotação. Taxa cobrada = cotação + acréscimo.
+- **Fallback:** se o iFood não atender o endereço (fora da área, loja fechada, `OffOpeningHours`, erro), o checkout volta para a regra da loja (taxa fixa ou bairro).
+
+Onde acontece:
+
+- Tela: `app/[slug]/checkout/page.tsx` cota via `POST /api/restaurantes/[slug]/entrega-ifood` (700 ms depois que o cliente para de digitar; a cotação vale só para o endereço em que foi feita). Só exibição.
+- Cobrança: `POST /api/checkout` cota de novo no servidor (`cotarTaxaEntregaIfoodCheckout`) e grava a cotação em `pedidos.ifood_cotacao` com `taxaCobradaCliente`.
+- Cozinha: `PainelIfoodEntrega` já abre com essa cotação se ainda estiver válida (senão cota de novo) e mostra quanto o cliente pagou.
+
+O `merchantFee` enviado ao iFood ao chamar o entregador continua sendo a taxa paga pelo cliente (`valor_total − itens`).

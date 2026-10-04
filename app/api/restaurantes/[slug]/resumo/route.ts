@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { aceitaCartao, normalizarFormasPagamento } from '@/utils/formas-pagamento';
 import { obterChavePublicaMercadoPago } from '@/utils/mercado-pago';
+import { lojaEntregaPeloIfood } from '@/utils/ifood-entrega';
 
 interface Params {
   params: Promise<{ slug: string }>;
@@ -50,10 +51,14 @@ export async function GET(_request: Request, { params }: Params) {
       }
     }
 
+    // Só o liga/desliga — nenhum dado da integração iFood sai daqui.
+    const entregaIfood = configPagamento?.id ? await lojaEntregaPeloIfood(configPagamento.id) : false;
+
     return NextResponse.json({
       ...restaurante,
       formas_pagamento_aceitas: formasAceitas,
       mp_public_key: mpPublicKey,
+      entrega_ifood: entregaIfood,
     });
   } catch (error) {
     console.error('Erro ao obter resumo do restaurante:', error);
