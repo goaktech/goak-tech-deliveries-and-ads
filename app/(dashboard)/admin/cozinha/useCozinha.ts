@@ -48,6 +48,38 @@ export interface PedidoCozinha {
   itens_pedido: ItemPedidoDetalhado[];
   entregador_id: string | null;
   entregador_nome: string | null;
+  // iFood Entrega (ver utils/ifood-entrega.ts). logistica = 'IFOOD' enquanto
+  // a entrega estiver com o iFood.
+  logistica: string | null;
+  ifood_status: string | null;
+  ifood_tracking_url: string | null;
+  ifood_cotacao: CotacaoIfoodCozinha | null;
+  ifood_entregador: EntregadorIfoodCozinha | null;
+  ifood_alteracao_endereco: AlteracaoEnderecoIfoodCozinha | null;
+  ifood_codigo_entrega: string | null;
+}
+
+export interface CotacaoIfoodCozinha {
+  id: string;
+  valor: number;
+  distanciaMetros: number;
+  tempoMinimoMin: number;
+  tempoMaximoMin: number;
+  expiraEm: string | null;
+  /** Gravado pelo checkout quando a loja usa "Entregas pelo iFood". */
+  taxaCobradaCliente?: number;
+}
+
+export interface EntregadorIfoodCozinha {
+  nome: string | null;
+  telefone: string | null;
+  veiculo: string | null;
+}
+
+export interface AlteracaoEnderecoIfoodCozinha {
+  estado: string;
+  solicitadoEm?: string;
+  endereco?: { streetName?: string; streetNumber?: string; neighborhood?: string; city?: string } | null;
 }
 
 export interface AvisoCozinha {
@@ -81,6 +113,13 @@ interface PedidoSelecionado {
   entregador_id: string | null;
   entregadores: { nome: string } | Array<{ nome: string }> | null;
   itens_pedido: ItemPedidoSelecionado[] | null;
+  logistica?: string | null;
+  ifood_status?: string | null;
+  ifood_tracking_url?: string | null;
+  ifood_cotacao?: CotacaoIfoodCozinha | null;
+  ifood_entregador?: EntregadorIfoodCozinha | null;
+  ifood_alteracao_endereco?: AlteracaoEnderecoIfoodCozinha | null;
+  ifood_codigo_entrega?: string | null;
 }
 
 type PedidoRealtime = Partial<Omit<PedidoSelecionado, 'entregadores' | 'itens_pedido'>> & {
@@ -99,6 +138,7 @@ const COLUNAS_PEDIDO = `
   id, numero_pedido, status, valor_total, forma_pagamento, dados_cliente, cliente_latitude, cliente_longitude,
   created_at, updated_at, tempo_preparo_estimado_min, tempo_deslocamento_min, motivo_cancelamento,
   entregador_id, entregadores ( nome ),
+  logistica, ifood_status, ifood_tracking_url, ifood_cotacao, ifood_entregador, ifood_alteracao_endereco, ifood_codigo_entrega,
   itens_pedido ( id, quantidade, itens_cardapio ( nome ), itens_pedido_complementos ( id, nome ) )
 `;
 
@@ -108,6 +148,8 @@ const JANELA_PENDENTES_MS = 12 * 60 * 60 * 1000;
 const ATRASO_CONFIRMACAO_MS = 5000;
 const INTERVALO_ALARME_MS = 30000;
 const CHAVE_PREFERENCIA_SOM = 'goak:cozinha:som';
+// Intervalo recomendado pelo iFood pro polling de eventos.
+const INTERVALO_EVENTOS_IFOOD_MS = 30000;
 
 function inicioDoDiaIso() {
   const data = new Date();
@@ -143,6 +185,13 @@ function mapearPedido(bruto: PedidoSelecionado): PedidoCozinha {
     itens_pedido: mapearItens(bruto.itens_pedido),
     entregador_id: bruto.entregador_id ?? null,
     entregador_nome: entregador?.nome ?? null,
+    logistica: bruto.logistica ?? null,
+    ifood_status: bruto.ifood_status ?? null,
+    ifood_tracking_url: bruto.ifood_tracking_url ?? null,
+    ifood_cotacao: bruto.ifood_cotacao ?? null,
+    ifood_entregador: bruto.ifood_entregador ?? null,
+    ifood_alteracao_endereco: bruto.ifood_alteracao_endereco ?? null,
+    ifood_codigo_entrega: bruto.ifood_codigo_entrega ?? null,
   };
 }
 
@@ -190,6 +239,7 @@ export function useCozinha() {
   const [somLigado, setSomLigado] = useState(lerPreferenciaSom);
   const [audioBloqueado, setAudioBloqueado] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
+  const [ifoodConectado, setIfoodConectado] = useState(false);
 
   const pedidosRef = useRef<PedidoCozinha[]>([]);
   const entregadoresRef = useRef<EntregadorCozinha[]>([]);
@@ -774,6 +824,31 @@ export function useCozinha() {
     [mostrarAviso]
   );
 
+  // Eventos do iFood Entrega (entregador alocado, coletou, entregou, endereço,
+  // cancelamento): polling enquanto a cozinha estiver aberta. Quando chega
+  // evento novo, recarrega a lista (o servidor já aplicou nos pedidos).
+  useEffect(() => {
+    if (!restauranteId) return;
+    let ativo = true;
+    const buscarEventos = async () => {
+      try {
+        const resposta = await fetch('/api/admin/ifood/eventos', { method: 'POST', cache: 'no-store' });
+        const corpo = (await resposta.json().catch(() => ({}))) as { conectado?: boolean; novos?: number };
+        if (!ativo) return;
+        setIfoodConectado(corpo.conectado === true);
+        if ((corpo.novos ?? 0) > 0) void sincronizar();
+      } catch {
+        // sem conexão: tenta de novo no próximo ciclo
+      }
+    };
+    void buscarEventos();
+    const intervalo = setInterval(() => void buscarEventos(), INTERVALO_EVENTOS_IFOOD_MS);
+    return () => {
+      ativo = false;
+      clearInterval(intervalo);
+    };
+  }, [restauranteId, sincronizar]);
+
   return {
     pedidos,
     entregadores,
@@ -795,5 +870,6 @@ export function useCozinha() {
     fecharAviso,
     cancelarPedido,
     atribuirEntregador,
+    ifoodConectado,
   };
 }

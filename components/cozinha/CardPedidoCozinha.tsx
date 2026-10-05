@@ -16,6 +16,7 @@ import {
 } from '@/utils/cozinha';
 import { montarUrlGeoLocalizacaoEntrega, montarUrlLocalizacaoEntrega, obterTipoEntregaPedido } from '@/utils/pedido-status';
 import { montarUrlWhatsapp } from '@/utils/whatsapp';
+import { PainelIfoodEntrega } from './PainelIfoodEntrega';
 
 interface CardPedidoCozinhaProps {
   pedido: PedidoCozinha;
@@ -26,6 +27,8 @@ interface CardPedidoCozinhaProps {
   onAvancar: (pedido: PedidoCozinha) => void;
   onCancelar: (pedido: PedidoCozinha) => void;
   onAtribuirEntregador: (pedidoId: string, entregadorId: string | null) => void;
+  ifoodConectado: boolean;
+  onSincronizar: () => void;
 }
 
 const ESTILO_BOTAO_ACAO: Partial<Record<PedidoCozinha['status'], string>> = {
@@ -65,6 +68,8 @@ export function CardPedidoCozinha({
   onAvancar,
   onCancelar,
   onAtribuirEntregador,
+  ifoodConectado,
+  onSincronizar,
 }: CardPedidoCozinhaProps) {
   const [enderecoCopiado, setEnderecoCopiado] = useState(false);
 
@@ -74,8 +79,15 @@ export function CardPedidoCozinha({
   const urlWhatsapp = montarUrlWhatsapp(pedido.dados_cliente?.telefone);
   const telefone = formatarTelefoneCozinha(pedido.dados_cliente?.telefone);
   const nivelAtraso = obterNivelAtraso(pedido, agora);
-  const mostrarEntregador = ehEntrega && (pedido.status === 'PRONTO' || pedido.status === 'SAIU_PARA_ENTREGA');
-  const textoAcao = textoBotaoAcao(pedido, ehEntrega);
+  const comIfood = pedido.logistica === 'IFOOD';
+  const mostrarSeletorEntregador = ehEntrega && !comIfood && (pedido.status === 'PRONTO' || pedido.status === 'SAIU_PARA_ENTREGA');
+  // O entregador do iFood pode ser chamado já no preparo: o iFood calcula a
+  // alocação pelo tempo de preparo restante.
+  const podeChamarIfood =
+    ehEntrega && ifoodConectado && !pedido.entregador_id && ['PAGO', 'PREPARANDO', 'PRONTO'].includes(pedido.status);
+  const mostrarEntregador = mostrarSeletorEntregador || comIfood || podeChamarIfood;
+  // Com o iFood, "Despachar" vem do evento do próprio iFood (coletou/saiu).
+  const textoAcao = comIfood && pedido.status === 'PRONTO' ? '' : textoBotaoAcao(pedido, ehEntrega);
   const linhaEndereco = [[endereco?.rua, endereco?.numero].filter(Boolean).join(', '), endereco?.cidade, endereco?.cep ? `CEP ${endereco.cep}` : null]
     .filter(Boolean)
     .join(' · ');
@@ -237,6 +249,8 @@ export function CardPedidoCozinha({
 
       {mostrarEntregador && (
         <div className="border-t border-zinc-100 py-3">
+          {mostrarSeletorEntregador && (
+          <>
           <label htmlFor={`entregador-${pedido.id}`} className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
             Entregador
           </label>
@@ -258,6 +272,9 @@ export function CardPedidoCozinha({
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </div>
+          </>
+          )}
+          {(comIfood || podeChamarIfood) && <PainelIfoodEntrega pedido={pedido} onAtualizado={onSincronizar} />}
         </div>
       )}
 

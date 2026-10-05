@@ -131,3 +131,31 @@ IFOOD_API_BASE_URL="https://merchant-api.ifood.com.br"   # opcional, esse é o p
 ```
 
 3. Em `/admin/integracoes`, card **iFood Entrega**: informar o ID da loja, aprovar o código no Portal do Parceiro com a conta dona da loja e colar o código de autorização.
+
+## Taxa de entrega cobrada do cliente — "Entregas pelo iFood"
+
+Opção por loja em **Integrações → iFood Entrega** (`supabase-scripts/ifood-entrega-taxa.sql`):
+
+- `entregas_pelo_ifood` (padrão desligado): quando ligado, o checkout **ignora a taxa fixa e a tabela por bairro** da loja e cobra a cotação do iFood para o endereço do cliente (`deliveryAvailabilities`).
+- `acrescimo_taxa_entrega` (padrão R$ 0,00, máx. R$ 100): valor somado à cotação. Taxa cobrada = cotação + acréscimo.
+- **Fallback:** se o iFood não atender o endereço (fora da área, loja fechada, `OffOpeningHours`, erro), o checkout volta para a regra da loja (taxa fixa ou bairro).
+
+Onde acontece:
+
+- Tela: `app/[slug]/checkout/page.tsx` cota via `POST /api/restaurantes/[slug]/entrega-ifood` (700 ms depois que o cliente para de digitar; a cotação vale só para o endereço em que foi feita). Só exibição.
+- Cobrança: `POST /api/checkout` cota de novo no servidor (`cotarTaxaEntregaIfoodCheckout`) e grava a cotação em `pedidos.ifood_cotacao` com `taxaCobradaCliente`.
+- Cozinha: `PainelIfoodEntrega` já abre com essa cotação se ainda estiver válida (senão cota de novo) e mostra quanto o cliente pagou.
+
+O `merchantFee` enviado ao iFood ao chamar o entregador continua sendo a taxa paga pelo cliente (`valor_total − itens`).
+
+## Aviso de "pronto para coleta" (readyToPickup)
+
+O entregador do iFood só retira o pedido depois que a loja avisa que ele está pronto (`POST /order/v1.0/orders/{id}/readyToPickup`). No teste de 04-10-2026 o entregador ficou parado na loja até esse aviso ser enviado.
+
+O goak envia o aviso automaticamente (`avisarPedidoProntoIfood` em `utils/ifood-entrega.ts`):
+
+- quando a cozinha marca o pedido como PRONTO (`POST /api/admin/pedidos/[pedidoId]/status`);
+- ao chamar o entregador com o pedido já PRONTO;
+- no evento CONFIRMED do iFood, se o pedido já estiver PRONTO (caso o primeiro aviso tenha saído cedo demais).
+
+Falha no aviso só gera log: não bloqueia a mudança de status da cozinha.

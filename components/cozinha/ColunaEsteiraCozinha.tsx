@@ -13,6 +13,8 @@ interface ColunaEsteiraCozinhaProps {
   onAvancar: (pedido: PedidoCozinha) => void;
   onCancelar: (pedido: PedidoCozinha) => void;
   onAtribuirEntregador: (pedidoId: string, entregadorId: string | null) => void;
+  ifoodConectado: boolean;
+  onSincronizar: () => void;
 }
 
 export function ColunaEsteiraCozinha({
@@ -24,6 +26,8 @@ export function ColunaEsteiraCozinha({
   onAvancar,
   onCancelar,
   onAtribuirEntregador,
+  ifoodConectado,
+  onSincronizar,
 }: ColunaEsteiraCozinhaProps) {
   if (pedidos.length === 0) return null;
 
@@ -40,6 +44,8 @@ export function ColunaEsteiraCozinha({
           onAvancar={onAvancar}
           onCancelar={onCancelar}
           onAtribuirEntregador={onAtribuirEntregador}
+          ifoodConectado={ifoodConectado}
+          onSincronizar={onSincronizar}
         />
       ))}
     </div>

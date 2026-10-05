@@ -14,6 +14,7 @@ import {
 } from '@/utils/cobranca-pedido-mercado-pago';
 import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
+import { type TaxaEntregaIfoodCheckout, cotarTaxaEntregaIfoodCheckout, lojaEntregaPeloIfood } from '@/utils/ifood-entrega';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
 import { calcularTaxaEntrega, ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import { type DadosClientePedido, normalizarObservacoesPedido } from '@/utils/pedido-status';
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
     } else {
       delete dadosCliente.observacoes;
     }
-    const coordenadaClienteRecebida =
+    let coordenadaClienteRecebida =
       typeof body.clienteLatitude === 'number' && typeof body.clienteLongitude === 'number'
         ? { latitude: body.clienteLatitude, longitude: body.clienteLongitude }
         : null;
@@ -208,16 +209,37 @@ export async function POST(request: Request) {
     });
 
     const configLoja = obterConfigLojaEspecial(restaurante.slug);
+
+    // Lojas com "Entregas pelo iFood" (card iFood Entrega em /admin/integracoes):
+    // a taxa é a cotação do iFood + acréscimo, calculada pela localização do
+    // cliente — a taxa fixa e a tabela por bairro não valem. Se o iFood não
+    // atender agora, cai na regra normal da loja logo abaixo.
+    let taxaIfood: TaxaEntregaIfoodCheckout | null = null;
+    if (dadosCliente.tipoEntrega !== 'RETIRADA' && (await lojaEntregaPeloIfood(restaurante.id))) {
+      if (!coordenadaClienteRecebida && dadosCliente.endereco) {
+        const enderecoTexto = montarEnderecoParaGeocodificacao(dadosCliente.endereco);
+        coordenadaClienteRecebida = enderecoTexto ? await geocodificarEndereco(enderecoTexto) : null;
+      }
+      if (coordenadaClienteRecebida) {
+        taxaIfood = await cotarTaxaEntregaIfoodCheckout(restaurante.id, coordenadaClienteRecebida);
+      }
+    }
+
     // A taxa é sempre calculada aqui, no servidor (nunca confiamos no valor do navegador).
     // Lojas com tabela por bairro exigem um bairro da lista; retirada nunca paga taxa.
-    const calculoTaxa = calcularTaxaEntrega(configLoja, dadosCliente.tipoEntrega, dadosCliente.endereco?.bairro);
-    if (!calculoTaxa.ok) {
-      return NextResponse.json({ error: calculoTaxa.erro }, { status: 400 });
-    }
-    const taxaEntrega = calculoTaxa.taxa;
-    if (calculoTaxa.zona && dadosCliente.endereco) {
-      // grava no pedido o nome oficial da localidade (o mesmo da tabela de taxas)
-      dadosCliente.endereco = { ...dadosCliente.endereco, bairro: calculoTaxa.zona.nome };
+    let taxaEntrega: number;
+    if (taxaIfood) {
+      taxaEntrega = taxaIfood.taxaCliente;
+    } else {
+      const calculoTaxa = calcularTaxaEntrega(configLoja, dadosCliente.tipoEntrega, dadosCliente.endereco?.bairro);
+      if (!calculoTaxa.ok) {
+        return NextResponse.json({ error: calculoTaxa.erro }, { status: 400 });
+      }
+      taxaEntrega = calculoTaxa.taxa;
+      if (calculoTaxa.zona && dadosCliente.endereco) {
+        // grava no pedido o nome oficial da localidade (o mesmo da tabela de taxas)
+        dadosCliente.endereco = { ...dadosCliente.endereco, bairro: calculoTaxa.zona.nome };
+      }
     }
 
     const valorSacola = itensPrecificados.reduce((acc, item) => acc + item.precoUnitario * item.quantidade, 0);
@@ -359,6 +381,18 @@ export async function POST(request: Request) {
         adicionais: item.adicionais,
       })),
     });
+
+    if (taxaIfood) {
+      // A cozinha chama o entregador com essa mesma cotação (o cliente já pagou
+      // por ela); se tiver expirado, o card cota de novo.
+      const { error: errCotacao } = await supabase
+        .from('pedidos')
+        .update({ ifood_cotacao: { ...taxaIfood.cotacao, taxaCobradaCliente: taxaIfood.taxaCliente } })
+        .eq('id', pedido.id);
+      if (errCotacao) {
+        console.error('Falha ao guardar a cotação do iFood no pedido:', errCotacao);
+      }
+    }
 
     return await cobrarPedidoMercadoPago({
       appUrl,

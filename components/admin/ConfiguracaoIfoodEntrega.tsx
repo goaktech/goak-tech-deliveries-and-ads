@@ -6,6 +6,7 @@ import {
   concluirConexaoIfood,
   desconectarIfood,
   iniciarConexaoIfood,
+  salvarConfiguracaoEntregaIfood,
 } from '@/actions/adminIfood';
 import { atualizarEnderecoLoja } from '@/actions/adminConfiguracoesLoja';
 import type { EnderecoLojaIfood, IntegracaoIfoodPublica } from '@/utils/ifood';
@@ -60,6 +61,8 @@ export function ConfiguracaoIfoodEntrega({
   const [mensagem, setMensagem] = useState<Mensagem>(null);
   const [enderecoGoak, setEnderecoGoak] = useState({ endereco: enderecoLoja, latitude: latitudeLoja, longitude: longitudeLoja });
   const [agora, setAgora] = useState(() => Date.now());
+  const [entregasPeloIfood, setEntregasPeloIfood] = useState(integracaoInicial?.entregasPeloIfood ?? false);
+  const [acrescimo, setAcrescimo] = useState(String(integracaoInicial?.acrescimoTaxaEntrega ?? 0).replace('.', ','));
 
   const status = integracao?.connectionStatus ?? 'desconectado';
   const aguardandoAutorizacao = status === 'pendente' && !!integracao?.userCode;
@@ -260,6 +263,48 @@ export function ConfiguracaoIfoodEntrega({
               </button>
             </div>
           ) : null}
+
+          <div className="space-y-2 rounded-xl border border-zinc-200 p-3">
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={entregasPeloIfood}
+                onChange={(e) => setEntregasPeloIfood(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-[#EA1D2C]"
+              />
+              <span>
+                <b className="text-zinc-900">Entregas pelo iFood</b>
+                <span className="block text-xs text-zinc-500">
+                  O checkout cobra do cliente a taxa do iFood Entrega, calculada pelo endereço, no lugar da taxa fixa ou da
+                  tabela por bairro. Se o iFood não atender o endereço ou estiver fora do horário, vale a taxa normal da loja.
+                </span>
+              </span>
+            </label>
+            <label className="block text-xs text-zinc-600">
+              Acréscimo sobre a taxa do iFood (R$)
+              <input
+                type="text"
+                inputMode="decimal"
+                value={acrescimo}
+                onChange={(e) => setAcrescimo(e.target.value)}
+                disabled={!entregasPeloIfood}
+                className="mt-1 block w-32 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-900 disabled:opacity-50 focus:border-zinc-400 focus:outline-none"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={carregando}
+              onClick={() =>
+                executar(
+                  () => salvarConfiguracaoEntregaIfood(entregasPeloIfood, Number(acrescimo.replace(',', '.')) || 0),
+                  entregasPeloIfood ? 'Entregas pelo iFood ligadas.' : 'Entregas pelo iFood desligadas.'
+                )
+              }
+              className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-50"
+            >
+              Salvar
+            </button>
+          </div>
         </div>
       ) : null}
 

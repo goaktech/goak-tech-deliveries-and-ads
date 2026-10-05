@@ -56,6 +56,7 @@ export default function PainelCozinhaAdmin() {
     fecharAviso,
     cancelarPedido,
     atribuirEntregador,
+    ifoodConectado,
   } = useCozinha();
 
   const [etapaAtiva, setEtapaAtiva] = useState<EtapaCozinha>('novos');
@@ -232,6 +233,8 @@ export default function PainelCozinhaAdmin() {
               onAvancar={avancarPedido}
               onCancelar={(pedido) => setPedidoParaCancelarId(pedido.id)}
               onAtribuirEntregador={atribuirEntregador}
+              ifoodConectado={ifoodConectado}
+              onSincronizar={() => void sincronizar()}
             />
           )}
         </section>

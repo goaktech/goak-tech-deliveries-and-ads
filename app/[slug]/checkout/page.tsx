@@ -81,6 +81,14 @@ export default function TelaDeCheckoutDedicada() {
   const [latitudeLoja, setLatitudeLoja] = useState<number | null>(null);
   const [longitudeLoja, setLongitudeLoja] = useState<number | null>(null);
 
+  const [entregaIfood, setEntregaIfood] = useState(false);
+  const [respostaCotacaoIfood, setRespostaCotacaoIfood] = useState<{
+    chave: string | null;
+    estado: 'aguardando' | 'carregando' | 'ok' | 'indisponivel';
+    taxa: number;
+    tempoMinimoMin: number | null;
+    tempoMaximoMin: number | null;
+  }>({ chave: null, estado: 'aguardando', taxa: 0, tempoMinimoMin: null, tempoMaximoMin: null });
   const [clienteLatitude, setClienteLatitude] = useState<number | null>(null);
   const [clienteLongitude, setClienteLongitude] = useState<number | null>(null);
   const [modalMapaCepAberto, setModalMapaCepAberto] = useState(false);
@@ -88,19 +96,37 @@ export default function TelaDeCheckoutDedicada() {
 
   // Taxa de entrega: mesma regra usada pela API (utils/config-lojas-especiais).
   // Lojas com tabela por bairro só calculam depois que o cliente escolhe um bairro da lista.
-  const usaTaxaPorBairro = lojaTemTaxaPorBairro(configLoja);
+  // Lojas com "Entregas pelo iFood": a taxa é a cotação do iFood pelo endereço; a tabela da
+  // loja só volta a valer se o iFood não atender (cotacaoIfood.estado === 'indisponivel').
   const tipoEntregaAtual = abaEntregaAtiva === 'RETIRADA' ? 'RETIRADA' : 'ENTREGA';
+  const enderecoEntregaPreenchido =
+    (rua.trim().length > 0 && numero.trim().length > 0) || (clienteLatitude !== null && clienteLongitude !== null);
+  // a cotação vale para o endereço em que foi feita; mudou o endereço, volta a "carregando"
+  const chaveCotacaoIfood =
+    entregaIfood && tipoEntregaAtual === 'ENTREGA' && enderecoEntregaPreenchido
+      ? clienteLatitude !== null && clienteLongitude !== null
+        ? `${clienteLatitude},${clienteLongitude}`
+        : [rua.trim(), numero.trim(), bairro.trim(), cep].join('|')
+      : null;
+  const cotacaoIfood =
+    chaveCotacaoIfood !== null && respostaCotacaoIfood.chave === chaveCotacaoIfood
+      ? respostaCotacaoIfood
+      : { chave: chaveCotacaoIfood, estado: chaveCotacaoIfood ? ('carregando' as const) : ('aguardando' as const), taxa: 0, tempoMinimoMin: null, tempoMaximoMin: null };
+  const usaIfood = entregaIfood && tipoEntregaAtual === 'ENTREGA' && cotacaoIfood.estado !== 'indisponivel';
+  const taxaPeloIfood = usaIfood && cotacaoIfood.estado === 'ok';
+  const usaTaxaPorBairro = lojaTemTaxaPorBairro(configLoja) && !usaIfood;
   const calculoTaxa = calcularTaxaEntrega(configLoja, tipoEntregaAtual, bairro);
-  const taxaEntrega = calculoTaxa.ok ? calculoTaxa.taxa : 0;
-  const zonaEntregaAtual = calculoTaxa.ok ? calculoTaxa.zona : null;
+  const taxaEntrega = taxaPeloIfood ? cotacaoIfood.taxa : usaIfood ? 0 : calculoTaxa.ok ? calculoTaxa.taxa : 0;
+  const zonaEntregaAtual = !usaIfood && calculoTaxa.ok ? calculoTaxa.zona : null;
   const faixaTaxas = faixaTaxasEntrega(configLoja);
   const bairroPendente = usaTaxaPorBairro && tipoEntregaAtual === 'ENTREGA' && !calculoTaxa.ok;
   const valorTotalComTaxa = valorTotal + taxaEntrega;
 
-  const enderecoEntregaPreenchido =
-    (rua.trim().length > 0 && numero.trim().length > 0) || (clienteLatitude !== null && clienteLongitude !== null);
-  // em lojas com taxa por bairro a entrega exige bairro da lista + endereço (ou ponto no mapa)
-  const entregaValida = !usaTaxaPorBairro || tipoEntregaAtual === 'RETIRADA' || (calculoTaxa.ok && enderecoEntregaPreenchido);
+  // em lojas com taxa por bairro a entrega exige bairro da lista + endereço (ou ponto no mapa);
+  // com iFood, exige endereço e a taxa já cotada (o cliente nunca paga um valor que não viu)
+  const entregaValida = usaIfood
+    ? taxaPeloIfood && enderecoEntregaPreenchido
+    : !usaTaxaPorBairro || tipoEntregaAtual === 'RETIRADA' || (calculoTaxa.ok && enderecoEntregaPreenchido);
 
   // aplica um bairro vindo do mapa/cadastro; em lojas com tabela só vale se bater com a lista
   const aplicarBairroSugerido = (valor: string) => {
@@ -131,6 +157,7 @@ export default function TelaDeCheckoutDedicada() {
         }
         setFormasPagamento(normalizarFormasPagamento(body?.formas_pagamento_aceitas));
         setMpPublicKey(typeof body?.mp_public_key === 'string' && body.mp_public_key ? body.mp_public_key : null);
+        setEntregaIfood(body?.entrega_ifood === true);
       } catch (error) {
         console.error('Erro ao carregar endereço da loja:', error);
       }
@@ -161,6 +188,45 @@ export default function TelaDeCheckoutDedicada() {
     }),
     [bairro, cep, cidadeCep, configLoja.cidadeEntrega, numero, rua]
   );
+
+  // Lojas com "Entregas pelo iFood": cota a entrega quando o endereço (ou o
+  // ponto no mapa) estiver preenchido. Só exibição — o servidor cota de novo
+  // ao cobrar (POST /api/checkout).
+  useEffect(() => {
+    if (chaveCotacaoIfood === null) return;
+    let ativo = true;
+    const espera = setTimeout(async () => {
+      try {
+        const resposta = await fetch(`/api/restaurantes/${slug}/entrega-ifood`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(
+            clienteLatitude !== null && clienteLongitude !== null
+              ? { latitude: clienteLatitude, longitude: clienteLongitude }
+              : { endereco: dadosEndereco }
+          ),
+        });
+        const corpo = (await resposta.json().catch(() => ({}))) as {
+          disponivel?: boolean;
+          taxa?: number;
+          tempoMinimoMin?: number;
+          tempoMaximoMin?: number;
+        };
+        if (!ativo) return;
+        setRespostaCotacaoIfood(
+          corpo.disponivel && typeof corpo.taxa === 'number'
+            ? { chave: chaveCotacaoIfood, estado: 'ok', taxa: corpo.taxa, tempoMinimoMin: corpo.tempoMinimoMin ?? null, tempoMaximoMin: corpo.tempoMaximoMin ?? null }
+            : { chave: chaveCotacaoIfood, estado: 'indisponivel', taxa: 0, tempoMinimoMin: null, tempoMaximoMin: null }
+        );
+      } catch {
+        if (ativo) setRespostaCotacaoIfood({ chave: chaveCotacaoIfood, estado: 'indisponivel', taxa: 0, tempoMinimoMin: null, tempoMaximoMin: null });
+      }
+    }, 700);
+    return () => {
+      ativo = false;
+      clearTimeout(espera);
+    };
+  }, [chaveCotacaoIfood, clienteLatitude, clienteLongitude, dadosEndereco, slug]);
 
   const handleVoltarClique = () => {
     if (etapaCheckout === 'PAGAMENTO') {
@@ -482,7 +548,18 @@ export default function TelaDeCheckoutDedicada() {
                   </p>
                 </div>
               )}
-              {!usaTaxaPorBairro && taxaEntrega > 0 && (
+              {usaIfood && (
+                <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs font-medium leading-relaxed">
+                    A entrega é feita por um entregador iFood. A taxa é calculada pelo seu endereço na próxima etapa. Retirada no balcão não tem
+                    taxa.
+                  </p>
+                </div>
+              )}
+              {!usaTaxaPorBairro && !usaIfood && taxaEntrega > 0 && (
                 <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
                   <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -628,7 +705,7 @@ export default function TelaDeCheckoutDedicada() {
                           {[rua, numero, bairro].filter(Boolean).join(', ')}
                         </div>
                       )}
-                      {configLoja.zonasEntrega && configLoja.zonasEntrega.length > 0 && (
+                      {!usaIfood && configLoja.zonasEntrega && configLoja.zonasEntrega.length > 0 && (
                         <SeletorBairroEntrega
                           zonas={configLoja.zonasEntrega}
                           valor={bairro}
@@ -663,9 +740,29 @@ export default function TelaDeCheckoutDedicada() {
                         setBairro(valor);
                         setBairroDetectado('');
                       }}
-                      zonasEntrega={configLoja.zonasEntrega}
+                      zonasEntrega={usaIfood ? undefined : configLoja.zonasEntrega}
                       bairroDetectado={bairroDetectado}
                     />
+                  )}
+
+                  {entregaIfood && tipoEntregaAtual === 'ENTREGA' && (
+                    <p
+                      className={`text-[11px] font-semibold leading-relaxed ${
+                        cotacaoIfood.estado === 'ok' ? 'text-emerald-700' : cotacaoIfood.estado === 'indisponivel' ? 'text-zinc-500' : 'text-amber-700'
+                      }`}
+                    >
+                      {cotacaoIfood.estado === 'ok'
+                        ? `Entrega pelo iFood: ${formatarMoeda(cotacaoIfood.taxa)}${
+                            cotacaoIfood.tempoMinimoMin !== null && cotacaoIfood.tempoMaximoMin !== null
+                              ? ` · ${cotacaoIfood.tempoMinimoMin}–${cotacaoIfood.tempoMaximoMin} min`
+                              : ''
+                          }`
+                        : cotacaoIfood.estado === 'carregando'
+                          ? 'Calculando a taxa de entrega…'
+                          : cotacaoIfood.estado === 'indisponivel'
+                            ? 'Entregador iFood indisponível para este endereço agora — a loja faz a entrega com a taxa dela.'
+                            : 'Informe rua e número (ou marque o ponto no mapa) para calcular a taxa de entrega.'}
+                    </p>
                   )}
 
                   {usaTaxaPorBairro && !entregaValida && (
@@ -702,7 +799,7 @@ export default function TelaDeCheckoutDedicada() {
                 </div>
                 {taxaEntrega > 0 && (
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-500">Taxa de entrega{zonaEntregaAtual ? ` · ${zonaEntregaAtual.nome}` : ''}</span>
+                    <span className="text-zinc-500">Taxa de entrega{taxaPeloIfood ? ' · iFood' : zonaEntregaAtual ? ` · ${zonaEntregaAtual.nome}` : ''}</span>
                     <span className="font-semibold text-zinc-700">{formatarMoeda(taxaEntrega)}</span>
                   </div>
                 )}
