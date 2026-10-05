@@ -156,6 +156,9 @@ const INTERVALO_ALARME_MS = 30000;
 const CHAVE_PREFERENCIA_SOM = 'goak:cozinha:som';
 // Intervalo recomendado pelo iFood pro polling de eventos.
 const INTERVALO_EVENTOS_IFOOD_MS = 30000;
+// Modo homologação (vídeos para o iFood): consulta mais frequente, pra os
+// eventos aparecerem logo e as gravações ficarem curtas.
+const INTERVALO_EVENTOS_IFOOD_HOMOLOGACAO_MS = 10000;
 
 function inicioDoDiaIso() {
   const data = new Date();
@@ -850,12 +853,15 @@ export function useCozinha() {
       }
     };
     void buscarEventos();
-    const intervalo = setInterval(() => void buscarEventos(), INTERVALO_EVENTOS_IFOOD_MS);
+    const intervalo = setInterval(
+      () => void buscarEventos(),
+      clientIdHomologacaoIfood ? INTERVALO_EVENTOS_IFOOD_HOMOLOGACAO_MS : INTERVALO_EVENTOS_IFOOD_MS
+    );
     return () => {
       ativo = false;
       clearInterval(intervalo);
     };
-  }, [restauranteId, sincronizar]);
+  }, [restauranteId, sincronizar, clientIdHomologacaoIfood]);
 
   return {
     pedidos,
