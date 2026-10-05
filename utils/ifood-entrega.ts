@@ -16,6 +16,7 @@ import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { atualizarStatusPedidoComNotificacoes } from '@/utils/pedidos-acompanhamento';
 import { type DadosClientePedido, type StatusPedido, obterTipoEntregaPedido } from '@/utils/pedido-status';
 import {
+  clientIdIfoodHomologacao,
   obterAccessTokenIfood,
   obterIntegracaoIfoodPorRestauranteId,
   requisicaoIfood,
@@ -418,9 +419,40 @@ export async function validarCodigoColetaIfood(restauranteId: string, pedidoId: 
     throw new Error('O iFood ainda não liberou a validação: aguarde o entregador chegar à loja.');
   }
   if (resposta.status !== 200) {
+    if (clientIdIfoodHomologacao()) {
+      // Vídeos de homologação: o analista precisa ver a resposta real da API.
+      const corpo = resposta.texto.trim();
+      throw new Error(
+        `O iFood respondeu HTTP ${resposta.status}${corpo ? `: ${corpo.slice(0, 200)}` : ' (sem mensagem)'}.`
+      );
+    }
     throw new Error(mensagemErroIfood(resposta.body, 'Não foi possível validar o código no iFood.'));
   }
   return resposta.body?.valid === true;
+}
+
+/**
+ * Só no modo homologação (IFOOD_HOMOLOGACAO=true): código de coleta que o
+ * iFood informa nos detalhes do pedido (`delivery.pickupCode`) e eventos já
+ * recebidos — o roteiro do cenário 4 pede para mostrar onde o código aparece.
+ * Em operação normal a loja não vê o código: quem o apresenta é o entregador.
+ */
+export async function obterDadosHomologacaoColetaIfood(restauranteId: string, pedidoId: string) {
+  const ifoodOrderId = exigirIfood(await carregarPedido(restauranteId, pedidoId));
+  const { accessToken } = await lojaConectada(restauranteId);
+  const detalhes = await requisicaoIfood<{ delivery?: { pickupCode?: string } }>(`/order/v1.0/orders/${ifoodOrderId}`, {
+    accessToken,
+  });
+  const { data: eventos } = await getSupabase()
+    .from('eventos_ifood')
+    .select('codigo, recebido_em')
+    .eq('pedido_id', pedidoId)
+    .order('recebido_em', { ascending: true });
+
+  return {
+    pickupCode: detalhes.status === 200 ? detalhes.body?.delivery?.pickupCode ?? null : null,
+    eventos: (eventos ?? []).map((e) => ({ codigo: e.codigo as string, recebidoEm: e.recebido_em as string })),
+  };
 }
 
 // ------------------------------------------------------------ eventos

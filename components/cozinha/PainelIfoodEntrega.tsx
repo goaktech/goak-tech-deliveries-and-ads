@@ -83,6 +83,32 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
     return () => clearInterval(intervalo);
   }, [alteracaoPendente]);
 
+  // Modo homologação (IFOOD_HOMOLOGACAO=true): código de coleta dos detalhes do
+  // pedido e eventos recebidos, para o vídeo do cenário 4. Fora desse modo a
+  // API responde 403 e nada aparece.
+  const [homologacao, setHomologacao] = useState<{
+    pickupCode: string | null;
+    eventos: Array<{ codigo: string; recebidoEm: string }>;
+  } | null>(null);
+  useEffect(() => {
+    if (!comIfood) return;
+    let ativo = true;
+    fetch(`/api/admin/pedidos/${pedido.id}/ifood`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ acao: 'homologacao' }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((dados) => {
+        if (ativo && dados) setHomologacao(dados);
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [comIfood, pedido.id, pedido.ifood_status]);
+  const codigoSolicitado = homologacao?.eventos.some((e) => e.codigo === 'DELIVERY_PICKUP_CODE_REQUESTED') ?? false;
+
   const enderecoAtual = pedido.dados_cliente?.endereco;
   const coordenadaNova = alteracao?.endereco?.coordinates;
   const distanciaAlteracao =
@@ -266,6 +292,28 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
         </div>
       ) : null}
 
+      {homologacao ? (
+        <div className="space-y-1.5 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-2.5 font-mono text-[10.5px] text-zinc-600">
+          <div className="font-sans text-[10px] font-bold uppercase tracking-wider text-zinc-400">Homologação · código de coleta</div>
+          <div>
+            pickupCode nos detalhes do pedido (GET /order/v1.0/orders/&#123;id&#125;):{' '}
+            <b className="text-zinc-900">{homologacao.pickupCode ?? '—'}</b>
+          </div>
+          <div>
+            evento DELIVERY_PICKUP_CODE_REQUESTED:{' '}
+            <b className={codigoSolicitado ? 'text-emerald-700' : 'text-amber-700'}>{codigoSolicitado ? 'recebido' : 'não recebido'}</b>
+          </div>
+          <div className="leading-relaxed">
+            eventos:{' '}
+            {homologacao.eventos.length
+              ? homologacao.eventos
+                  .map((e) => `${new Date(e.recebidoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} ${e.codigo}`)
+                  .join(' · ')
+              : '—'}
+          </div>
+        </div>
+      ) : null}
+
       <form
         className="flex gap-2"
         onSubmit={async (evento) => {
@@ -276,6 +324,11 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
             setCodigoColeta('');
           } else if (dados) {
             setErro('Código inválido: não entregue o pedido.');
+          }
+          // erro de API (ex.: HTTP 400) já vem em `erro` por chamar(); no modo
+          // homologação, explica a limitação da loja de teste.
+          if (!dados && homologacao && !codigoSolicitado) {
+            setInfo('Na loja de teste a exigência do código de coleta não está ativa: o iFood não enviou DELIVERY_PICKUP_CODE_REQUESTED.');
           }
         }}
       >
