@@ -2,7 +2,7 @@ name: DB migrations
 
 # Aplica supabase/migrations no banco do ambiente correspondente.
 #   staging -> Environment "test"        (projeto Supabase de testes)
-#   main    -> Environment "production"  (projeto Supabase de produção; exige aprovação manual)
+#   main    -> Environment "production-db"  (projeto Supabase de produção; exige aprovação manual)
 # Só dispara quando houver mudança em supabase/migrations.
 
 on:
@@ -20,7 +20,7 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: ${{ github.ref_name == 'main' && 'production' || 'test' }}
+    environment: ${{ github.ref_name == 'main' && 'production-db' || 'test' }}
     concurrency:
       group: db-migrations-${{ github.ref_name }}
       cancel-in-progress: false
