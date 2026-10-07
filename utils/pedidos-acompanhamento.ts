@@ -486,7 +486,7 @@ export async function atualizarStatusPedidoComNotificacoes(params: {
   }
 
   const mudouStatus = statusAnterior !== params.novoStatus;
-  const precisaAtualizarPagamentoId = params.mercadoPagoPaymentId && pedidoAtual.mercado_pago_payment_id !== params.mercadoPagoPaymentId;
+  const precisaAtualizarPagamentoId = params.mercadoPagoPaymentId && !pedidoAtual.mercado_pago_payment_id;
 
   if (!mudouStatus && !precisaAtualizarPagamentoId) {
     return {
@@ -500,7 +500,7 @@ export async function atualizarStatusPedidoComNotificacoes(params: {
     updated_at: new Date().toISOString(),
   };
 
-  if (params.mercadoPagoPaymentId) {
+  if (params.mercadoPagoPaymentId && !pedidoAtual.mercado_pago_payment_id) {
     payloadAtualizacao.mercado_pago_payment_id = params.mercadoPagoPaymentId;
   }
 

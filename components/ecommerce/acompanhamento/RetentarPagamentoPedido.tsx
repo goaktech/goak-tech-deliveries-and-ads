@@ -63,6 +63,11 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
       body: JSON.stringify({ slug, codigoAcompanhamento, paymentMethod, ...(cartao ? { cartao } : {}) }),
     });
     const body = await resposta.json().catch(() => null);
+    if (resposta.status === 409 && body?.duplicado) {
+      // o pedido já foi pago: recarrega o acompanhamento com o status atualizado
+      window.location.assign(`${window.location.pathname}?pagamento=aprovado`);
+      return new Promise<Record<string, unknown>>(() => {});
+    }
     if (!resposta.ok || !body) {
       throw new Error(body?.error || 'Não foi possível iniciar o pagamento. Tente novamente.');
     }
