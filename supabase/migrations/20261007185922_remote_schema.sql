@@ -836,6 +836,8 @@ CREATE POLICY "Upload autenticado no bucket produtos" ON "storage"."objects"
   TO "authenticated"
   WITH CHECK ((bucket_id = 'produtos'::text));
 
+-- Projetos novos do Supabase já criam este event trigger por padrão; recria de forma idempotente.
+DROP EVENT TRIGGER IF EXISTS "ensure_rls";
 CREATE EVENT TRIGGER "ensure_rls"
   ON ddl_command_end
   WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
