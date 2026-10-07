@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test:hml:bloco1": "node --test tests/homologacao/bloco1-auth.test.mjs",
     "test:hml:bloco2": "node --test tests/homologacao/bloco2-admin.test.mjs",
     "test:hml:bloco3": "node --test tests/homologacao/bloco3-vitrine-carrinho.test.mjs",
