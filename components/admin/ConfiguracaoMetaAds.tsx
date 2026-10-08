@@ -62,7 +62,7 @@ export function ConfiguracaoMetaAds({ situacao, diasParaExpirar, contaNome, cont
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-200 p-5 space-y-3">
+    <div className="rounded-2xl border border-zinc-200 p-4 sm:p-5 space-y-3">
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Meta Ads</div>
@@ -110,7 +110,7 @@ export function ConfiguracaoMetaAds({ situacao, diasParaExpirar, contaNome, cont
             value={contaAtualId ?? ''}
             disabled={salvando}
             onChange={(e) => void trocarConta(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm font-medium text-zinc-900 focus:border-zinc-400 focus:outline-none"
+            className="w-full rounded-xl border border-zinc-200 min-h-11 px-3.5 py-2.5 text-base sm:text-sm font-medium text-zinc-900 focus:border-zinc-400 focus:outline-none"
           >
             {contas.map((conta) => (
               <option key={conta.id} value={conta.id}>
@@ -127,7 +127,7 @@ export function ConfiguracaoMetaAds({ situacao, diasParaExpirar, contaNome, cont
         <form action="/api/admin/integracoes/meta-ads/conectar" method="get">
           <button
             type="submit"
-            className="rounded-xl bg-zinc-900 px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-white"
+            className="rounded-xl bg-zinc-900 min-h-11 px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-white"
           >
             {precisaReconectar || conectado ? 'Reconectar Meta Ads' : 'Conectar Meta Ads'}
           </button>
@@ -138,7 +138,7 @@ export function ConfiguracaoMetaAds({ situacao, diasParaExpirar, contaNome, cont
             type="button"
             onClick={abrirSelecao}
             disabled={carregando}
-            className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700 disabled:opacity-50"
+            className="rounded-xl border border-zinc-200 bg-white min-h-11 px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700 disabled:opacity-50"
           >
             {carregando ? 'Carregando...' : 'Trocar conta de anúncios'}
           </button>
@@ -147,7 +147,7 @@ export function ConfiguracaoMetaAds({ situacao, diasParaExpirar, contaNome, cont
         <form action="/api/admin/integracoes/meta-ads/desconectar" method="post">
           <button
             type="submit"
-            className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700"
+            className="rounded-xl border border-zinc-200 bg-white min-h-11 px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700"
           >
             Desconectar
           </button>
