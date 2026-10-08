@@ -191,7 +191,12 @@ export async function POST(request: Request) {
     // 1) Assinatura (x-signature). Inválida => rejeita. Ausente: segue (IPN), pois tudo é reconfirmado na API do MP.
     // O manifesto da assinatura usa o data.id da query string (quando existir); senão, o do corpo.
     const idParaAssinatura = urlWebhook.searchParams.get('data.id') ?? String(body?.data?.id ?? paymentId);
-    const assinatura = verificarAssinaturaWebhook(request, idParaAssinatura);
+    // Notificações IPN (topic=payment&id=...) não trazem data.id e o x-signature delas não segue o manifesto
+    // dos webhooks; elas não alteram nada sem antes reconfirmar o pagamento na API do Mercado Pago.
+    const ehWebhookAssinavel = urlWebhook.searchParams.has('data.id') || body?.data?.id != null;
+    const assinatura = ehWebhookAssinavel
+      ? verificarAssinaturaWebhook(request, idParaAssinatura)
+      : ('ausente' as const);
     if (assinatura === 'invalida') {
       await registrarLogWebhook({
         supabase,
