@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AtivadorPushPedido } from '@/components/ecommerce/acompanhamento/AtivadorPushPedido';
 import { RetentarPagamentoPedido } from '@/components/ecommerce/acompanhamento/RetentarPagamentoPedido';
+import { trackPurchaseUmaVez } from '@/utils/meta-pixel';
 import {
   type DadosClientePedido,
   type StatusPedido,
@@ -73,6 +74,24 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
   const tipoEntrega = useMemo(() => obterTipoEntregaPedido(pedido.dados_cliente), [pedido.dados_cliente]);
   const etapas = useMemo(() => obterEtapasStatusPedido(tipoEntrega), [tipoEntrega]);
   const indiceAtual = useMemo(() => obterIndiceStatusPedido(pedido.status, tipoEntrega), [pedido.status, tipoEntrega]);
+
+  // Purchase para o Meta Pixel: só com pagamento confirmado (status deixou de ser PENDENTE e não é
+  // cancelado). Dispara quando este navegador vê a virada de PENDENTE para pago, ou quando abre o
+  // pedido recém-pago (até 30 min), nunca para pedidos antigos abertos de novo.
+  const statusInicialRef = useRef(pedidoInicial.status);
+  useEffect(() => {
+    if (pedido.status === 'PENDENTE' || pedido.status === 'CANCELADO') return;
+
+    const viuConfirmacao = statusInicialRef.current === 'PENDENTE';
+    const pedidoRecente = Date.now() - new Date(pedido.created_at).getTime() < 30 * 60 * 1000;
+    if (!viuConfirmacao && !pedidoRecente) return;
+
+    trackPurchaseUmaVez({
+      pedidoId: pedido.id,
+      valorTotal: Number(pedido.valor_total),
+      itens: pedido.itens.map((item) => ({ id: item.id, quantidade: item.quantidade })),
+    });
+  }, [pedido.status, pedido.id, pedido.created_at, pedido.valor_total, pedido.itens]);
 
   const emFaseEntrega = pedido.status === 'SAIU_PARA_ENTREGA';
   const cancelado = pedido.status === 'CANCELADO';

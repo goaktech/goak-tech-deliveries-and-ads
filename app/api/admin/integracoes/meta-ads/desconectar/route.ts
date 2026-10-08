@@ -7,9 +7,9 @@ export async function POST(request: Request) {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
     await desconectarMetaAds(restauranteId);
 
-    return NextResponse.redirect(new URL('/admin/integracoes?status=meta-ads-desconectado', request.url));
+    return NextResponse.redirect(new URL('/admin/integracoes?status=meta-ads-desconectado', request.url), 303);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Falha ao desconectar Meta Ads.';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[meta-ads] Falha ao desconectar:', error);
+    return NextResponse.redirect(new URL('/admin/integracoes?status=meta-ads-erro&motivo=erro', request.url), 303);
   }
 }
