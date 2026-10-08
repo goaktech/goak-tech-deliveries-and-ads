@@ -18,6 +18,7 @@ export interface RestauranteIntegracaoPagamento {
   token_expires_at: string | null;
   connection_status: 'pendente' | 'conectado' | 'desconectado';
   account_email: string | null;
+  token_refresh_lock_until?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -214,6 +215,13 @@ export async function trocarCodigoPorTokensMercadoPago(code: string) {
   return (await response.json()) as MercadopagoAuthTokens;
 }
 
+export class ErroRefreshTokenMercadoPago extends Error {
+  constructor(message: string, readonly httpStatus: number, readonly definitivo: boolean) {
+    super(message);
+    this.name = 'ErroRefreshTokenMercadoPago';
+  }
+}
+
 export async function renovarTokenMercadoPago(refreshToken: string) {
   const { clientId, clientSecret } = getMercadoPagoConfig();
   const response = await fetch(`${MP_API_BASE}/oauth/token`, {
@@ -228,7 +236,12 @@ export async function renovarTokenMercadoPago(refreshToken: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`Falha ao renovar token Mercado Pago: ${response.status}`);
+    const corpo = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new ErroRefreshTokenMercadoPago(
+      `Falha ao renovar token Mercado Pago: ${response.status}`,
+      response.status,
+      corpo?.error === 'invalid_grant' || response.status === 400 || response.status === 401
+    );
   }
 
   return (await response.json()) as MercadopagoAuthTokens;
@@ -264,8 +277,8 @@ export async function salvarIntegracaoMercadoPago(
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       connection_status: 'conectado',
       account_email: usuario.email ?? null,
+      token_refresh_lock_until: null,
       updated_at: agora,
-      created_at: agora,
     },
     { onConflict: 'restaurante_id' }
   );
@@ -295,26 +308,115 @@ export async function desconectarMercadoPago(restauranteId: string) {
   }
 }
 
-export async function obterTokenMercadoPagoValido(restauranteId: string) {
+const LOCK_REFRESH_MS = 30_000;
+
+async function atualizarTokensRenovados(restauranteId: string, tokens: MercadopagoAuthTokens) {
+  const supabase = createWebhookAdminClient();
+  const { error } = await supabase
+    .from('restaurante_integracoes_pagamento')
+    .update({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      ...(tokens.public_key ? { public_key: tokens.public_key } : {}),
+      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      connection_status: 'conectado',
+      token_refresh_lock_until: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('restaurante_id', restauranteId);
+
+  if (error) {
+    throw new Error(`Falha ao salvar tokens renovados do Mercado Pago: ${error.message}`);
+  }
+}
+
+function tokenAindaValido(integracao: RestauranteIntegracaoPagamento) {
+  return (
+    !!integracao.access_token &&
+    (!integracao.token_expires_at || Date.now() < new Date(integracao.token_expires_at).getTime() - 60_000)
+  );
+}
+
+export async function obterTokenMercadoPagoValido(restauranteId: string): Promise<string> {
   const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
   if (!integracao || !integracao.access_token || integracao.connection_status !== 'conectado') {
     throw new Error('Mercado Pago não conectado para este restaurante.');
   }
 
-  if (!integracao.token_expires_at || Date.now() < new Date(integracao.token_expires_at).getTime() - 60_000) {
+  if (tokenAindaValido(integracao)) {
     return integracao.access_token;
   }
 
   if (!integracao.refresh_token) {
+    await marcarMercadoPagoDesconectadoPorFalhaDeToken(restauranteId);
     throw new Error('Token de atualização ausente para Mercado Pago.');
   }
 
-  const tokens = await renovarTokenMercadoPago(integracao.refresh_token);
-  await salvarIntegracaoMercadoPago(restauranteId, tokens, {
-    id: integracao.provider_user_id ?? '',
-    email: integracao.account_email ?? undefined,
-  });
-  return tokens.access_token;
+  const supabase = createWebhookAdminClient();
+
+  for (let tentativa = 0; tentativa < 6; tentativa += 1) {
+    // Reivindica o lock de forma atômica: só uma requisição renova (refresh_token é de uso único).
+    const agora = new Date();
+    const { data: reivindicado, error: errLock } = await supabase
+      .from('restaurante_integracoes_pagamento')
+      .update({ token_refresh_lock_until: new Date(agora.getTime() + LOCK_REFRESH_MS).toISOString() })
+      .eq('restaurante_id', restauranteId)
+      .eq('refresh_token', integracao.refresh_token)
+      .or(`token_refresh_lock_until.is.null,token_refresh_lock_until.lt.${agora.toISOString()}`)
+      .select('restaurante_id');
+
+    if (errLock) {
+      throw new Error(`Falha ao reivindicar renovação de token: ${errLock.message}`);
+    }
+
+    if (reivindicado && reivindicado.length > 0) {
+      try {
+        const tokens = await renovarTokenMercadoPago(integracao.refresh_token);
+        await atualizarTokensRenovados(restauranteId, tokens);
+        return tokens.access_token;
+      } catch (error) {
+        if (error instanceof ErroRefreshTokenMercadoPago && error.definitivo) {
+          await marcarMercadoPagoDesconectadoPorFalhaDeToken(restauranteId);
+        } else {
+          await supabase
+            .from('restaurante_integracoes_pagamento')
+            .update({ token_refresh_lock_until: null })
+            .eq('restaurante_id', restauranteId);
+        }
+        throw error;
+      }
+    }
+
+    // Outra requisição está renovando (ou já renovou): aguarda e relê.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const atual = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
+    if (!atual || atual.connection_status !== 'conectado' || !atual.access_token) {
+      throw new Error('Mercado Pago não conectado para este restaurante.');
+    }
+    if (tokenAindaValido(atual)) {
+      return atual.access_token;
+    }
+    if (atual.refresh_token && atual.refresh_token !== integracao.refresh_token) {
+      integracao.refresh_token = atual.refresh_token;
+    }
+  }
+
+  throw new Error('Não foi possível renovar o token do Mercado Pago agora. Tente novamente.');
+}
+
+export async function marcarMercadoPagoDesconectadoPorFalhaDeToken(restauranteId: string) {
+  const supabase = createWebhookAdminClient();
+  await supabase
+    .from('restaurante_integracoes_pagamento')
+    .update({
+      connection_status: 'desconectado',
+      access_token: null,
+      refresh_token: null,
+      token_expires_at: null,
+      token_refresh_lock_until: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('restaurante_id', restauranteId);
 }
 
 export function montarNotificationUrlMercadoPago(appUrl: string, restauranteId: string) {

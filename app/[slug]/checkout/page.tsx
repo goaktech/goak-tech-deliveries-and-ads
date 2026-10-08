@@ -60,6 +60,15 @@ export default function TelaDeCheckoutDedicada() {
   const ultimoCepConsultadoRef = useRef('');
   // formas de pagamento habilitadas pelo gestor (até carregar, só PIX — o padrão de toda loja)
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoLoja[]>(FORMAS_PAGAMENTO_PADRAO);
+  // Idempotência do checkout: um UUID por tentativa (duplo clique/retry reusam o mesmo; o servidor deduplica).
+  const checkoutIdRef = useRef<string | null>(null);
+  const enviandoCheckoutRef = useRef(false);
+  const obterCheckoutId = () => {
+    if (!checkoutIdRef.current) {
+      checkoutIdRef.current = crypto.randomUUID();
+    }
+    return checkoutIdRef.current;
+  };
   const pedidoRecusadoRef = useRef<{ codigo: string; assinatura: string } | null>(null);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
   const [cartaoEmbutidoAberto, setCartaoEmbutidoAberto] = useState(false);
@@ -256,6 +265,7 @@ export default function TelaDeCheckoutDedicada() {
 
   const montarCorpoPedido = (novoMetodo: 'PIX' | 'CARTAO', cartao?: DadosCartaoBrick) => ({
     slug,
+    checkoutId: obterCheckoutId(),
     paymentMethod: novoMetodo,
     ...(cartao ? { cartao } : {}),
     itens: itens.map((item) => ({
@@ -285,16 +295,31 @@ export default function TelaDeCheckoutDedicada() {
     // em vez de criar um pedido novo a cada tentativa. Se a sacola/dados mudaram, cria um novo.
     const reaproveitar = retentativa && retentativa.assinatura === assinatura ? retentativa.codigo : null;
 
-    const resposta = await fetch(reaproveitar ? '/api/checkout/retomar' : '/api/checkout', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(
-        reaproveitar
-          ? { slug, codigoAcompanhamento: reaproveitar, paymentMethod: 'CARTAO', cartao: dadosCartao }
-          : corpoPedido
-      ),
-    });
+    if (enviandoCheckoutRef.current) {
+      throw new Error('Pagamento em processamento. Aguarde alguns instantes.');
+    }
+    enviandoCheckoutRef.current = true;
+    let resposta: Response;
+    try {
+      resposta = await fetch(reaproveitar ? '/api/checkout/retomar' : '/api/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(
+          reaproveitar
+            ? { slug, codigoAcompanhamento: reaproveitar, paymentMethod: 'CARTAO', cartao: dadosCartao }
+            : corpoPedido
+        ),
+      });
+    } finally {
+      enviandoCheckoutRef.current = false;
+    }
     const body = await resposta.json().catch(() => null);
+    if (resposta.status === 409 && body?.duplicado && body.tracking_url) {
+      limparCarrinho();
+      router.push(`${body.tracking_url}?pagamento=pendente`);
+      return;
+    }
+    checkoutIdRef.current = null;
     if (!resposta.ok || !body) {
       throw new Error(body?.error || 'Falha ao processar o pagamento. Tente novamente.');
     }
@@ -316,6 +341,10 @@ export default function TelaDeCheckoutDedicada() {
   };
 
   const criarPagamento = async (novoMetodo: 'PIX' | 'CARTAO') => {
+    if (enviandoCheckoutRef.current) {
+      return;
+    }
+    enviandoCheckoutRef.current = true;
     setCarregandoPagamento(true);
     setDadosPix(null);
     setPixCopiado(false);
@@ -329,7 +358,13 @@ export default function TelaDeCheckoutDedicada() {
         body: JSON.stringify(montarCorpoPedido(novoMetodo)),
       });
 
-      const body = await resposta.json();
+      const body = await resposta.json().catch(() => ({}));
+      if (resposta.status === 409 && body?.duplicado && body.tracking_url) {
+        limparCarrinho();
+        router.push(`${body.tracking_url}?pagamento=pendente`);
+        return;
+      }
+      checkoutIdRef.current = null;
       if (!resposta.ok) {
         throw new Error(body?.error || 'Falha ao iniciar pagamento.');
       }
@@ -373,6 +408,7 @@ export default function TelaDeCheckoutDedicada() {
       console.error(error);
       alert(error instanceof Error ? error.message : 'Falha ao iniciar pagamento.');
     } finally {
+      enviandoCheckoutRef.current = false;
       setCarregandoPagamento(false);
     }
   };
