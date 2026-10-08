@@ -189,7 +189,9 @@ export async function POST(request: Request) {
     }
 
     // 1) Assinatura (x-signature). Inválida => rejeita. Ausente: segue (IPN), pois tudo é reconfirmado na API do MP.
-    const assinatura = verificarAssinaturaWebhook(request, paymentId);
+    // O manifesto da assinatura usa o data.id da query string (quando existir); senão, o do corpo.
+    const idParaAssinatura = urlWebhook.searchParams.get('data.id') ?? String(body?.data?.id ?? paymentId);
+    const assinatura = verificarAssinaturaWebhook(request, idParaAssinatura);
     if (assinatura === 'invalida') {
       await registrarLogWebhook({
         supabase,
@@ -199,7 +201,17 @@ export async function POST(request: Request) {
         mensagem: 'Webhook rejeitado: assinatura inválida.',
         paymentId,
         tipoEvento,
-        dados: { assinatura },
+        dados: {
+          assinatura,
+          tem_query_data_id: urlWebhook.searchParams.has('data.id'),
+          tem_body_data_id: body?.data?.id != null,
+          topico: topicoIpn || null,
+          tipo: tipoEvento,
+          idade_ts_seg: (() => {
+            const ts = Number((request.headers.get('x-signature') ?? '').match(/ts=(\d+)/)?.[1]);
+            return Number.isFinite(ts) ? Math.round(Date.now() / 1000 - (ts < 1e12 ? ts : ts / 1000)) : null;
+          })(),
+        },
       });
       return NextResponse.json({ error: 'Assinatura inválida.' }, { status: 401 });
     }
