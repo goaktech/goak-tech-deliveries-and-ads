@@ -14,7 +14,7 @@ import FormularioEnderecoEntrega from '@/components/ecommerce/checkout/Formulari
 import SeletorBairroEntrega from '@/components/ecommerce/checkout/SeletorBairroEntrega';
 import { SeletorLocalizacaoMapa, type ResultadoLocalizacaoMapa } from '@/components/shared/SeletorLocalizacaoMapa';
 import type { AbaEntregaCheckout, EtapaCheckout } from '@/components/ecommerce/checkout/tipos';
-import { trackAddPaymentInfo, trackInitiateCheckout, trackClicouPagarPix } from '@/utils/meta-pixel';
+import { trackAddPaymentInfo, trackInitiateCheckout, trackClicouPagarPix, lerIdentificadoresMeta } from '@/utils/meta-pixel';
 import { registrarCheckoutIniciadoFunil } from '@/actions/metricasFunil';
 import {
   calcularTaxaEntrega,
@@ -283,6 +283,7 @@ export default function TelaDeCheckoutDedicada() {
     },
     clienteLatitude: abaEntregaAtiva === 'RETIRADA' ? null : clienteLatitude,
     clienteLongitude: abaEntregaAtiva === 'RETIRADA' ? null : clienteLongitude,
+    ...lerIdentificadoresMeta(),
   });
 
   // Pagamento com o formulário de cartão embutido: o servidor cria o pedido e cobra com o token do cartão.

@@ -1,6 +1,7 @@
 import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
 import { ConfiguracaoFormasPagamento } from '@/components/admin/ConfiguracaoFormasPagamento';
 import { ConfiguracaoPixelFacebook } from '@/components/admin/ConfiguracaoPixelFacebook';
+import { ConfiguracaoMetaCapi } from '@/components/admin/ConfiguracaoMetaCapi';
 import { ConfiguracaoIfoodEntrega } from '@/components/admin/ConfiguracaoIfoodEntrega';
 import {
   obterIntegracaoMercadoPagoPorRestauranteId,
@@ -58,6 +59,12 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
   const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
   const integracaoWhatsapp = await obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId);
   const integracaoMetaAds = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
+  // Só informa se há token da API de Conversões; o valor nunca sai do servidor.
+  const { data: integracaoCapi } = await supabase
+    .from('restaurante_integracoes_meta_capi')
+    .select('test_event_code')
+    .eq('restaurante_id', restauranteId)
+    .maybeSingle();
   const tokenMetaAds = avaliarTokenMetaAds(integracaoMetaAds);
   // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
   const integracaoIfood = await obterIntegracaoIfoodPorRestauranteId(restauranteId)
@@ -209,15 +216,21 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             longitudeLoja={restaurante?.longitude ?? null}
           />
 
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-5 text-sm text-zinc-500">
-            Callbacks: <span className="font-mono">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
-            <span className="font-mono">/api/admin/integracoes/whatsapp-business/callback</span> e{' '}
-            <span className="font-mono">/api/admin/integracoes/meta-ads/callback</span>. No app da Meta: desautorização em{' '}
-            <span className="font-mono">/api/webhooks/meta-ads/desautorizar</span> e exclusão de dados em{' '}
-            <span className="font-mono">/api/webhooks/meta-ads/exclusao-dados</span>.
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-5 text-sm text-zinc-500 min-w-0">
+            Callbacks: <span className="font-mono break-all">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
+            <span className="font-mono break-all">/api/admin/integracoes/whatsapp-business/callback</span> e{' '}
+            <span className="font-mono break-all">/api/admin/integracoes/meta-ads/callback</span>. No app da Meta: desautorização em{' '}
+            <span className="font-mono break-all">/api/webhooks/meta-ads/desautorizar</span> e exclusão de dados em{' '}
+            <span className="font-mono break-all">/api/webhooks/meta-ads/exclusao-dados</span>.
           </div>
 
           <ConfiguracaoPixelFacebook pixelIdInicial={restaurante?.meta_pixel_id ?? null} />
+
+          <ConfiguracaoMetaCapi
+            temPixel={Boolean(restaurante?.meta_pixel_id)}
+            configurado={Boolean(integracaoCapi)}
+            codigoTesteInicial={integracaoCapi?.test_event_code ?? null}
+          />
         </section>
       </div>
     </div>

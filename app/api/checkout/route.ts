@@ -43,6 +43,9 @@ interface RequestBody {
   clienteLongitude?: number | null;
   /** UUID gerado pelo navegador por tentativa de checkout; torna o envio idempotente (duplo clique/retry). */
   checkoutId?: string;
+  /** Cookies _fbp e _fbc do Pixel da Meta, para a API de Conversões. */
+  fbp?: string | null;
+  fbc?: string | null;
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -114,6 +117,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dados do cartão inválidos. Confira e tente novamente.' }, { status: 400 });
     }
     const dadosCliente = (body.dadosCliente ?? {}) as DadosClientePedido;
+    // Identificadores para a API de Conversões da Meta. Só texto curto e sem espaços; senão ignora.
+    const lerIdentificadorMeta = (valor: unknown): string | null =>
+      typeof valor === 'string' && /^[\w.\-]{1,255}$/.test(valor.trim()) ? valor.trim() : null;
+    const fbp = lerIdentificadorMeta(body.fbp);
+    const fbc = lerIdentificadorMeta(body.fbc);
+    const clienteIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim().slice(0, 64) || null;
+    const clienteUserAgent = request.headers.get('user-agent')?.slice(0, 500) || null;
     const observacoesCliente = normalizarObservacoesPedido(dadosCliente.observacoes);
     if (observacoesCliente) {
       dadosCliente.observacoes = observacoesCliente;
@@ -405,6 +415,10 @@ export async function POST(request: Request) {
         distanciaEntregaKm,
         tempoDeslocamentoMin,
         tempoPreparoEstimadoMin,
+        fbp,
+        fbc,
+        clienteIp,
+        clienteUserAgent,
         itens: itensPrecificados.map((item) => ({
           item_cardapio_id: item.item_cardapio_id,
           quantidade: item.quantidade,
