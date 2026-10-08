@@ -7,7 +7,8 @@ import {
   obterRestauranteIdDoGestorLogado,
 } from '@/utils/mercado-pago';
 import { obterIntegracaoWhatsappBusinessPorRestauranteId } from '@/utils/whatsapp-business';
-import { obterIntegracaoMetaAdsPorRestauranteId } from '@/utils/meta-ads';
+import { avaliarTokenMetaAds, obterIntegracaoMetaAdsPorRestauranteId } from '@/utils/meta-ads';
+import { ConfiguracaoMetaAds } from '@/components/admin/ConfiguracaoMetaAds';
 import { obterIntegracaoIfoodPorRestauranteId, paraIntegracaoIfoodPublica } from '@/utils/ifood';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 
@@ -19,7 +20,33 @@ function classeBadgeIntegracao(status: string | null | undefined): string {
     : 'rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-600';
 }
 
-export default async function PainelIntegracoesAdmin() {
+const MENSAGENS_META_ADS: Record<string, { tipo: 'success' | 'error' | 'info'; texto: string }> = {
+  'meta-ads-conectado': { tipo: 'success', texto: 'Meta Ads conectado com sucesso.' },
+  'meta-ads-desconectado': { tipo: 'info', texto: 'Meta Ads desconectado. O acesso foi revogado na Meta.' },
+  'meta-ads-cancelado': { tipo: 'info', texto: 'Conexão com o Meta Ads cancelada. Nada foi alterado.' },
+};
+
+const MOTIVOS_ERRO_META_ADS: Record<string, string> = {
+  'estado-invalido': 'A sessão de conexão expirou ou é inválida. Clique em Conectar Meta Ads e tente de novo.',
+  'sem-conta': 'Nenhuma conta de anúncios foi encontrada para este usuário da Meta.',
+  token: 'A Meta não liberou o acesso de longa duração. Tente conectar novamente.',
+  erro: 'Não foi possível concluir a conexão com o Meta Ads. Tente novamente em instantes.',
+};
+
+function mensagemStatusMetaAds(status?: string, motivo?: string) {
+  if (status === 'meta-ads-erro') {
+    return { tipo: 'error' as const, texto: MOTIVOS_ERRO_META_ADS[motivo ?? ''] ?? MOTIVOS_ERRO_META_ADS.erro };
+  }
+  return status ? MENSAGENS_META_ADS[status] ?? null : null;
+}
+
+interface PainelIntegracoesAdminProps {
+  searchParams?: Promise<{ status?: string; motivo?: string }>;
+}
+
+export default async function PainelIntegracoesAdmin({ searchParams }: PainelIntegracoesAdminProps) {
+  const parametros = (await searchParams) ?? {};
+  const mensagemMetaAds = mensagemStatusMetaAds(parametros.status, parametros.motivo);
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const supabase = createWebhookAdminClient();
   const { data: restaurante } = await supabase
@@ -31,6 +58,7 @@ export default async function PainelIntegracoesAdmin() {
   const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
   const integracaoWhatsapp = await obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId);
   const integracaoMetaAds = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
+  const tokenMetaAds = avaliarTokenMetaAds(integracaoMetaAds);
   // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
   const integracaoIfood = await obterIntegracaoIfoodPorRestauranteId(restauranteId)
     .then(paraIntegracaoIfoodPublica)
@@ -145,45 +173,34 @@ export default async function PainelIntegracoesAdmin() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 p-5 space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Meta Ads</div>
-                <div className="text-lg font-semibold text-zinc-900">
-                  {integracaoMetaAds?.connection_status === 'conectado' ? 'Conta conectada' : 'Conta não conectada'}
-                </div>
-              </div>
-              <span className={classeBadgeIntegracao(integracaoMetaAds?.connection_status)}>
-                {integracaoMetaAds?.connection_status ?? 'pendente'}
-              </span>
+          {mensagemMetaAds ? (
+            <div
+              className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                mensagemMetaAds.tipo === 'success'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : mensagemMetaAds.tipo === 'error'
+                    ? 'bg-red-50 text-red-700'
+                    : 'bg-zinc-100 text-zinc-700'
+              }`}
+            >
+              {mensagemMetaAds.texto}
             </div>
+          ) : null}
 
-            <div className="text-sm text-zinc-600">
-              {integracaoMetaAds?.ad_account_name
-                ? `Conta de anúncios vinculada: ${integracaoMetaAds.ad_account_name}`
-                : 'Nenhuma conta de anúncios vinculada ainda.'}
-            </div>
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <form action="/api/admin/integracoes/meta-ads/conectar" method="get">
-                <button
-                  type="submit"
-                  className="rounded-xl bg-zinc-900 px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-white"
-                >
-                  Conectar Meta Ads
-                </button>
-              </form>
-
-              <form action="/api/admin/integracoes/meta-ads/desconectar" method="post">
-                <button
-                  type="submit"
-                  className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700"
-                >
-                  Desconectar
-                </button>
-              </form>
-            </div>
-          </div>
+          <ConfiguracaoMetaAds
+            situacao={
+              tokenMetaAds.estado === 'expirado'
+                ? 'reconectar'
+                : tokenMetaAds.estado === 'ausente'
+                  ? integracaoMetaAds?.connection_status === 'desconectado'
+                    ? 'desconectado'
+                    : 'pendente'
+                  : 'conectado'
+            }
+            diasParaExpirar={tokenMetaAds.estado === 'expirando' ? tokenMetaAds.diasRestantes : null}
+            contaNome={integracaoMetaAds?.ad_account_name ?? null}
+            contaMoeda={integracaoMetaAds?.ad_account_currency ?? null}
+          />
 
           <ConfiguracaoIfoodEntrega
             integracaoInicial={integracaoIfood}
@@ -195,7 +212,9 @@ export default async function PainelIntegracoesAdmin() {
           <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-5 text-sm text-zinc-500">
             Callbacks: <span className="font-mono">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
             <span className="font-mono">/api/admin/integracoes/whatsapp-business/callback</span> e{' '}
-            <span className="font-mono">/api/admin/integracoes/meta-ads/callback</span>.
+            <span className="font-mono">/api/admin/integracoes/meta-ads/callback</span>. No app da Meta: desautorização em{' '}
+            <span className="font-mono">/api/webhooks/meta-ads/desautorizar</span> e exclusão de dados em{' '}
+            <span className="font-mono">/api/webhooks/meta-ads/exclusao-dados</span>.
           </div>
 
           <ConfiguracaoPixelFacebook pixelIdInicial={restaurante?.meta_pixel_id ?? null} />

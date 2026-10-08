@@ -14,7 +14,7 @@ import FormularioEnderecoEntrega from '@/components/ecommerce/checkout/Formulari
 import SeletorBairroEntrega from '@/components/ecommerce/checkout/SeletorBairroEntrega';
 import { SeletorLocalizacaoMapa, type ResultadoLocalizacaoMapa } from '@/components/shared/SeletorLocalizacaoMapa';
 import type { AbaEntregaCheckout, EtapaCheckout } from '@/components/ecommerce/checkout/tipos';
-import { trackInitiateCheckout, trackPurchase, trackClicouPagarPix } from '@/utils/meta-pixel';
+import { trackAddPaymentInfo, trackInitiateCheckout, trackClicouPagarPix } from '@/utils/meta-pixel';
 import { registrarCheckoutIniciadoFunil } from '@/actions/metricasFunil';
 import {
   calcularTaxaEntrega,
@@ -288,6 +288,11 @@ export default function TelaDeCheckoutDedicada() {
   // Pagamento com o formulário de cartão embutido: o servidor cria o pedido e cobra com o token do cartão.
   // Lança erro (mensagem amigável) se o pagamento não for concluído, o que libera o formulário para nova tentativa.
   const pagarComCartaoEmbutido = async (dadosCartao: DadosCartaoBrick) => {
+    trackAddPaymentInfo({
+      metodo: 'cartao',
+      valorTotal: valorTotalComTaxa,
+      itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
+    });
     const corpoPedido = montarCorpoPedido('CARTAO', dadosCartao);
     const assinatura = JSON.stringify([corpoPedido.itens, corpoPedido.dadosCliente, valorTotalComTaxa]);
     const retentativa = pedidoRecusadoRef.current;
@@ -331,11 +336,8 @@ export default function TelaDeCheckoutDedicada() {
     }
     pedidoRecusadoRef.current = null;
 
-    trackPurchase({
-      pedidoId: body.pedido_id,
-      valorTotal: valorTotalComTaxa,
-      itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
-    });
+    // O evento Purchase NÃO é disparado aqui: pedido criado não é pedido pago. Ele sai da tela de
+    // acompanhamento, quando o status confirma o pagamento (ver PainelAcompanhamentoPedido).
     limparCarrinho();
     router.push(body.status === 'approved' ? body.tracking_url : `${body.tracking_url}?pagamento=pendente`);
   };
@@ -382,14 +384,6 @@ export default function TelaDeCheckoutDedicada() {
           codigo_acompanhamento: body.codigo_acompanhamento,
           pedido_id: body.pedido_id,
           estimativaMin,
-        });
-      }
-
-      if (body.pedido_id) {
-        trackPurchase({
-          pedidoId: body.pedido_id,
-          valorTotal: valorTotalComTaxa,
-          itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
         });
       }
 
@@ -860,6 +854,11 @@ export default function TelaDeCheckoutDedicada() {
                     type="button"
                     onClick={() => {
                       trackClicouPagarPix({
+                        valorTotal: valorTotalComTaxa,
+                        itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
+                      });
+                      trackAddPaymentInfo({
+                        metodo: 'pix',
                         valorTotal: valorTotalComTaxa,
                         itens: itens.map((item) => ({ id: item.produto.id, quantidade: item.quantidade })),
                       });
