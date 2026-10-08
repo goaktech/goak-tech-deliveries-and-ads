@@ -4,6 +4,7 @@ import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { atualizarStatusPedidoComNotificacoes } from '@/utils/pedidos-acompanhamento';
 import { obterTokenMercadoPagoValido } from '@/utils/mercado-pago';
 import {
+  ErroPagamentoNaoEncontrado,
   buscarPagamentoMercadoPago,
   estornarPagamentoMercadoPago,
   registrarPagamentoPedido,
@@ -189,30 +190,30 @@ export async function POST(request: Request) {
 
     // 1) Assinatura (x-signature). Inválida => rejeita. Ausente: segue (IPN), pois tudo é reconfirmado na API do MP.
     const assinatura = verificarAssinaturaWebhook(request, paymentId);
-    if (assinatura === 'invalida' || (assinatura === 'ausente' && process.env.VERCEL_ENV === 'production')) {
+    if (assinatura === 'invalida') {
       await registrarLogWebhook({
         supabase,
         idCorrelacao,
         etapa: 'validacao_assinatura',
         nivel: 'alerta',
-        mensagem: 'Webhook rejeitado: assinatura inválida ou ausente.',
+        mensagem: 'Webhook rejeitado: assinatura inválida.',
         paymentId,
         tipoEvento,
         dados: { assinatura },
       });
       return NextResponse.json({ error: 'Assinatura inválida.' }, { status: 401 });
     }
-    if (assinatura === 'sem_segredo' && process.env.VERCEL_ENV === 'production') {
+    if (assinatura === 'sem_segredo') {
+      // Sem segredo configurado a assinatura não é checada; o pagamento continua sendo reconfirmado na API do MP.
       await registrarLogWebhook({
         supabase,
         idCorrelacao,
         etapa: 'validacao_assinatura',
-        nivel: 'erro',
-        mensagem: 'MERCADO_PAGO_WEBHOOK_SECRET não configurado em produção; webhook rejeitado.',
+        nivel: 'alerta',
+        mensagem: 'MERCADO_PAGO_WEBHOOK_SECRET não configurado; assinatura não verificada.',
         paymentId,
         tipoEvento,
       });
-      return NextResponse.json({ error: 'Webhook não configurado.' }, { status: 503 });
     }
 
     // 2) Restaurante
@@ -260,7 +261,24 @@ export async function POST(request: Request) {
     }
 
     // A API só devolve pagamentos da conta do restaurante: ID forjado de outra conta falha aqui.
-    const pagamento = await buscarPagamentoMercadoPago(accessToken, paymentId);
+    let pagamento: Awaited<ReturnType<typeof buscarPagamentoMercadoPago>>;
+    try {
+      pagamento = await buscarPagamentoMercadoPago(accessToken, paymentId);
+    } catch (error) {
+      if (error instanceof ErroPagamentoNaoEncontrado) {
+        await registrarLogWebhook({
+          supabase,
+          idCorrelacao,
+          etapa: etapaAtual,
+          nivel: 'alerta',
+          mensagem: 'Pagamento não pertence à conta deste restaurante (ou não existe); ignorado.',
+          restauranteId: restauranteIdQuery,
+          paymentId,
+        });
+        return NextResponse.json({ received: true, ignored: 'pagamento_nao_encontrado' });
+      }
+      throw error;
+    }
 
     // 3) external_reference -> pedido do MESMO restaurante
     etapaAtual = 'validacao_pedido';
