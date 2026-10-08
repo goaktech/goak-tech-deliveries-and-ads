@@ -67,11 +67,16 @@ export function verificarAssinaturaWebhook(request: Request, dataId: string): Re
   return a.length === b.length && timingSafeEqual(a, b) ? 'valida' : 'invalida';
 }
 
+export class ErroPagamentoNaoEncontrado extends Error {}
+
 export async function buscarPagamentoMercadoPago(accessToken: string, paymentId: string) {
   const response = await fetch(`${MP_API_BASE}/v1/payments/${encodeURIComponent(paymentId)}`, {
     headers: { authorization: `Bearer ${accessToken}` },
   });
   const payload = await response.json().catch(() => ({}));
+  if (response.status === 404 || response.status === 403) {
+    throw new ErroPagamentoNaoEncontrado(`Pagamento ${paymentId} indisponível para esta conta.`);
+  }
   if (!response.ok) {
     throw new Error(payload?.message || `Falha ao consultar pagamento ${paymentId}.`);
   }
