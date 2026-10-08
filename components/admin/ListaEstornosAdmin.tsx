@@ -158,12 +158,27 @@ function CartaoPagamento({
           </button>
         )}
       </div>
-      {aberto && !totalmenteEstornado ? <FormularioEstorno pagamento={pagamento} disponivel={disponivel} /> : null}
+      {aberto && !totalmenteEstornado ? (
+        <FormularioEstorno
+          key={`${pagamento.id}-${pagamento.valorEstornado}`}
+          pagamento={pagamento}
+          disponivel={disponivel}
+          onConcluido={onAlternar}
+        />
+      ) : null}
     </div>
   );
 }
 
-function FormularioEstorno({ pagamento, disponivel }: { pagamento: PagamentoEstornavel; disponivel: number }) {
+function FormularioEstorno({
+  pagamento,
+  disponivel,
+  onConcluido,
+}: {
+  pagamento: PagamentoEstornavel;
+  disponivel: number;
+  onConcluido: () => void;
+}) {
   const router = useRouter();
   const [tipo, setTipo] = useState<'TOTAL' | 'PARCIAL'>('TOTAL');
   const [valorTexto, setValorTexto] = useState('');
@@ -211,6 +226,9 @@ function FormularioEstorno({ pagamento, disponivel }: { pagamento: PagamentoEsto
         setAviso(`Estorno concluído, mas o pedido não foi cancelado: ${corpo.avisoCancelamento}`);
       }
       router.refresh();
+      if (!corpo?.avisoCancelamento) {
+        onConcluido();
+      }
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Falha ao processar o estorno.');
     } finally {
