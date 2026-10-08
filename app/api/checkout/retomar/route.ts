@@ -15,6 +15,13 @@ import {
   normalizarFormasPagamento,
 } from '@/utils/formas-pagamento';
 import type { DadosClientePedido } from '@/utils/pedido-status';
+import { atualizarStatusPedidoComNotificacoes } from '@/utils/pedidos-acompanhamento';
+import {
+  buscarPagamentosPorExternalReference,
+  cancelarPagamentoPendenteMercadoPago,
+  registrarPagamentoPedido,
+  valoresIguais,
+} from '@/utils/pagamentos-mercado-pago';
 
 // Nova tentativa de pagamento de um pedido que ainda está PENDENTE (cartão recusado, PIX expirado,
 // cliente que fechou a tela...). Reaproveita o MESMO pedido: valor, itens e cliente vêm do banco,
@@ -168,6 +175,43 @@ export async function POST(request: Request) {
       await supabase.from('pedidos').update({ forma_pagamento: paymentMethod }).eq('id', pedido.id);
     }
 
+    // Antes de cobrar de novo: concilia com o Mercado Pago para nunca gerar cobrança dupla.
+    const tokenConciliacao = await obterTokenMercadoPagoValido(restaurante.id);
+    const pagamentosExistentes = await buscarPagamentosPorExternalReference(tokenConciliacao, externalReference);
+    const aprovado = pagamentosExistentes.find(
+      (pagamento) => pagamento.status === 'approved' && valoresIguais(Number(pagamento.transaction_amount ?? 0), valorTotal)
+    );
+    if (aprovado) {
+      await registrarPagamentoPedido({ pedidoId: pedido.id, restauranteId: restaurante.id, pagamento: aprovado });
+      await atualizarStatusPedidoComNotificacoes({
+        pedidoId: pedido.id,
+        novoStatus: 'PAGO',
+        mercadoPagoPaymentId: String(aprovado.id),
+      });
+      return NextResponse.json(
+        {
+          error: 'Este pedido já foi pago. Redirecionando para o acompanhamento.',
+          duplicado: true,
+          codigo_acompanhamento: pedido.codigo_acompanhamento,
+          tracking_url: `${appUrl}/${slug}/acompanhar/${pedido.codigo_acompanhamento}`,
+        },
+        { status: 409 }
+      );
+    }
+    const emAnalise = pagamentosExistentes.find((pagamento) => pagamento.status === 'in_process');
+    if (emAnalise) {
+      return NextResponse.json(
+        { error: 'Há um pagamento em análise para este pedido. Aguarde a confirmação.' },
+        { status: 409 }
+      );
+    }
+    // PIX anteriores ainda pendentes são cancelados: só a nova tentativa pode ser paga.
+    await Promise.all(
+      pagamentosExistentes
+        .filter((pagamento) => pagamento.status === 'pending')
+        .map((pagamento) => cancelarPagamentoPendenteMercadoPago(tokenConciliacao, String(pagamento.id)))
+    );
+
     return await cobrarPedidoMercadoPago({
       appUrl,
       slug,
@@ -192,9 +236,6 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     console.error('Erro na nova tentativa de pagamento:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Falha ao iniciar nova tentativa de pagamento.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Falha ao iniciar nova tentativa de pagamento.' }, { status: 500 });
   }
 }

@@ -7,6 +7,11 @@ import {
   obterTokenMercadoPagoValido,
 } from '@/utils/mercado-pago';
 import { atualizarStatusPedidoComNotificacoes } from '@/utils/pedidos-acompanhamento';
+import {
+  estornarPagamentoMercadoPago,
+  registrarPagamentoPedido,
+  type PagamentoMercadoPago,
+} from '@/utils/pagamentos-mercado-pago';
 import { tiposMercadoPagoExcluidos, type FormaPagamentoLoja } from '@/utils/formas-pagamento';
 import type { DadosClientePedido } from '@/utils/pedido-status';
 
@@ -139,6 +144,12 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
       throw new Error(payload?.message || 'Falha ao gerar pagamento PIX.');
     }
 
+    await registrarPagamentoPedido({
+      pedidoId: pedido.id,
+      restauranteId: restaurante.id,
+      pagamento: payload as PagamentoMercadoPago,
+    }).catch((erro) => console.error('Falha ao registrar pagamento PIX do pedido:', erro));
+
     const transactionData = payload?.point_of_interaction?.transaction_data ?? {};
 
     return NextResponse.json({
@@ -217,6 +228,12 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
       payment_method_id: pagamento?.payment_method_id,
     });
 
+    await registrarPagamentoPedido({
+      pedidoId: pedido.id,
+      restauranteId: restaurante.id,
+      pagamento: pagamento as PagamentoMercadoPago,
+    }).catch((erro) => console.error('Falha ao registrar pagamento com cartão do pedido:', erro));
+
     const statusPagamento = String(pagamento?.status ?? '');
     const respostaBase = {
       pedido_id: pedido.id,
@@ -230,11 +247,28 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
     if (statusPagamento === 'approved') {
       try {
         // o webhook também fará isso (é idempotente); aqui só adianta a confirmação para o cliente
-        await atualizarStatusPedidoComNotificacoes({
+        const resultado = await atualizarStatusPedidoComNotificacoes({
           pedidoId: pedido.id,
           novoStatus: 'PAGO',
           mercadoPagoPaymentId: String(pagamento.id),
         });
+        const pagoCom = resultado.pedido.mercado_pago_payment_id;
+        if (pagoCom && pagoCom !== String(pagamento.id)) {
+          // O pedido já foi pago por outra cobrança: estorna esta (duplicada) para não cobrar duas vezes.
+          await registrarPagamentoPedido({
+            pedidoId: pedido.id,
+            restauranteId: restaurante.id,
+            pagamento: pagamento as PagamentoMercadoPago,
+            duplicado: true,
+          });
+          await estornarPagamentoMercadoPago({
+            restauranteId: restaurante.id,
+            pedidoId: pedido.id,
+            paymentId: String(pagamento.id),
+            motivo: 'Estorno automático: pagamento duplicado para o mesmo pedido.',
+            idempotencyKey: `auto-estorno-${pagamento.id}`,
+          });
+        }
       } catch (erroAtualizacao) {
         console.error('Pagamento aprovado, mas falhou ao atualizar o pedido (o webhook concilia):', erroAtualizacao);
       }

@@ -12,7 +12,7 @@ import {
   type DadosCartaoEmbutido,
   type ItemPrecificado,
 } from '@/utils/cobranca-pedido-mercado-pago';
-import { criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
+import { buscarPedidoPorExternalReference, criarPedidoPendente } from '@/utils/pedidos-acompanhamento';
 import { calcularRotaEntrega, geocodificarEndereco, montarEnderecoParaGeocodificacao } from '@/utils/google-maps';
 import { type TaxaEntregaIfoodCheckout, cotarTaxaEntregaIfoodCheckout, lojaEntregaPeloIfood } from '@/utils/ifood-entrega';
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
@@ -41,7 +41,11 @@ interface RequestBody {
   dadosCliente: DadosClientePedido;
   clienteLatitude?: number | null;
   clienteLongitude?: number | null;
+  /** UUID gerado pelo navegador por tentativa de checkout; torna o envio idempotente (duplo clique/retry). */
+  checkoutId?: string;
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface ItemCardapioPrecificado {
   id: string;
@@ -55,10 +59,6 @@ interface ComplementoPrecificado {
   nome: string;
   preco_adicional: number;
   disponivel: boolean;
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Falha no servidor de checkout.';
 }
 
 async function lerBody(request: Request) {
@@ -78,6 +78,23 @@ function validarItens(itens: ItemCliente[]) {
       item.quantidade > 0 &&
       (item.complementoIds === undefined ||
         (Array.isArray(item.complementoIds) && item.complementoIds.every((id) => typeof id === 'string')))
+  );
+}
+
+function respostaCheckoutDuplicado(
+  pedido: { id: string; codigo_acompanhamento: string; status: string },
+  slug: string,
+  appUrl: string
+) {
+  return NextResponse.json(
+    {
+      error: 'Este pedido já foi registrado. Redirecionando para o acompanhamento.',
+      duplicado: true,
+      pedido_id: pedido.id,
+      codigo_acompanhamento: pedido.codigo_acompanhamento,
+      tracking_url: `${appUrl}/${slug}/acompanhar/${pedido.codigo_acompanhamento}`,
+    },
+    { status: 409 }
   );
 }
 
@@ -145,6 +162,19 @@ export async function POST(request: Request) {
     }
     if (paymentMethod === 'CARTAO' && !aceitaCartao(formasAceitas)) {
       return NextResponse.json({ error: 'Esta loja não está aceitando cartão no momento.' }, { status: 400 });
+    }
+
+    const checkoutId = typeof body.checkoutId === 'string' && UUID_REGEX.test(body.checkoutId) ? body.checkoutId.toLowerCase() : null;
+    const externalReference = checkoutId
+      ? `pedido-${restaurante.id}-${checkoutId}`
+      : `pedido-${restaurante.id}-${Date.now()}-${randomUUID()}`;
+
+    // Idempotência: o mesmo checkoutId nunca gera um segundo pedido/cobrança.
+    if (checkoutId) {
+      const existente = await buscarPedidoPorExternalReference(externalReference);
+      if (existente) {
+        return respostaCheckoutDuplicado(existente, slug, appUrl);
+      }
     }
 
     const idsProdutos = itens.map((item) => item.item_cardapio_id);
@@ -362,25 +392,36 @@ export async function POST(request: Request) {
       pedidosNaFila ?? 0
     );
 
-    const externalReference = `pedido-${restaurante.id}-${Date.now()}-${randomUUID()}`;
-    const pedido = await criarPedidoPendente({
-      restauranteId: restaurante.id,
-      formaPagamento: paymentMethod,
-      dadosCliente,
-      valorTotal,
-      externalReference,
-      clienteLatitude,
-      clienteLongitude,
-      distanciaEntregaKm,
-      tempoDeslocamentoMin,
-      tempoPreparoEstimadoMin,
-      itens: itensPrecificados.map((item) => ({
-        item_cardapio_id: item.item_cardapio_id,
-        quantidade: item.quantidade,
-        preco_unitario: item.precoUnitario,
-        adicionais: item.adicionais,
-      })),
-    });
+    let pedido: Awaited<ReturnType<typeof criarPedidoPendente>>;
+    try {
+      pedido = await criarPedidoPendente({
+        restauranteId: restaurante.id,
+        formaPagamento: paymentMethod,
+        dadosCliente,
+        valorTotal,
+        externalReference,
+        clienteLatitude,
+        clienteLongitude,
+        distanciaEntregaKm,
+        tempoDeslocamentoMin,
+        tempoPreparoEstimadoMin,
+        itens: itensPrecificados.map((item) => ({
+          item_cardapio_id: item.item_cardapio_id,
+          quantidade: item.quantidade,
+          preco_unitario: item.precoUnitario,
+          adicionais: item.adicionais,
+        })),
+      });
+    } catch (erroCriacao) {
+      const codigo = (erroCriacao as { code?: string } | null)?.code;
+      if (codigo === '23505' && checkoutId) {
+        const existente = await buscarPedidoPorExternalReference(externalReference);
+        if (existente) {
+          return respostaCheckoutDuplicado(existente, slug, appUrl);
+        }
+      }
+      throw erroCriacao;
+    }
 
     if (taxaIfood) {
       // A cozinha chama o entregador com essa mesma cotação (o cliente já pagou
@@ -414,6 +455,6 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     console.error('Erro crítico na rota de checkout Mercado Pago:', error);
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Falha ao processar o pagamento. Tente novamente.' }, { status: 500 });
   }
 }
