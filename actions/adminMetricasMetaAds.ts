@@ -1,10 +1,11 @@
 'use server';
 
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
+import { calcularIntervalo, type PeriodoMetricas } from '@/utils/periodo-metricas';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import {
   avaliarTokenMetaAds,
-  buscarInsightsDiariosMetaAds,
+  buscarInsightsPeriodoMetaAds,
   dataDeHojeNoFuso,
   ehErroTokenMetaAds,
   marcarTokenMetaAdsInvalido,
@@ -50,36 +51,41 @@ const RESUMO_BASE: ResumoMetricasMetaAds = {
 };
 
 interface LinhaCacheMetaAds {
+  data: string;
   impressoes: number;
   cliques: number;
   gasto: number | string;
-  ctr: number | string;
-  cpc: number | string;
-  cpm: number | string;
   updated_at: string;
 }
 
-function resumoDoCache(
-  cache: LinhaCacheMetaAds,
-  base: Pick<ResumoMetricasMetaAds, 'contaNome' | 'moeda' | 'diasParaExpirar'>,
+type BaseResumo = Pick<ResumoMetricasMetaAds, 'contaNome' | 'moeda' | 'diasParaExpirar'>;
+
+/** Soma os dias e recalcula as taxas (CTR, CPC, CPM) sobre o total, não pela média das taxas. */
+function resumoDasLinhas(
+  linhas: Array<Pick<LinhaCacheMetaAds, 'impressoes' | 'cliques' | 'gasto'>>,
+  base: BaseResumo,
   desatualizado: boolean
 ): ResumoMetricasMetaAds {
+  const impressoes = linhas.reduce((acc, l) => acc + Number(l.impressoes), 0);
+  const cliques = linhas.reduce((acc, l) => acc + Number(l.cliques), 0);
+  const gasto = linhas.reduce((acc, l) => acc + Number(l.gasto), 0);
+
   return {
     ...RESUMO_BASE,
     ...base,
     conectado: true,
     estado: 'ok',
     desatualizado,
-    impressoes: Number(cache.impressoes),
-    cliques: Number(cache.cliques),
-    gasto: Number(cache.gasto),
-    ctr: Number(cache.ctr),
-    cpc: Number(cache.cpc),
-    cpm: Number(cache.cpm),
+    impressoes,
+    cliques,
+    gasto: Math.round(gasto * 100) / 100,
+    ctr: impressoes > 0 ? (cliques / impressoes) * 100 : 0,
+    cpc: cliques > 0 ? gasto / cliques : 0,
+    cpm: impressoes > 0 ? (gasto / impressoes) * 1000 : 0,
   };
 }
 
-export async function obterMetricasMetaAdsDoDia(): Promise<ResumoMetricasMetaAds> {
+export async function obterMetricasMetaAds(periodo: PeriodoMetricas = 'hoje'): Promise<ResumoMetricasMetaAds> {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
     const integracao = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
@@ -89,7 +95,7 @@ export async function obterMetricasMetaAdsDoDia(): Promise<ResumoMetricasMetaAds
       return RESUMO_BASE;
     }
 
-    const base = {
+    const base: BaseResumo = {
       contaNome: integracao.ad_account_name,
       moeda: integracao.ad_account_currency || 'BRL',
       diasParaExpirar: token.estado === 'expirando' ? token.diasRestantes : null,
@@ -102,44 +108,68 @@ export async function obterMetricasMetaAdsDoDia(): Promise<ResumoMetricasMetaAds
     const supabase = createWebhookAdminClient();
     // "Hoje" no fuso da conta de anúncios (e não em UTC), que é o dia que a Meta usa nos relatórios.
     const hoje = dataDeHojeNoFuso(integracao.ad_account_timezone);
+    const intervalo = calcularIntervalo(periodo, hoje);
 
-    const { data: linhaCache } = await supabase
+    const { data: linhasCache } = await supabase
       .from('metricas_meta_ads_diarias')
-      .select('impressoes, cliques, gasto, ctr, cpc, cpm, updated_at')
+      .select('data, impressoes, cliques, gasto, updated_at')
       .eq('restaurante_id', restauranteId)
-      .eq('data', hoje)
-      .maybeSingle();
+      .gte('data', intervalo.desde)
+      .lte('data', intervalo.ate);
 
-    const cache = linhaCache as LinhaCacheMetaAds | null;
-    const cacheValido = cache && Date.now() - new Date(cache.updated_at).getTime() < CACHE_VALIDO_MS;
+    const cache = (linhasCache || []) as LinhaCacheMetaAds[];
+    const porDia = new Map(cache.map((l) => [l.data, l]));
+    const agora = Date.now();
 
-    if (cache && cacheValido) {
-      return resumoDoCache(cache, base, false);
+    // Dia fechado (já gravado depois de terminar) não muda mais; hoje vale 30 min.
+    const diaPrecisaBuscar = (dia: string) => {
+      const linha = porDia.get(dia);
+      if (!linha) return true;
+      if (dia === hoje) return agora - new Date(linha.updated_at).getTime() >= CACHE_VALIDO_MS;
+      // Dia passado gravado antes de terminar (ex.: ontem à tarde) ainda estava incompleto: refaz uma vez.
+      const fimDoDia = new Date(`${dia}T00:00:00.000-03:00`).getTime() + 86_400_000;
+      return new Date(linha.updated_at).getTime() < fimDoDia;
+    };
+
+    if (!intervalo.dias.some(diaPrecisaBuscar)) {
+      return resumoDasLinhas(cache, base, false);
     }
 
     try {
-      const insights = await buscarInsightsDiariosMetaAds(integracao.access_token, integracao.ad_account_id, hoje);
-
-      const { error: erroUpsert } = await supabase.from('metricas_meta_ads_diarias').upsert(
-        {
-          restaurante_id: restauranteId,
-          data: hoje,
-          impressoes: insights.impressoes,
-          cliques: insights.cliques,
-          gasto: insights.gasto,
-          ctr: insights.ctr,
-          cpc: insights.cpc,
-          cpm: insights.cpm,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'restaurante_id,data' }
+      const insights = await buscarInsightsPeriodoMetaAds(
+        integracao.access_token,
+        integracao.ad_account_id,
+        intervalo.desde,
+        intervalo.ate
       );
+      const insightsPorDia = new Map(insights.map((i) => [i.data, i]));
+      const atualizadoEm = new Date().toISOString();
+
+      // Grava todos os dias do intervalo (zerados quando não houve veiculação) para não refazer a consulta.
+      const linhasParaGravar = intervalo.dias.map((dia) => {
+        const i = insightsPorDia.get(dia);
+        return {
+          restaurante_id: restauranteId,
+          data: dia,
+          impressoes: i?.impressoes ?? 0,
+          cliques: i?.cliques ?? 0,
+          gasto: i?.gasto ?? 0,
+          ctr: i?.ctr ?? 0,
+          cpc: i?.cpc ?? 0,
+          cpm: i?.cpm ?? 0,
+          updated_at: atualizadoEm,
+        };
+      });
+
+      const { error: erroUpsert } = await supabase
+        .from('metricas_meta_ads_diarias')
+        .upsert(linhasParaGravar, { onConflict: 'restaurante_id,data' });
 
       if (erroUpsert) {
         console.error('Falha ao cachear métricas de Meta Ads:', erroUpsert);
       }
 
-      return { ...RESUMO_BASE, ...base, conectado: true, estado: 'ok', ...insights };
+      return resumoDasLinhas(linhasParaGravar, base, false);
     } catch (error) {
       if (ehErroTokenMetaAds(error)) {
         // A Meta recusou o token: marca como expirado e pede para o gestor reconectar.
@@ -149,13 +179,13 @@ export async function obterMetricasMetaAdsDoDia(): Promise<ResumoMetricasMetaAds
 
       console.error('Falha ao buscar métricas na Meta:', error);
       // Falha passageira (rede, limite de requisições): mostra o último dado em cache, se houver.
-      if (cache) {
-        return resumoDoCache(cache, base, true);
+      if (cache.length > 0) {
+        return resumoDasLinhas(cache, base, true);
       }
       return { ...RESUMO_BASE, ...base, estado: 'erro' };
     }
   } catch (error) {
-    console.error('Erro na action obterMetricasMetaAdsDoDia:', error);
+    console.error('Erro na action obterMetricasMetaAds:', error);
     return { ...RESUMO_BASE, estado: 'erro' };
   }
 }

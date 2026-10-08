@@ -304,6 +304,49 @@ export function dataDeHojeNoFuso(timezone: string | null | undefined): string {
   }
 }
 
+export interface InsightDiaMetaAds extends InsightsDiariosMetaAds {
+  data: string;
+}
+
+/** Insights dia a dia (time_increment=1) de um intervalo; dias sem veiculação não vêm na resposta. */
+export async function buscarInsightsPeriodoMetaAds(
+  accessToken: string,
+  adAccountId: string,
+  desde: string,
+  ate: string
+): Promise<InsightDiaMetaAds[]> {
+  const payload = await fetchGraphJson<{
+    data?: Array<{
+      date_start?: string;
+      impressions?: string;
+      clicks?: string;
+      spend?: string;
+      ctr?: string;
+      cpc?: string;
+      cpm?: string;
+    }>;
+  }>(`/${adAccountId}/insights`, accessToken, {
+    query: {
+      fields: 'impressions,clicks,spend,ctr,cpc,cpm',
+      time_range: JSON.stringify({ since: desde, until: ate }),
+      time_increment: '1',
+      limit: '60',
+    },
+  });
+
+  return (payload.data || [])
+    .filter((linha) => linha.date_start)
+    .map((linha) => ({
+      data: linha.date_start as string,
+      impressoes: Number(linha.impressions) || 0,
+      cliques: Number(linha.clicks) || 0,
+      gasto: Number(linha.spend) || 0,
+      ctr: Number(linha.ctr) || 0,
+      cpc: Number(linha.cpc) || 0,
+      cpm: Number(linha.cpm) || 0,
+    }));
+}
+
 export async function buscarInsightsDiariosMetaAds(
   accessToken: string,
   adAccountId: string,

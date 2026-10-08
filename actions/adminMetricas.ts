@@ -1,6 +1,12 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import {
+  calcularIntervalo,
+  hojeEmBrasilia,
+  limitesUtcDoIntervalo,
+  type PeriodoMetricas,
+} from '@/utils/periodo-metricas';
 
 interface ComposicaoInsumoPedido {
   quantidade_necessaria: number | string | null;
@@ -27,6 +33,8 @@ export interface ResumoMetricasFunil {
   visitas: number;
   checkouts: number;
   compras: number;
+  /** Pedidos pagos no período (base do CPA e do ticket médio). */
+  pedidosPagos: number;
   taxaConversaoCardapio: number;
   taxaAbandonoCarrinho: number;
   faturamentoTotal: number;
@@ -55,27 +63,33 @@ async function obterRestauranteIdLogado(): Promise<string> {
   return perfil.restaurante_id;
 }
 
-export async function obterMetricasGrowthDoDia(): Promise<ResumoMetricasFunil> {
+export async function obterMetricasGrowth(periodo: PeriodoMetricas = 'hoje'): Promise<ResumoMetricasFunil> {
   try {
     const supabase = await createClient();
     const restauranteId = await obterRestauranteIdLogado();
-    const hoje = new Date().toISOString().split('T')[0];
+    const intervalo = calcularIntervalo(periodo, hojeEmBrasilia());
+    const limites = limitesUtcDoIntervalo(intervalo);
 
-    const { data: metricasFunil } = await supabase
+    const { data: linhasFunil } = await supabase
       .from('metricas_funil')
       .select('visitas_cardapio, checkouts_iniciados, compras_concluidas')
       .eq('restaurante_id', restauranteId)
-      .eq('data', hoje)
-      .maybeSingle();
+      .gte('data', intervalo.desde)
+      .lte('data', intervalo.ate);
 
-    const visitas = metricasFunil?.visitas_cardapio ? Number(metricasFunil.visitas_cardapio) : 0;
-    const checkouts = metricasFunil?.checkouts_iniciados ? Number(metricasFunil.checkouts_iniciados) : 0;
-    const compras = metricasFunil?.compras_concluidas ? Number(metricasFunil.compras_concluidas) : 0;
+    let visitas = 0;
+    let checkouts = 0;
+    let compras = 0;
+    (linhasFunil || []).forEach((linha) => {
+      visitas += Number(linha.visitas_cardapio) || 0;
+      checkouts += Number(linha.checkouts_iniciados) || 0;
+      compras += Number(linha.compras_concluidas) || 0;
+    });
 
     const taxaConversaoCardapio = visitas > 0 ? (compras / visitas) * 100 : 0;
     const taxaAbandonoCarrinho = checkouts > 0 ? ((checkouts - compras) / checkouts) * 100 : 0;
 
-    const { data: pedidosHoje, error: errPedidos } = await supabase
+    const { data: pedidosPeriodo, error: errPedidos } = await supabase
       .from('pedidos')
       .select(`
         id, 
@@ -93,18 +107,18 @@ export async function obterMetricasGrowthDoDia(): Promise<ResumoMetricasFunil> {
       `)
       .eq('restaurante_id', restauranteId)
       .in('status', ['PAGO', 'PREPARANDO', 'PRONTO', 'SAIU_PARA_ENTREGA', 'ENTREGUE'])
-      .gte('created_at', `${hoje}T00:00:00.000Z`)
-      .lte('created_at', `${hoje}T23:59:59.999Z`);
+      .gte('created_at', limites.inicio)
+      .lte('created_at', limites.fim);
 
     if (errPedidos) {
-      console.error('Erro ao buscar pedidos do dia:', errPedidos);
+      console.error('Erro ao buscar pedidos do período:', errPedidos);
     }
 
-    const faturamentoTotal = pedidosHoje?.reduce((acc, p) => acc + Number(p.valor_total), 0) || 0;
+    const faturamentoTotal = pedidosPeriodo?.reduce((acc, p) => acc + Number(p.valor_total), 0) || 0;
     let custoInsumosTotal = 0;
 
-    if (pedidosHoje && pedidosHoje.length > 0) {
-      (pedidosHoje as PedidoMetricaBruta[] as PedidoMetrica[]).forEach((pedido) => {
+    if (pedidosPeriodo && pedidosPeriodo.length > 0) {
+      (pedidosPeriodo as PedidoMetricaBruta[] as PedidoMetrica[]).forEach((pedido) => {
         const itens = pedido.itens_pedido || [];
         itens.forEach((item) => {
           const quantidadeVendida = Number(item.quantidade);
@@ -126,6 +140,7 @@ export async function obterMetricasGrowthDoDia(): Promise<ResumoMetricasFunil> {
       visitas,
       checkouts,
       compras,
+      pedidosPagos: pedidosPeriodo?.length ?? 0,
       taxaConversaoCardapio: Math.round(taxaConversaoCardapio * 10) / 10,
       taxaAbandonoCarrinho: Math.round(Math.max(0, taxaAbandonoCarrinho) * 10) / 10,
       faturamentoTotal: Math.round(faturamentoTotal * 100) / 100,
@@ -133,11 +148,12 @@ export async function obterMetricasGrowthDoDia(): Promise<ResumoMetricasFunil> {
       lucroOperacionalBruto: Math.round(lucroOperacionalBruto * 100) / 100,
     };
   } catch (error) {
-    console.error('Erro na action obterMetricasGrowthDoDia:', error);
+    console.error('Erro na action obterMetricasGrowth:', error);
     return {
       visitas: 0,
       checkouts: 0,
       compras: 0,
+      pedidosPagos: 0,
       taxaConversaoCardapio: 0,
       taxaAbandonoCarrinho: 0,
       faturamentoTotal: 0,

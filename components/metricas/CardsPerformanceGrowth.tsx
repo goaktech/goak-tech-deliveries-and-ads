@@ -5,10 +5,11 @@ import { ResumoMetricasFunil } from '@/actions/adminMetricas';
 
 interface CardsPerformanceGrowthProps {
   dados: ResumoMetricasFunil;
+  textoPeriodo?: string;
 }
 
-export function CardsPerformanceGrowth({ dados }: CardsPerformanceGrowthProps) {
-  const percentualCmvDiario = dados.faturamentoTotal > 0 
+export function CardsPerformanceGrowth({ dados, textoPeriodo = 'de hoje' }: CardsPerformanceGrowthProps) {
+  const percentualCmv = dados.faturamentoTotal > 0 
     ? Math.round((dados.custoInsumosTotal / dados.faturamentoTotal) * 100) 
     : 0;
 
@@ -21,13 +22,13 @@ export function CardsPerformanceGrowth({ dados }: CardsPerformanceGrowthProps) {
       
       <div className="select-none rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
         <span className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-          Faturamento Líquido (Stripe)
+          Faturamento (pedidos pagos)
         </span>
         <h3 className="font-mono text-2xl font-bold tracking-tight text-[#1A1A1A]">
           {formatarMoeda(dados.faturamentoTotal)}
         </h3>
         <span className="mt-2 block text-[11px] font-medium text-zinc-500">
-          Dinheiro real processado hoje
+          Pedidos pagos {textoPeriodo}
         </span>
       </div>
 
@@ -37,14 +38,14 @@ export function CardsPerformanceGrowth({ dados }: CardsPerformanceGrowthProps) {
             Custo de Mercadoria (CMV)
           </span>
           <span className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-600">
-            {percentualCmvDiario}% do faturamento
+            {percentualCmv}% do faturamento
           </span>
         </div>
         <h3 className="mt-1 font-mono text-2xl font-bold tracking-tight text-zinc-700">
           {formatarMoeda(dados.custoInsumosTotal)}
         </h3>
         <span className="mt-2 block text-[11px] font-medium text-zinc-500">
-          Custo escoado do estoque de hoje
+          Custo de insumos {textoPeriodo}
         </span>
       </div>
 
