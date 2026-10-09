@@ -330,15 +330,12 @@ async function enviarPushStatusPedido(pedido: PedidoParaNotificacao, tipoEntrega
 export async function enviarNotificacoesStatusPedido(pedido: PedidoParaNotificacao) {
   const tipoEntrega = pedido.dadosCliente.tipoEntrega ?? 'ENTREGA';
 
-  try {
-    await enviarWhatsappStatusPedido(pedido, tipoEntrega);
-  } catch (error) {
-    console.error('[pedido:notificacao] Erro ao enviar atualização por WhatsApp.', error);
-  }
-
-  try {
-    await enviarPushStatusPedido(pedido, tipoEntrega);
-  } catch (error) {
-    console.error('[pedido:notificacao] Erro ao enviar atualização push.', error);
-  }
+  await Promise.all([
+    enviarWhatsappStatusPedido(pedido, tipoEntrega).catch((error) => {
+      console.error('[pedido:notificacao] Erro ao enviar atualização por WhatsApp.', error);
+    }),
+    enviarPushStatusPedido(pedido, tipoEntrega).catch((error) => {
+      console.error('[pedido:notificacao] Erro ao enviar atualização push.', error);
+    }),
+  ]);
 }

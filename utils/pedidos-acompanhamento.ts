@@ -474,11 +474,16 @@ function mapearPedidoParaNotificacao(pedido: PedidoInternoBruto): PedidoParaNoti
   };
 }
 
-export async function atualizarStatusPedidoComNotificacoes(params: {
-  pedidoId: string;
-  novoStatus: StatusPedido;
-  mercadoPagoPaymentId?: string | null;
-}) {
+const MAX_TENTATIVAS_ATUALIZAR_STATUS = 3;
+
+export async function atualizarStatusPedidoComNotificacoes(
+  params: {
+    pedidoId: string;
+    novoStatus: StatusPedido;
+    mercadoPagoPaymentId?: string | null;
+  },
+  tentativa = 1
+) {
   const supabase = getSupabase();
   const pedidoAtual = await buscarPedidoInternoPorId(params.pedidoId);
 
@@ -553,7 +558,12 @@ export async function atualizarStatusPedidoComNotificacoes(params: {
   }
 
   if (!linhasAtualizadas || linhasAtualizadas.length === 0) {
-    return atualizarStatusPedidoComNotificacoes(params);
+    if (tentativa >= MAX_TENTATIVAS_ATUALIZAR_STATUS) {
+      throw new Error(
+        `Não foi possível atualizar o status do pedido ${params.pedidoId}: ele mudou várias vezes durante a atualização.`
+      );
+    }
+    return atualizarStatusPedidoComNotificacoes(params, tentativa + 1);
   }
 
   if (params.novoStatus === 'PAGO' && statusAnterior === 'PENDENTE') {
