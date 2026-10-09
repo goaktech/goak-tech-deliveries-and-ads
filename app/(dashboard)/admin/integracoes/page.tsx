@@ -11,6 +11,7 @@ import { avaliarTokenMetaAds, obterIntegracaoMetaAdsPorRestauranteId } from '@/u
 import { ConfiguracaoMetaAds } from '@/components/admin/ConfiguracaoMetaAds';
 import { obterIntegracaoIfoodPorRestauranteId, paraIntegracaoIfoodPublica } from '@/utils/ifood';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
+import { SecaoRecolhivel } from '@/components/admin/SecaoRecolhivel';
 import { FormularioConfirmavel } from '@/components/shared/FormularioConfirmavel';
 import { estilosPainel } from '@/components/shared/estilosPainel';
 
@@ -143,22 +144,17 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             ))}
           </nav>
 
-          <div id="mercado-pago" className="scroll-mt-4 rounded-2xl border border-zinc-200 p-5 space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Mercado Pago</div>
-                <div className="text-lg font-semibold text-zinc-900">
-                  {integracao?.connection_status === 'conectado' ? 'Conta conectada' : 'Conta não conectada'}
-                </div>
-              </div>
-              <span className={classeBadgeIntegracao(integracao?.connection_status)}>
-                {rotuloStatus(integracao?.connection_status)}
-              </span>
-            </div>
+          <SecaoRecolhivel
+            id="mercado-pago"
+            titulo="Mercado Pago"
+            selo={<span className={classeBadgeIntegracao(integracao?.connection_status)}>{rotuloStatus(integracao?.connection_status)}</span>}
+          >
+            <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 md:border-0 md:p-1">
+              <div className="text-lg font-semibold text-zinc-900">{mpConectado ? 'Conta conectada' : 'Conta não conectada'}</div>
 
-            <div className="text-sm text-zinc-600">
-              {integracao?.account_email ? `Conta vinculada: ${integracao.account_email}` : 'Nenhuma conta vinculada ainda.'}
-            </div>
+              <div className="text-sm text-zinc-600">
+                {integracao?.account_email ? `Conta vinculada: ${integracao.account_email}` : 'Nenhuma conta vinculada ainda.'}
+              </div>
 
             <div className="flex flex-wrap gap-3 pt-2">
               <form action="/api/admin/integracoes/mercado-pago/conectar" method="get">
@@ -184,22 +180,20 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
                 </FormularioConfirmavel>
               ) : null}
             </div>
-          </div>
-
-          <ConfiguracaoFormasPagamento formasIniciais={restaurante?.formas_pagamento_aceitas} />
-
-          <div id="whatsapp" className="scroll-mt-4 rounded-2xl border border-zinc-200 p-5 space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">WhatsApp Business</div>
-                <div className="text-lg font-semibold text-zinc-900">
-                  {integracaoWhatsapp?.connection_status === 'conectado' ? 'Conta conectada' : 'Conta não conectada'}
-                </div>
-              </div>
-              <span className={classeBadgeIntegracao(integracaoWhatsapp?.connection_status)}>
-                {rotuloStatus(integracaoWhatsapp?.connection_status)}
-              </span>
             </div>
+          </SecaoRecolhivel>
+
+          <SecaoRecolhivel id="formas-pagamento" titulo="Formas de pagamento da loja">
+            <ConfiguracaoFormasPagamento formasIniciais={restaurante?.formas_pagamento_aceitas} />
+          </SecaoRecolhivel>
+
+          <SecaoRecolhivel
+            id="whatsapp"
+            titulo="WhatsApp Business"
+            selo={<span className={classeBadgeIntegracao(integracaoWhatsapp?.connection_status)}>{rotuloStatus(integracaoWhatsapp?.connection_status)}</span>}
+          >
+            <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 md:border-0 md:p-1">
+              <div className="text-lg font-semibold text-zinc-900">{waConectado ? 'Conta conectada' : 'Conta não conectada'}</div>
 
             <div className="space-y-1 text-sm text-zinc-600">
               <div>
@@ -238,7 +232,8 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
                 </FormularioConfirmavel>
               ) : null}
             </div>
-          </div>
+            </div>
+          </SecaoRecolhivel>
 
           {mensagemMetaAds ? (
             <div
@@ -254,7 +249,7 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             </div>
           ) : null}
 
-          <div id="meta-ads" className="scroll-mt-4">
+          <SecaoRecolhivel id="meta-ads" titulo="Meta Ads">
           <ConfiguracaoMetaAds
             situacao={
               tokenMetaAds.estado === 'expirado'
@@ -269,16 +264,16 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             contaNome={integracaoMetaAds?.ad_account_name ?? null}
             contaMoeda={integracaoMetaAds?.ad_account_currency ?? null}
           />
-          </div>
+          </SecaoRecolhivel>
 
-          <div id="ifood" className="scroll-mt-4">
+          <SecaoRecolhivel id="ifood" titulo="iFood Entrega">
           <ConfiguracaoIfoodEntrega
             integracaoInicial={integracaoIfood}
             enderecoLoja={restaurante?.endereco ?? null}
             latitudeLoja={restaurante?.latitude ?? null}
             longitudeLoja={restaurante?.longitude ?? null}
           />
-          </div>
+          </SecaoRecolhivel>
 
           <details className="rounded-2xl border border-dashed border-zinc-200 bg-white p-4 text-sm text-zinc-500 min-w-0">
             <summary className="min-h-11 cursor-pointer text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:min-h-0">Endereços técnicos (para configurar apps)</summary>
@@ -289,17 +284,17 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             <span className="font-mono break-all">/api/webhooks/meta-ads/exclusao-dados</span>.</p>
           </details>
 
-          <div id="pixel" className="scroll-mt-4">
+          <SecaoRecolhivel id="pixel" titulo="Meta Pixel">
           <ConfiguracaoPixelFacebook pixelIdInicial={restaurante?.meta_pixel_id ?? null} />
-          </div>
+          </SecaoRecolhivel>
 
-          <div id="capi" className="scroll-mt-4">
+          <SecaoRecolhivel id="capi" titulo="Meta API de Conversões">
           <ConfiguracaoMetaCapi
             temPixel={Boolean(restaurante?.meta_pixel_id)}
             configurado={Boolean(integracaoCapi)}
             codigoTesteInicial={integracaoCapi?.test_event_code ?? null}
           />
-          </div>
+          </SecaoRecolhivel>
         </section>
     </>
   );
