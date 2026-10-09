@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { enviarNotificacoesStatusPedido, type PedidoParaNotificacao } from '@/utils/notificacoes-pedido';
 import { calcularRotaEntrega } from '@/utils/google-maps';
+import { enviarPurchaseCapi } from '@/utils/meta-capi';
 import {
   type DadosClientePedido,
   type StatusPedido,
@@ -213,6 +214,11 @@ export async function criarPedidoPendente(params: {
   distanciaEntregaKm?: number | null;
   tempoDeslocamentoMin?: number | null;
   tempoPreparoEstimadoMin?: number | null;
+  // Identificadores do navegador para a API de Conversões da Meta (opcionais).
+  fbp?: string | null;
+  fbc?: string | null;
+  clienteIp?: string | null;
+  clienteUserAgent?: string | null;
 }) {
   const supabase = getSupabase();
   const codigoAcompanhamento = gerarCodigoAcompanhamentoPedido();
@@ -236,6 +242,10 @@ export async function criarPedidoPendente(params: {
         distancia_entrega_km: params.distanciaEntregaKm ?? null,
         tempo_deslocamento_min: params.tempoDeslocamentoMin ?? null,
         tempo_preparo_estimado_min: params.tempoPreparoEstimadoMin ?? null,
+        fb_browser_id: params.fbp ?? null,
+        fb_click_id: params.fbc ?? null,
+        fb_client_ip: params.clienteIp ?? null,
+        fb_user_agent: params.clienteUserAgent ?? null,
         updated_at: agora,
       },
     ])
@@ -548,6 +558,8 @@ export async function atualizarStatusPedidoComNotificacoes(params: {
 
   if (params.novoStatus === 'PAGO' && statusAnterior === 'PENDENTE') {
     await processarEfeitosColateraisPagamentoAprovado(params.pedidoId, pedidoAtual.restaurante_id);
+    // API de Conversões: avisa a Meta da compra pelo servidor (não lança; falha só vai para o log).
+    await enviarPurchaseCapi(params.pedidoId);
   }
 
   const pedidoAtualizado = await buscarPedidoInternoPorId(params.pedidoId);

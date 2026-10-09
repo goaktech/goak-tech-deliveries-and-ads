@@ -403,13 +403,13 @@ export async function obterCardapioPorSlug(slug: string) {
   }
 
   const hoje = new Date().toISOString().split('T')[0]
-  const { error: erroFunil } = await supabase.rpc('incrementar_visitas_funil', {
-    p_restaurante_id: restaurante.id,
-    p_data: hoje,
-  })
-  if (erroFunil) {
-    console.error('Falha ao registrar visita no funil de métricas:', erroFunil)
-  }
+  // A contagem de visitas roda ao mesmo tempo que a busca dos produtos, em vez de segurar a página.
+  const registroVisita = Promise.resolve(
+    supabase.rpc('incrementar_visitas_funil', {
+      p_restaurante_id: restaurante.id,
+      p_data: hoje,
+    })
+  )
 
   const { data: produtos, error: erroProdutos } = await supabase
     .from('itens_cardapio')
@@ -438,6 +438,11 @@ export async function obterCardapioPorSlug(slug: string) {
     .eq('disponivel', true)
     .order('ordem', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
+
+  const { error: erroFunil } = await registroVisita
+  if (erroFunil) {
+    console.error('Falha ao registrar visita no funil de métricas:', erroFunil)
+  }
 
   if (erroProdutos) {
     console.error('Erro ao buscar itens e complementos do cardápio:', erroProdutos)

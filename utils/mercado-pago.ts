@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
-import { createClient } from '@/utils/supabase/server';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
+import { obterRestauranteIdDoGestorLogado } from '@/utils/admin-auth';
+
+export { obterRestauranteIdDoGestorLogado };
 
 const MP_AUTH_URL = 'https://auth.mercadopago.com/authorization';
 const MP_API_BASE = 'https://api.mercadopago.com';
@@ -116,29 +118,6 @@ export function validarStateMercadoPago(state: string) {
   }
 
   return payload;
-}
-
-export async function obterRestauranteIdDoGestorLogado() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) {
-    throw new Error('Usuário não autenticado.');
-  }
-
-  const { data: perfil, error: perfilError } = await supabase
-    .from('perfis_admin')
-    .select('restaurante_id')
-    .eq('id', user.id)
-    .single();
-
-  if (perfilError || !perfil?.restaurante_id) {
-    throw new Error('Perfil administrativo sem restaurante vinculado.');
-  }
-
-  return perfil.restaurante_id as string;
 }
 
 export async function gerarUrlAutorizacaoMercadoPago(): Promise<IntegracaoLinkResult> {

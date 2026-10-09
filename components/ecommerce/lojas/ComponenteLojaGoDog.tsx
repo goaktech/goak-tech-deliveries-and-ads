@@ -8,6 +8,7 @@ import { ItemCardapio } from '@/types/database';
 import { Complemento, useCarrinho } from '@/components/ecommerce/ContextoCarrinho';
 import BarraCarrinhoFlutuante from '@/components/ecommerce/BarraCarrinhoFlutuante';
 import { ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
+import { trackViewContent } from '@/utils/meta-pixel';
 
 interface ComponenteLojaGoDogProps {
   restaurante: { id: string; nome: string; endereco: string | null };
@@ -128,7 +129,12 @@ function CartaoItemGoDog({ produto, limiteUnidadesComida }: CartaoItemGoDogProps
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden transition-all">
       <div
-        onClick={() => setSanfonaAberta(!sanfonaAberta)}
+        onClick={() => {
+          if (!sanfonaAberta) {
+            trackViewContent({ id: produto.id, nome: produto.nome, valor: Number(produto.preco_venda) });
+          }
+          setSanfonaAberta(!sanfonaAberta);
+        }}
         className="p-4 flex gap-4 items-start cursor-pointer select-none hover:bg-zinc-50/80 transition-colors"
       >
         <div className="w-[88px] h-[88px] rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FCEFD2] text-amber-700 shadow-inner overflow-hidden">

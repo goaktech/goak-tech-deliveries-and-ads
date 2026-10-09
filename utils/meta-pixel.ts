@@ -116,3 +116,50 @@ export function trackClicouPagarPix(params: {
     currency: 'BRL',
   });
 }
+
+function lerCookie(nome: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const par = document.cookie.split('; ').find((linha) => linha.startsWith(`${nome}=`));
+  return par ? decodeURIComponent(par.slice(nome.length + 1)) : null;
+}
+
+/**
+ * Identificadores do navegador para a API de Conversões (servidor): o cookie `_fbp` e o `_fbc`.
+ * Se o cliente chegou por um anúncio (parâmetro `fbclid`) e o cookie `_fbc` ainda não existe,
+ * monta o valor no formato da Meta (fb.1.<timestamp>.<fbclid>).
+ */
+export function lerIdentificadoresMeta(): { fbp: string | null; fbc: string | null } {
+  if (typeof window === 'undefined') return { fbp: null, fbc: null };
+  const fbp = lerCookie('_fbp');
+  let fbc = lerCookie('_fbc');
+  if (!fbc) {
+    try {
+      const fbclid = new URLSearchParams(window.location.search).get('fbclid');
+      if (fbclid) fbc = `fb.1.${Date.now()}.${fbclid}`;
+    } catch {
+      // URL sem query legível: segue sem fbc.
+    }
+  }
+  return { fbp, fbc };
+}
+
+/** Cliente abriu o produto na vitrine. Uma vez por produto por sessão da aba. */
+export function trackViewContent(params: { id: string; nome: string; valor: number }) {
+  if (!fbqDisponivel()) return;
+
+  const chave = `meta_viewcontent_${params.id}`;
+  try {
+    if (window.sessionStorage.getItem(chave)) return;
+    window.sessionStorage.setItem(chave, '1');
+  } catch {
+    // Sem sessionStorage: dispara mesmo assim.
+  }
+
+  window.fbq!('track', 'ViewContent', {
+    content_ids: [params.id],
+    content_name: params.nome,
+    content_type: 'product',
+    value: params.valor,
+    currency: 'BRL',
+  });
+}

@@ -1,0 +1,34 @@
+'use client';
+
+import type { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
+import type { RestauranteCabecalhoAdmin } from '@/utils/admin-auth';
+
+/**
+ * Moldura única do painel: o cabeçalho com as abas fica aqui, fora das páginas, e por isso não é
+ * recriado nem recarregado a cada troca de aba. Só o conteúdo abaixo dele muda.
+ */
+export function CascaAdmin({
+  restaurante,
+  children,
+}: {
+  restaurante: RestauranteCabecalhoAdmin | null;
+  children: ReactNode;
+}) {
+  const pathname = usePathname();
+  const ehCozinha = pathname === '/admin/cozinha' || pathname?.startsWith('/admin/cozinha/');
+
+  return (
+    <div
+      className={`flex min-h-screen items-start justify-center bg-[#F3F3F3] p-4 font-sans text-[#1A1A1A] antialiased sm:p-8 md:py-12 ${
+        ehCozinha ? 'pb-24 sm:pb-24' : ''
+      }`}
+    >
+      <div className={`w-full min-w-0 space-y-6 ${ehCozinha ? 'max-w-6xl' : 'max-w-4xl'}`}>
+        <AdminNavHeader restaurante={restaurante} />
+        {children}
+      </div>
+    </div>
+  );
+}

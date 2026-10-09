@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { ItemCardapio } from '@/types/database';
 import { Complemento, useCarrinho } from './ContextoCarrinho';
+import { trackViewContent } from '@/utils/meta-pixel';
 
 interface CardProps {
   produto: ItemCardapio;
@@ -46,7 +47,12 @@ export default function CartaoItemCardapio({ produto }: CardProps) {
   return (
     <div className="bg-white border border-zinc-200 rounded-[20px] shadow-sm overflow-hidden transition-all">
       <div
-        onClick={() => setSanfonaAberta(!sanfonaAberta)}
+        onClick={() => {
+          if (!sanfonaAberta) {
+            trackViewContent({ id: produto.id, nome: produto.nome, valor: Number(produto.preco_venda) });
+          }
+          setSanfonaAberta(!sanfonaAberta);
+        }}
         className="p-4 flex gap-4 items-center cursor-pointer select-none hover:bg-zinc-50/80 transition-colors"
       >
         <div className="w-[88px] h-[88px] rounded-2xl flex items-center justify-center flex-shrink-0 bg-amber-50 text-amber-600 shadow-inner overflow-hidden">

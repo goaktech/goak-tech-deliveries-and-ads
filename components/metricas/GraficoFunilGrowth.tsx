@@ -56,7 +56,7 @@ export function GraficoFunilGrowth({ dados }: GraficoFunilGrowthProps) {
             }`}
           >
             <span className="text-[11px] font-semibold tracking-tight uppercase">
-              3. Pedidos Pagos (Stripe)
+              3. Pedidos Pagos
             </span>
             <span 
               className={`rounded-[8px] px-2.5 py-0.5 font-mono text-xs font-semibold ${
@@ -80,7 +80,7 @@ export function GraficoFunilGrowth({ dados }: GraficoFunilGrowthProps) {
             {dados.taxaAbandonoCarrinho}%
           </span>
           <span className="mt-1 block text-[12px] font-medium leading-snug text-[#1A1A1A]">
-            Clientes que iniciaram o preenchimento dos dados mas recuaram na Stripe.
+            Clientes que iniciaram o preenchimento dos dados mas recuaram antes de pagar.
           </span>
         </div>
 

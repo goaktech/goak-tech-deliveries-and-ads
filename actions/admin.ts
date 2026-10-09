@@ -1,5 +1,6 @@
 'use server'
 
+import { obterRestauranteIdDoGestorLogado } from '@/utils/admin-auth'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -217,12 +218,9 @@ export async function excluirProdutosEmLote(ids: string[]) {
 export async function listarProdutosComCMV(): Promise<ItemCardapioComCMV[]> {
   const supabase = await createClient()
 
-  const { data: perfil } = await supabase
-    .from('perfis_admin')
-    .select('restaurante_id')
-    .single()
+  const restauranteId = await obterRestauranteIdDoGestorLogado().catch(() => null)
 
-  if (!perfil?.restaurante_id) return []
+  if (!restauranteId) return []
 
   const { data: itens, error } = await supabase
     .from('itens_cardapio')
@@ -251,7 +249,7 @@ export async function listarProdutosComCMV(): Promise<ItemCardapioComCMV[]> {
         disponivel
       )
     `)
-    .eq('restaurante_id', perfil.restaurante_id)
+    .eq('restaurante_id', restauranteId)
     .eq('arquivado', false)
     .order('ordem', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })

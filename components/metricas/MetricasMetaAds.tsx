@@ -19,7 +19,7 @@ function formatarPercentual(valor: number) {
   return `${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
-export function MetricasMetaAds({ dados }: { dados: ResumoMetricasMetaAds }) {
+export function MetricasMetaAds({ dados, textoPeriodo = 'de hoje' }: { dados: ResumoMetricasMetaAds; textoPeriodo?: string }) {
   if (dados.estado === 'reconectar') {
     return (
       <section className="rounded-3xl border border-amber-200 bg-amber-50 p-4 shadow-sm sm:p-6">
@@ -78,7 +78,7 @@ export function MetricasMetaAds({ dados }: { dados: ResumoMetricasMetaAds }) {
         <h3 className="text-base font-bold uppercase tracking-wider text-[#1A1A1A]">Meta Ads</h3>
         <p className="mt-0.5 text-[11px] font-medium text-zinc-500">
           {dados.contaNome ? `Conta: ${dados.contaNome} — ` : ''}
-          Indicadores de mídia paga de hoje.
+          Indicadores de mídia paga {textoPeriodo}.
         </p>
         {dados.desatualizado ? (
           <p className="mt-1 text-[11px] font-medium text-amber-700">

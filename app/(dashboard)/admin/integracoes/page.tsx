@@ -1,6 +1,6 @@
-import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
 import { ConfiguracaoFormasPagamento } from '@/components/admin/ConfiguracaoFormasPagamento';
 import { ConfiguracaoPixelFacebook } from '@/components/admin/ConfiguracaoPixelFacebook';
+import { ConfiguracaoMetaCapi } from '@/components/admin/ConfiguracaoMetaCapi';
 import { ConfiguracaoIfoodEntrega } from '@/components/admin/ConfiguracaoIfoodEntrega';
 import {
   obterIntegracaoMercadoPagoPorRestauranteId,
@@ -49,29 +49,42 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
   const mensagemMetaAds = mensagemStatusMetaAds(parametros.status, parametros.motivo);
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const supabase = createWebhookAdminClient();
-  const { data: restaurante } = await supabase
-    .from('restaurantes')
-    .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas, endereco, latitude, longitude')
-    .eq('id', restauranteId)
-    .maybeSingle();
 
-  const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
-  const integracaoWhatsapp = await obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId);
-  const integracaoMetaAds = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
+  // As consultas não dependem umas das outras, então rodam juntas (e não em fila).
+  const [
+    { data: restaurante },
+    integracao,
+    integracaoWhatsapp,
+    integracaoMetaAds,
+    { data: integracaoCapi },
+    integracaoIfood,
+  ] = await Promise.all([
+    supabase
+      .from('restaurantes')
+      .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas, endereco, latitude, longitude')
+      .eq('id', restauranteId)
+      .maybeSingle(),
+    obterIntegracaoMercadoPagoPorRestauranteId(restauranteId),
+    obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId),
+    obterIntegracaoMetaAdsPorRestauranteId(restauranteId),
+    // Só informa se há token da API de Conversões; o valor nunca sai do servidor.
+    supabase
+      .from('restaurante_integracoes_meta_capi')
+      .select('test_event_code')
+      .eq('restaurante_id', restauranteId)
+      .maybeSingle(),
+    // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
+    obterIntegracaoIfoodPorRestauranteId(restauranteId)
+      .then(paraIntegracaoIfoodPublica)
+      .catch((erro) => {
+        console.error('Falha ao carregar integração iFood:', erro);
+        return null;
+      }),
+  ]);
   const tokenMetaAds = avaliarTokenMetaAds(integracaoMetaAds);
-  // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
-  const integracaoIfood = await obterIntegracaoIfoodPorRestauranteId(restauranteId)
-    .then(paraIntegracaoIfoodPublica)
-    .catch((erro) => {
-      console.error('Falha ao carregar integração iFood:', erro);
-      return null;
-    });
 
   return (
-    <div className="min-h-screen bg-[#F3F3F3] text-[#1A1A1A] font-sans antialiased flex items-start justify-center p-4 sm:p-8 md:py-12">
-      <div className="w-full max-w-4xl space-y-6">
-        <AdminNavHeader activeTab="integracoes" />
-
+    <>
         <section className="bg-white rounded-[24px] p-6 shadow-sm shadow-zinc-300/40 space-y-5">
           <div className="space-y-1">
             <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900">Pagamentos e Integrações</h1>
@@ -209,17 +222,22 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             longitudeLoja={restaurante?.longitude ?? null}
           />
 
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-5 text-sm text-zinc-500">
-            Callbacks: <span className="font-mono">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
-            <span className="font-mono">/api/admin/integracoes/whatsapp-business/callback</span> e{' '}
-            <span className="font-mono">/api/admin/integracoes/meta-ads/callback</span>. No app da Meta: desautorização em{' '}
-            <span className="font-mono">/api/webhooks/meta-ads/desautorizar</span> e exclusão de dados em{' '}
-            <span className="font-mono">/api/webhooks/meta-ads/exclusao-dados</span>.
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-5 text-sm text-zinc-500 min-w-0">
+            Callbacks: <span className="font-mono break-all">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
+            <span className="font-mono break-all">/api/admin/integracoes/whatsapp-business/callback</span> e{' '}
+            <span className="font-mono break-all">/api/admin/integracoes/meta-ads/callback</span>. No app da Meta: desautorização em{' '}
+            <span className="font-mono break-all">/api/webhooks/meta-ads/desautorizar</span> e exclusão de dados em{' '}
+            <span className="font-mono break-all">/api/webhooks/meta-ads/exclusao-dados</span>.
           </div>
 
           <ConfiguracaoPixelFacebook pixelIdInicial={restaurante?.meta_pixel_id ?? null} />
+
+          <ConfiguracaoMetaCapi
+            temPixel={Boolean(restaurante?.meta_pixel_id)}
+            configurado={Boolean(integracaoCapi)}
+            codigoTesteInicial={integracaoCapi?.test_event_code ?? null}
+          />
         </section>
-      </div>
-    </div>
+    </>
   );
 }
