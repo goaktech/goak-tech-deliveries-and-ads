@@ -103,12 +103,8 @@ export default function PainelCozinhaAdmin() {
   return (
     <>
       <div className="space-y-6">
-        <header className="flex items-end justify-between gap-3 px-1 select-none">
-          <div className="leading-tight">
-            <h1 className="text-xl font-bold tracking-tight text-[#1A1A1A]">Monitor de produção</h1>
-            <span className="mt-0.5 block text-[11px] font-semibold text-zinc-500">Fila de pedidos em tempo real</span>
-          </div>
-
+        <h1 className="sr-only">Monitor de produção</h1>
+        <header className="flex items-center justify-end gap-3 px-1 select-none">
           <div className="flex items-center gap-2">
             <button
               type="button"

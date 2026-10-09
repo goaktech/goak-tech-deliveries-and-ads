@@ -215,26 +215,11 @@ export function AdminNavHeader({
   const pathname = usePathname();
   const activeTab: AdminTab = abaDoEndereco(pathname) ?? abaInformada ?? 'cozinha';
   const inputLogoRef = useRef<HTMLInputElement | null>(null);
-  const menuContaRef = useRef<HTMLDivElement | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(restaurante?.logoUrl ?? null);
   const slugLoja = restaurante?.slug ?? null;
   const nomeLoja = restaurante?.nome ?? null;
   const [enviandoLogo, setEnviandoLogo] = useState(false);
-  const [menuContaAberto, setMenuContaAberto] = useState(false);
   const { avisar } = useAvisosPainel();
-
-  useEffect(() => {
-    if (!menuContaAberto) return;
-
-    const handleClickFora = (event: MouseEvent) => {
-      if (menuContaRef.current && !menuContaRef.current.contains(event.target as Node)) {
-        setMenuContaAberto(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickFora);
-    return () => document.removeEventListener('mousedown', handleClickFora);
-  }, [menuContaAberto]);
 
   const handleSelecionarLogo = async (event: ChangeEvent<HTMLInputElement>) => {
     const arquivo = event.target.files?.[0];
@@ -268,53 +253,82 @@ export function AdminNavHeader({
     inputLogoRef.current?.click();
   };
 
+  const iconeCardapio = (
+    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13.5 6H18m0 0v4.5M18 6l-8.25 8.25M6 4.5h3M4.5 6.75v10.5A2.25 2.25 0 006.75 19.5h10.5a2.25 2.25 0 002.25-2.25V15"
+      />
+    </svg>
+  );
+
   return (
-    <header className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm md:p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3.5 select-none">
-          <button
-            type="button"
-            onClick={triggerInputLogo}
-            disabled={enviandoLogo}
-            className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/60 bg-[#F3F3F3] text-zinc-400 shadow-inner disabled:opacity-60"
-            title="Editar logo"
-          >
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt="Logo do restaurante"
-                width={44}
-                height={44}
-                unoptimized
-                className="h-11 w-11 rounded-full object-cover"
-              />
-            ) : (
-              <svg className="h-5 w-5 text-[#E16349]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m0 0a3.001 3.001 0 00-3.75-.615A2.993 2.993 0 009.75 9.75c0 .358.063.702.18 1.025m10.965-1.426c.229-.112.483-.174.75-.174a1.5 1.5 0 011.5 1.5v6.75m-4.5-9a3.97 3.97 0 00-1.22-.112m-1.48 1.137A3.987 3.987 0 0112 11.25c-1.192 0-2.261-.523-3-1.362m-.75 0a3.987 3.987 0 01-3-1.362m0 0a3 3 0 00-3.75.615A2.993 2.993 0 001.5 9.75c0 .358.063.702.18 1.025m0 0A3.987 3.987 0 013 11.25c1.192 0 2.261-.523 3-1.362m0 0c.267.267.58.483.925.64" />
-              </svg>
-            )}
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-zinc-900/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              {enviandoLogo ? (
-                <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg>
+    <header className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm md:p-5">
+      <input
+        ref={inputLogoRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={handleSelecionarLogo}
+      />
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+        <div className="hidden md:block">
+            <button
+              type="button"
+              onClick={triggerInputLogo}
+              disabled={enviandoLogo}
+              className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/60 bg-[#F3F3F3] text-zinc-400 shadow-inner disabled:opacity-60"
+              title="Editar logo"
+            >
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt="Logo do restaurante"
+                  width={44}
+                  height={44}
+                  unoptimized
+                  className="h-11 w-11 rounded-full object-cover"
+                />
               ) : (
-                <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                <svg className="h-5 w-5 text-[#E16349]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m0 0a3.001 3.001 0 00-3.75-.615A2.993 2.993 0 009.75 9.75c0 .358.063.702.18 1.025m10.965-1.426c.229-.112.483-.174.75-.174a1.5 1.5 0 011.5 1.5v6.75m-4.5-9a3.97 3.97 0 00-1.22-.112m-1.48 1.137A3.987 3.987 0 0112 11.25c-1.192 0-2.261-.523-3-1.362m-.75 0a3.987 3.987 0 01-3-1.362m0 0a3 3 0 00-3.75.615A2.993 2.993 0 001.5 9.75c0 .358.063.702.18 1.025m0 0A3.987 3.987 0 013 11.25c1.192 0 2.261-.523 3-1.362m0 0c.267.267.58.483.925.64" />
                 </svg>
               )}
-            </span>
-          </button>
-          <input
-            ref={inputLogoRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            className="hidden"
-            onChange={handleSelecionarLogo}
-          />
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-zinc-900/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                {enviandoLogo ? (
+                  <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                  </svg>
+                )}
+              </span>
+            </button>
 
-          <div className="leading-tight">
+        </div>
+          {slugLoja ? (
+            <Link
+              href={`/${slugLoja}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:text-[#1A1A1A] md:min-h-9"
+            >
+              {iconeCardapio}
+              Ir para cardápio
+            </Link>
+          ) : null}
+          {brandActions ? <div className="flex items-center gap-2">{brandActions}</div> : null}
+        </div>
+
+        {/* Desktop e tablet: marca da loja no canto direito, com o menu da conta ao lado. */}
+        <div className="hidden select-none items-center gap-3.5 md:flex">
+          <div className="text-right leading-tight">
             <h2 className="text-lg font-bold tracking-tight text-[#1A1A1A]">{nomeLoja ?? APP_BRAND_NAME}</h2>
             {nomeLoja ? (
               <span className="mt-0.5 block text-[10px] font-medium tracking-wide text-zinc-400">{APP_BRAND_NAME}</span>
@@ -323,78 +337,121 @@ export function AdminNavHeader({
             )}
           </div>
 
-          {showAccountActions ? (
-            <div className="relative" ref={menuContaRef}>
-              <button
-                type="button"
-                onClick={() => setMenuContaAberto((atual) => !atual)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-900 sm:h-7 sm:w-7"
-                title="Conta"
-                aria-label="Abrir menu da conta"
-                aria-expanded={menuContaAberto}
-              >
-                <svg className={`h-3.5 w-3.5 transition-transform ${menuContaAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              </button>
-
-              {menuContaAberto && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg sm:left-0 sm:right-auto">
-                  <button
-                    type="button"
-                    disabled
-                    title="Perfil em breve"
-                    className="flex min-h-11 w-full cursor-not-allowed items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-zinc-400"
-                  >
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 0115 0" />
-                    </svg>
-                    Perfil (em breve)
-                  </button>
-                  <form action={logout} className="border-t border-zinc-100">
-                    <button
-                      type="submit"
-                      className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 hover:text-[#E16349]"
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M18 12H9m0 0l3-3m-3 3l3 3" />
-                      </svg>
-                      Encerrar Sessão
-                    </button>
-                  </form>
-                </div>
-              )}
-            </div>
-          ) : null}
+          {showAccountActions ? <MenuConta variante="desktop" /> : null}
         </div>
 
-        {brandActions ? <div className="flex items-center gap-2 self-start md:self-center">{brandActions}</div> : null}
+        {/* Celular: sem marca; só o botão de perfil (com a opção de trocar o logo). */}
+        {showAccountActions ? (
+          <div className="md:hidden">
+            <MenuConta variante="celular" onAlterarLogo={triggerInputLogo} enviandoLogo={enviandoLogo} />
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 hidden rounded-2xl bg-[#F3F3F3] p-1.5 md:block">
         <BarraAbasResponsiva activeTab={activeTab} />
       </div>
-
-      {slugLoja ? (
-        <div className="mt-3">
-          <Link
-            href={`/${slugLoja}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:text-[#1A1A1A]"
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M13.5 6H18m0 0v4.5M18 6l-8.25 8.25M6 4.5h3M4.5 6.75v10.5A2.25 2.25 0 006.75 19.5h10.5a2.25 2.25 0 002.25-2.25V15"
-              />
-            </svg>
-            Ir para cardápio
-          </Link>
-        </div>
-      ) : null}
     </header>
+  );
+}
+
+interface MenuContaProps {
+  variante: 'desktop' | 'celular';
+  onAlterarLogo?: () => void;
+  enviandoLogo?: boolean;
+}
+
+/** Menu da conta: seta ao lado da marca no desktop; botão "Perfil" no celular. */
+function MenuConta({ variante, onAlterarLogo, enviandoLogo = false }: MenuContaProps) {
+  const [aberto, setAberto] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+
+    const handleClickFora = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setAberto(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, [aberto]);
+
+  const classeItem =
+    'flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 hover:text-[#E16349]';
+
+  return (
+    <div className="relative" ref={containerRef}>
+      {variante === 'celular' ? (
+        <button
+          type="button"
+          onClick={() => setAberto((atual) => !atual)}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 text-xs font-bold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:text-[#1A1A1A]"
+          aria-label="Abrir menu do perfil"
+          aria-expanded={aberto}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 0115 0" />
+          </svg>
+          Perfil
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAberto((atual) => !atual)}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-900"
+          title="Conta"
+          aria-label="Abrir menu da conta"
+          aria-expanded={aberto}
+        >
+          <svg className={`h-3.5 w-3.5 transition-transform ${aberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+      )}
+
+      {aberto && (
+        <div className="absolute right-0 top-full z-20 mt-2 w-52 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+          {variante === 'celular' && onAlterarLogo ? (
+            <button
+              type="button"
+              disabled={enviandoLogo}
+              onClick={() => {
+                setAberto(false);
+                onAlterarLogo();
+              }}
+              className={`${classeItem} border-b border-zinc-100 disabled:opacity-60`}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 20.25h15a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25h-15A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              {enviandoLogo ? 'Enviando logo...' : 'Alterar logo'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            disabled
+            title="Perfil em breve"
+            className="flex min-h-11 w-full cursor-not-allowed items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-zinc-400"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 0115 0" />
+            </svg>
+            Perfil (em breve)
+          </button>
+          <form action={logout} className="border-t border-zinc-100">
+            <button type="submit" className={classeItem}>
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M18 12H9m0 0l3-3m-3 3l3 3" />
+              </svg>
+              Encerrar Sessão
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -475,10 +532,11 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
           <button
             type="button"
             onClick={() => setMenuMaisAberto((atual) => !atual)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
+            // O "!" é necessário: a regra global `button { font: inherit }` ganharia das classes de fonte normais.
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! transition-all ${
               itensOcultos.some((item) => item.id === activeTab)
-                ? 'bg-[#E16349] font-bold text-white shadow-sm'
-                : 'font-medium text-zinc-600 hover:text-[#1A1A1A]'
+                ? 'bg-[#E16349] font-bold! text-white shadow-sm'
+                : 'font-medium! text-zinc-600 hover:text-[#1A1A1A]'
             }`}
             aria-expanded={menuMaisAberto}
           >
@@ -528,7 +586,7 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
         ref={medidorBotaoMaisRef}
         type="button"
         tabIndex={-1}
-        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium opacity-0"
+        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! font-medium! opacity-0"
         style={{ zIndex: -1 }}
         aria-hidden
       >
@@ -555,8 +613,8 @@ export function BarraNavegacaoMobile() {
   const extraAtivo = itensExtras.some((item) => item.id === activeTab);
 
   const classeBotao = (ativo: boolean) =>
-    `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[11px] transition ${
-      ativo ? 'bg-[#E16349] font-bold text-white shadow-sm' : 'font-medium text-zinc-600'
+    `flex min-h-12 flex-1 items-center justify-center rounded-2xl px-1 text-xs! leading-4! transition ${
+      ativo ? 'bg-[#E16349] font-bold! text-white shadow-sm' : 'font-medium! text-zinc-600'
     }`;
 
   return (
@@ -606,7 +664,6 @@ export function BarraNavegacaoMobile() {
         <div className="mx-auto flex max-w-md items-stretch gap-1">
           {itensPrincipais.map((item) => (
             <Link key={item.id} href={item.href} className={classeBotao(item.id === activeTab)} aria-current={item.id === activeTab ? 'page' : undefined}>
-              <span className={item.id === activeTab ? '' : 'text-zinc-400'}>{item.icon}</span>
               {item.id === 'produtos' ? 'Cardápio' : item.label}
             </Link>
           ))}
@@ -617,9 +674,6 @@ export function BarraNavegacaoMobile() {
             aria-controls="menu-mais-mobile"
             className={classeBotao(extraAtivo || maisAberto)}
           >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01" />
-            </svg>
             Mais
           </button>
         </div>

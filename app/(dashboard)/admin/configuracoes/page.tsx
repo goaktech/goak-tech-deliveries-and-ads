@@ -7,19 +7,25 @@ import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 import { normalizarLarguraPapel } from '@/utils/impressao';
+import { createClient } from '@/utils/supabase/server';
 
 export const revalidate = 0;
 
 export default async function PainelConfiguracoesAdmin() {
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const supabase = createWebhookAdminClient();
-  const { data: restaurante } = await supabase
+  const [{ data: restaurante }, { data: dadosLogin }] = await Promise.all([
+    supabase
     .from('restaurantes')
     .select(
-      'nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url, largura_papel_impressao'
+      'nome, slug, email_corporativo, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url, largura_papel_impressao'
     )
     .eq('id', restauranteId)
-    .maybeSingle();
+    .maybeSingle(),
+    createClient().then((cliente) => cliente.auth.getUser()),
+  ]);
+  // E-mail da loja; se ainda não foi cadastrado, mostra o e-mail do login do gestor.
+  const emailLoja = restaurante?.email_corporativo?.trim() || dadosLogin?.user?.email || null;
 
   return (
     <>
@@ -34,9 +40,12 @@ export default async function PainelConfiguracoesAdmin() {
           <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Estabelecimento</div>
             <div className="text-lg font-semibold text-zinc-900">{restaurante?.nome ?? 'Estabelecimento'}</div>
+            {emailLoja ? <div className="break-all text-sm text-zinc-500">{emailLoja}</div> : null}
             <div className="text-sm text-zinc-500">/{restaurante?.slug ?? ''}</div>
           </div>
 
+          {/* Duas colunas a partir do tablet; no celular segue a ordem normal, uma embaixo da outra. */}
+          <div className="space-y-5 md:columns-2 md:gap-5 md:space-y-0 [&>*]:break-inside-avoid md:[&>*]:mb-5">
           <ConfiguracaoEnderecoLoja
             enderecoInicial={restaurante?.endereco ?? ''}
             latitudeInicial={restaurante?.latitude ?? null}
@@ -56,6 +65,7 @@ export default async function PainelConfiguracoesAdmin() {
           <ConfiguracaoImpressora larguraInicial={normalizarLarguraPapel(restaurante?.largura_papel_impressao)} />
 
           <ConfiguracaoFotoCapaLoja fotoCapaUrlInicial={restaurante?.foto_capa_url ?? null} />
+          </div>
         </section>
     </>
   );

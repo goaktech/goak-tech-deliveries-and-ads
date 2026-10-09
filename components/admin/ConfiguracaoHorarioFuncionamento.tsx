@@ -47,8 +47,8 @@ export function ConfiguracaoHorarioFuncionamento({ horariosIniciais }: Configura
 
       <div className="space-y-2">
         {horarios.map((horario) => (
-          <div key={horario.dia} className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-100 p-3">
-            <label className="flex w-40 shrink-0 items-center gap-2 text-sm font-medium text-zinc-800">
+          <div key={horario.dia} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-zinc-100 p-3">
+            <label className="flex w-full shrink-0 items-center gap-2 text-sm font-medium text-zinc-800 sm:w-36">
               <input
                 type="checkbox"
                 checked={horario.ativo}

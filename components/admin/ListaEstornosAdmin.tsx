@@ -56,8 +56,8 @@ export function ListaEstornosAdmin({
   const [aberto, setAberto] = useState<string | null>(null);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-3">
+    <div className="grid gap-6 md:grid-cols-2 md:items-start">
+      <div className="min-w-0 space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Pagamentos aprovados</h2>
         {pagamentos.length === 0 ? (
           <p className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
@@ -75,7 +75,7 @@ export function ListaEstornosAdmin({
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="min-w-0 space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Histórico de estornos</h2>
         {estornos.length === 0 ? (
           <p className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
