@@ -34,7 +34,8 @@ interface ProdutoPagina {
   complementos_produto: ComplementoProdutoPagina[] | null;
 }
 
-export const revalidate = 0;
+// Renderiza a cada visita (horário de abertura muda ao longo do dia); os dados da loja vêm do cache em utils/cache-vitrine.
+export const dynamic = 'force-dynamic';
 
 export default async function PaginaCardapioPublico({ params }: PaginaCardapioProps) {
   const { slug } = await params;
@@ -78,20 +79,18 @@ export default async function PaginaCardapioPublico({ params }: PaginaCardapioPr
     })).filter((c) => c.disponivel),
   }));
 
-  return (
-    <main className="min-h-screen bg-[#FDFDFD]">
-      {renderizarLojaPublica({
-        slug,
-        tipo: restaurante.tipo,
-        restaurante: {
-          id: restaurante.id,
-          nome: restaurante.nome,
-          endereco: restaurante.endereco ?? null,
-          horariosFuncionamento: horariosFuncionamento ?? null,
-          fotoCapaUrl: restaurante.foto_capa_url ?? null,
-        },
-        produtos: produtosNormalizados,
-      })}
-    </main>
-  );
+  const loja = renderizarLojaPublica({
+    slug,
+    tipo: restaurante.tipo,
+    restaurante: {
+      id: restaurante.id,
+      nome: restaurante.nome,
+      endereco: restaurante.endereco ?? null,
+      horariosFuncionamento: horariosFuncionamento ?? null,
+      fotoCapaUrl: restaurante.foto_capa_url ?? null,
+    },
+    produtos: produtosNormalizados,
+  });
+
+  return <main className="min-h-screen bg-[#FDFDFD]">{loja}</main>;
 }

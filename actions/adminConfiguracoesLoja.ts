@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { revalidatePath } from 'next/cache';
+import { invalidarVitrine } from '@/utils/cache-vitrine';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 import { FORMAS_PAGAMENTO_LOJA, ehFormaPagamentoLoja } from '@/utils/formas-pagamento';
 import { ehLarguraPapelValida } from '@/utils/impressao';
@@ -129,6 +130,7 @@ export async function atualizarHorarioFuncionamentoLoja(horarios: HorarioFuncion
 
   revalidatePath('/admin/configuracoes');
   revalidatePath(`/${restaurante.slug}`);
+  invalidarVitrine(restaurante.slug);
 
   return { success: true };
 }
@@ -167,6 +169,7 @@ export async function atualizarEnderecoLoja(endereco: string, latitude: number |
 
   revalidatePath('/admin/configuracoes');
   revalidatePath(`/${restaurante.slug}`);
+  invalidarVitrine(restaurante.slug);
   revalidatePath(`/${restaurante.slug}/checkout`);
 
   return { success: true };

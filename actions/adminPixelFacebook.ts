@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { revalidatePath } from 'next/cache';
+import { invalidarVitrine } from '@/utils/cache-vitrine';
 
 const PIXEL_ID_REGEX = /^\d+$/;
 
@@ -36,6 +37,7 @@ export async function atualizarMetaPixelId(pixelId: string | null) {
 
   revalidatePath('/admin/integracoes');
   revalidatePath(`/${restaurante.slug}`);
+  invalidarVitrine(restaurante.slug);
 
   return { success: true };
 }
