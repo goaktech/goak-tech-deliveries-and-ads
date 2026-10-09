@@ -71,6 +71,10 @@ function formatarData(data: string) {
 export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelAcompanhamentoPedidoProps) {
   const [pedido, setPedido] = useState(pedidoInicial);
   const [erro, setErro] = useState('');
+  const [confirmacaoPagamento, setConfirmacaoPagamento] = useState(false);
+  // pedido aberto até 30 min depois de criado: ainda é o "acabei de pagar"
+  const [recemPago] = useState(() => Date.now() - new Date(pedidoInicial.created_at).getTime() < 30 * 60 * 1000);
+  const statusAtualRef = useRef(pedidoInicial.status);
   const tipoEntrega = useMemo(() => obterTipoEntregaPedido(pedido.dados_cliente), [pedido.dados_cliente]);
   const etapas = useMemo(() => obterEtapasStatusPedido(tipoEntrega), [tipoEntrega]);
   const indiceAtual = useMemo(() => obterIndiceStatusPedido(pedido.status, tipoEntrega), [pedido.status, tipoEntrega]);
@@ -104,7 +108,7 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
       return null;
     }
     if (pedido.status !== 'PENDENTE') {
-      return pagamento
+      return pagamento || recemPago
         ? {
             classe: 'border-emerald-200 bg-emerald-50 text-emerald-700',
             texto: 'Pagamento confirmado. Acompanhe as próximas etapas abaixo.',
@@ -117,14 +121,11 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
         texto: 'O pagamento não foi concluído. Você pode tentar novamente logo abaixo.',
       };
     }
-    if (pagamento) {
-      return {
-        classe: 'border-amber-200 bg-amber-50 text-amber-700',
-        texto: 'Aguardando a confirmação do pagamento pelo Mercado Pago. Esta página atualiza sozinha.',
-      };
-    }
-    return null;
-  }, [pagamento, pedido.status]);
+    return {
+      classe: 'border-amber-200 bg-amber-50 text-amber-700',
+      texto: 'Aguardando a confirmação do pagamento. Esta página atualiza sozinha assim que o pagamento cair.',
+    };
+  }, [pagamento, pedido.status, recemPago]);
 
   useEffect(() => {
     if (finalizado) {
@@ -143,6 +144,17 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
           throw new Error(body?.error || 'Falha ao atualizar pedido.');
         }
         if (ativo) {
+          // virada de "aguardando" para pago enquanto a pessoa olha a tela: confirma com destaque
+          if (statusAtualRef.current === 'PENDENTE' && body.status !== 'PENDENTE' && body.status !== 'CANCELADO') {
+            setConfirmacaoPagamento(true);
+            try {
+              navigator.vibrate?.([150, 80, 150]);
+            } catch {
+              // sem vibração neste aparelho
+            }
+            window.setTimeout(() => setConfirmacaoPagamento(false), 6000);
+          }
+          statusAtualRef.current = body.status;
           setPedido(body);
           setErro('');
         }
@@ -165,6 +177,17 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
 
   return (
     <main className="min-h-screen bg-[#F8F8F8] px-4 py-6 text-[#1A1A1A] sm:px-6 md:py-10">
+      {confirmacaoPagamento && (
+        <div
+          role="status"
+          className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-emerald-600 px-4 py-3 text-white shadow-xl animate-in slide-in-from-top duration-300"
+        >
+          <svg className="h-7 w-7 shrink-0" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <p className="text-sm font-bold">Pagamento confirmado! A cozinha já foi avisada.</p>
+        </div>
+      )}
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
         <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">

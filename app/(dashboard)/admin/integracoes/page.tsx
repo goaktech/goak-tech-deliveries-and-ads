@@ -120,12 +120,6 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             </p>
           </div>
 
-          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 space-y-2">
-            <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Estabelecimento</div>
-            <div className="text-lg font-semibold text-zinc-900">{restaurante?.nome ?? 'Estabelecimento'}</div>
-            <div className="text-sm text-zinc-500">/{restaurante?.slug ?? ''}</div>
-          </div>
-
           <nav aria-label="Resumo das integrações" className="flex flex-wrap gap-2">
             {resumo.map((item) => (
               <a

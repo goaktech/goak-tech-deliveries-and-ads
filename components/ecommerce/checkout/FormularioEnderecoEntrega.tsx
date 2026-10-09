@@ -29,9 +29,10 @@ export default function FormularioEnderecoEntrega({
     <div className="space-y-3 pt-1 border-t border-[#F3F3F3]">
       <div className="grid grid-cols-3 gap-2">
         <div className="col-span-2 space-y-1">
-          <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Rua / Av.</label>
+          <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Rua / Av.</label>
           <input
             type="text"
+            autoComplete="address-line1"
             required
             value={rua}
             onChange={(e) => onChangeRua(e.target.value)}
@@ -40,10 +41,12 @@ export default function FormularioEnderecoEntrega({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Número</label>
+          <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Número</label>
           <input
             id="input-numero"
             type="text"
+            inputMode="numeric"
+            autoComplete="address-line2"
             required
             value={numero}
             onChange={(e) => onChangeNumero(e.target.value)}
@@ -57,9 +60,10 @@ export default function FormularioEnderecoEntrega({
         <SeletorBairroEntrega zonas={zonasEntrega} valor={bairro} onChange={onChangeBairro} bairroDetectado={bairroDetectado} />
       ) : (
         <div className="space-y-1">
-          <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Bairro</label>
+          <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Bairro</label>
           <input
             type="text"
+            autoComplete="address-level3"
             required
             value={bairro}
             onChange={(e) => onChangeBairro(e.target.value)}

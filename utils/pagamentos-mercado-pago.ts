@@ -16,6 +16,8 @@ export interface PagamentoMercadoPago {
   transaction_amount?: number;
   transaction_amount_refunded?: number;
   date_created?: string;
+  date_of_expiration?: string | null;
+  point_of_interaction?: { transaction_data?: { qr_code?: string; qr_code_base64?: string } };
 }
 
 export function arredondarMoeda(valor: number) {

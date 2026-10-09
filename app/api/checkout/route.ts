@@ -18,6 +18,13 @@ import { type TaxaEntregaIfoodCheckout, cotarTaxaEntregaIfoodCheckout, lojaEntre
 import { calcularTempoPreparoEstimado } from '@/utils/estimativa-chegada';
 import { calcularTaxaEntrega, ehBebida, obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import { type DadosClientePedido, normalizarObservacoesPedido } from '@/utils/pedido-status';
+import { telefoneValido } from '@/utils/telefone';
+import { estaLojaAberta, type HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
+import {
+  STATUS_QUE_BLOQUEIAM,
+  avaliarItensCarrinho,
+  type AdicionalVisto,
+} from '@/utils/politica-preco';
 import {
   aceitaCartao,
   aceitaCartaoCredito,
@@ -27,9 +34,14 @@ import {
 } from '@/utils/formas-pagamento';
 
 interface ItemCliente {
+  idUnico?: string;
   item_cardapio_id: string;
   quantidade: number;
   complementoIds?: string[];
+  /** Adicionais como o cliente os viu (id + nome): o gestor recria os ids ao editar o produto. */
+  adicionaisVistos?: AdicionalVisto[];
+  /** Preço unitário (com adicionais) que o cliente viu na vitrine. */
+  precoVisto?: number;
 }
 
 interface RequestBody {
@@ -41,6 +53,8 @@ interface RequestBody {
   dadosCliente: DadosClientePedido;
   clienteLatitude?: number | null;
   clienteLongitude?: number | null;
+  /** Total que o cliente viu na tela (sacola + entrega). Se o total de verdade for maior, o pedido não é criado. */
+  valorTotalExibido?: number;
   /** UUID gerado pelo navegador por tentativa de checkout; torna o envio idempotente (duplo clique/retry). */
   checkoutId?: string;
   /** Cookies _fbp e _fbc do Pixel da Meta, para a API de Conversões. */
@@ -49,20 +63,6 @@ interface RequestBody {
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-interface ItemCardapioPrecificado {
-  id: string;
-  nome: string;
-  preco_venda: number;
-}
-
-interface ComplementoPrecificado {
-  id: string;
-  item_cardapio_id: string;
-  nome: string;
-  preco_adicional: number;
-  disponivel: boolean;
-}
 
 async function lerBody(request: Request) {
   try {
@@ -146,6 +146,9 @@ export async function POST(request: Request) {
     if (!dadosCliente.nome?.trim() || !dadosCliente.telefone?.trim()) {
       return NextResponse.json({ error: 'Dados do cliente inválidos.' }, { status: 400 });
     }
+    if (!telefoneValido(String(dadosCliente.telefone))) {
+      return NextResponse.json({ error: 'Informe o WhatsApp com DDD, ex.: (11) 99999-9999.' }, { status: 400 });
+    }
 
     if (!validarItens(itens)) {
       return NextResponse.json({ error: 'Itens do carrinho inválidos.' }, { status: 400 });
@@ -155,7 +158,7 @@ export async function POST(request: Request) {
     const { data: restaurante, error: errRestaurante } = await supabase
       .from('restaurantes')
       .select(
-        'id, nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, formas_pagamento_aceitas'
+        'id, nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, formas_pagamento_aceitas, horarios_funcionamento'
       )
       .eq('slug', slug)
       .maybeSingle();
@@ -174,6 +177,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Esta loja não está aceitando cartão no momento.' }, { status: 400 });
     }
 
+    // Loja fechada: a vitrine já mostra o aviso, mas quem estava com o checkout aberto (ou a URL direta) chegava aqui.
+    if (!estaLojaAberta(restaurante.horarios_funcionamento as HorarioFuncionamentoDia[] | null)) {
+      return NextResponse.json(
+        { error: 'A loja está fechada no momento. Volte no horário de funcionamento para finalizar o pedido.', codigo: 'LOJA_FECHADA' },
+        { status: 409 }
+      );
+    }
+
     const checkoutId = typeof body.checkoutId === 'string' && UUID_REGEX.test(body.checkoutId) ? body.checkoutId.toLowerCase() : null;
     const externalReference = checkoutId
       ? `pedido-${restaurante.id}-${checkoutId}`
@@ -187,64 +198,32 @@ export async function POST(request: Request) {
       }
     }
 
-    const idsProdutos = itens.map((item) => item.item_cardapio_id);
-    const { data: produtosBanco, error: errProdutos } = await supabase
-      .from('itens_cardapio')
-      .select('id, nome, preco_venda')
-      .eq('restaurante_id', restaurante.id)
-      .in('id', idsProdutos);
+    const avaliacoes = await avaliarItensCarrinho({
+      supabase,
+      restauranteId: restaurante.id,
+      horarios: restaurante.horarios_funcionamento as HorarioFuncionamentoDia[] | null,
+      itens,
+    });
 
-    if (errProdutos || !produtosBanco || produtosBanco.length !== idsProdutos.length) {
-      return NextResponse.json({ error: 'Carrinho vazio ou inválido.' }, { status: 400 });
+    if (avaliacoes.some((avaliacao) => STATUS_QUE_BLOQUEIAM.includes(avaliacao.status))) {
+      return NextResponse.json(
+        {
+          error: 'Alguns itens do seu carrinho mudaram. Confira os valores atualizados antes de pagar.',
+          codigo: 'CARRINHO_DESATUALIZADO',
+          itens: avaliacoes,
+        },
+        { status: 409 }
+      );
     }
 
-    const produtos = produtosBanco as ItemCardapioPrecificado[];
-    const produtoPorId = new Map(produtos.map((item) => [item.id, item]));
-
-    const idsComplementos = Array.from(
-      new Set(itens.flatMap((item) => item.complementoIds ?? []))
-    );
-
-    let complementosBanco: ComplementoPrecificado[] = [];
-    if (idsComplementos.length > 0) {
-      const { data: complementosData, error: errComplementos } = await supabase
-        .from('complementos_produto')
-        .select('id, item_cardapio_id, nome, preco_adicional, disponivel')
-        .in('id', idsComplementos);
-
-      if (errComplementos) {
-        return NextResponse.json({ error: 'Não foi possível validar os adicionais do carrinho.' }, { status: 400 });
-      }
-      complementosBanco = (complementosData ?? []) as ComplementoPrecificado[];
-    }
-    const complementoPorId = new Map(complementosBanco.map((c) => [c.id, c]));
-
-    const itensPrecificados: ItemPrecificado[] = itens.map((item) => {
-      const produto = produtoPorId.get(item.item_cardapio_id);
-      const precoBase = produto ? Number(produto.preco_venda) : 0;
-
-      const adicionaisValidos = (item.complementoIds ?? [])
-        .map((id) => complementoPorId.get(id))
-        .filter(
-          (complemento): complemento is ComplementoPrecificado =>
-            !!complemento &&
-            complemento.item_cardapio_id === item.item_cardapio_id &&
-            complemento.disponivel === true
-        )
-        .map((complemento) => ({
-          id: complemento.id,
-          nome: complemento.nome,
-          preco_adicional: Number(complemento.preco_adicional),
-        }));
-
-      const precoAdicionais = adicionaisValidos.reduce((acc, adicional) => acc + adicional.preco_adicional, 0);
-
+    const itensPrecificados: ItemPrecificado[] = itens.map((item, indice) => {
+      const avaliacao = avaliacoes[indice];
       return {
         item_cardapio_id: item.item_cardapio_id,
         quantidade: item.quantidade,
-        nome: produto?.nome ?? 'Produto',
-        precoUnitario: precoBase + precoAdicionais,
-        adicionais: adicionaisValidos,
+        nome: avaliacao.nome,
+        precoUnitario: avaliacao.precoCobrado,
+        adicionais: avaliacao.adicionais,
       };
     });
 
@@ -287,6 +266,21 @@ export async function POST(request: Request) {
 
     if (valorTotal <= 0) {
       return NextResponse.json({ error: 'Valor total inválido.' }, { status: 400 });
+    }
+
+    // O cliente nunca paga mais do que viu na tela: se o total de verdade passou do exibido
+    // (ex.: taxa de entrega mudou), devolve o valor atual para ele confirmar antes de pagar.
+    const totalExibido = Number(body.valorTotalExibido);
+    if (Number.isFinite(totalExibido) && totalExibido > 0 && valorTotal - totalExibido > 0.009) {
+      return NextResponse.json(
+        {
+          error: `O valor total mudou para ${valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Confira e confirme para continuar.`,
+          codigo: 'VALOR_DIVERGENTE',
+          valorAtual: valorTotal,
+          valorExibido: totalExibido,
+        },
+        { status: 409 }
+      );
     }
 
     if (configLoja.limiteUnidadesComida) {
@@ -458,7 +452,7 @@ export async function POST(request: Request) {
       paymentMethod,
       cartaoEmbutido,
       dadosCliente,
-      itensMetadata: itens,
+      itensMetadata: itens.map((item) => ({ item_cardapio_id: item.item_cardapio_id, quantidade: item.quantidade, complementoIds: item.complementoIds })),
       itensPrecificados,
       taxaEntrega,
       valorTotal,

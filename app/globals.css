@@ -42,11 +42,20 @@ h4 {
   letter-spacing: -0.015em;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+/*
+ * Botões e campos já herdam a fonte do texto ao redor pelo reset do Tailwind (camada base). Uma regra
+ * `font: inherit` solta aqui, fora das camadas, vencia as classes `text-xs`, `font-bold` etc. e deixava
+ * todos os botões e campos com 16 px e peso normal. Por isso ela foi removida.
+ *
+ * No celular, campos de texto precisam ter pelo menos 16 px, senão o iPhone dá zoom ao tocar neles.
+ * Esta regra fica fora das camadas de propósito, para valer sobre as classes de tamanho.
+ */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /*

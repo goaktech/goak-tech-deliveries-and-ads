@@ -388,14 +388,14 @@ function MenuConta({ variante, onAlterarLogo, enviandoLogo = false }: MenuContaP
         <button
           type="button"
           onClick={() => setAberto((atual) => !atual)}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 text-xs font-bold uppercase tracking-wider text-zinc-600 transition hover:border-zinc-300 hover:text-[#1A1A1A]"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 transition hover:border-zinc-300 hover:text-[#1A1A1A]"
           aria-label="Abrir menu do perfil"
+          title="Perfil"
           aria-expanded={aberto}
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" aria-hidden>
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 0115 0" />
           </svg>
-          Perfil
         </button>
       ) : (
         <button
@@ -532,11 +532,10 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
           <button
             type="button"
             onClick={() => setMenuMaisAberto((atual) => !atual)}
-            // O "!" é necessário: a regra global `button { font: inherit }` ganharia das classes de fonte normais.
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! transition-all ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
               itensOcultos.some((item) => item.id === activeTab)
-                ? 'bg-[#E16349] font-bold! text-white shadow-sm'
-                : 'font-medium! text-zinc-600 hover:text-[#1A1A1A]'
+                ? 'bg-[#E16349] font-bold text-white shadow-sm'
+                : 'font-medium text-zinc-600 hover:text-[#1A1A1A]'
             }`}
             aria-expanded={menuMaisAberto}
           >
@@ -586,7 +585,7 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
         ref={medidorBotaoMaisRef}
         type="button"
         tabIndex={-1}
-        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! font-medium! opacity-0"
+        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium opacity-0"
         style={{ zIndex: -1 }}
         aria-hidden
       >
@@ -613,8 +612,8 @@ export function BarraNavegacaoMobile() {
   const extraAtivo = itensExtras.some((item) => item.id === activeTab);
 
   const classeBotao = (ativo: boolean) =>
-    `flex min-h-12 flex-1 items-center justify-center rounded-2xl px-1 text-xs! leading-4! transition ${
-      ativo ? 'bg-[#E16349] font-bold! text-white shadow-sm' : 'font-medium! text-zinc-600'
+    `flex min-h-12 flex-1 items-center justify-center rounded-2xl px-1 text-xs transition ${
+      ativo ? 'bg-[#E16349] font-bold text-white shadow-sm' : 'font-medium text-zinc-600'
     }`;
 
   return (

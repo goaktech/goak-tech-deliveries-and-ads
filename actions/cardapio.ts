@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
+import { createWebhookAdminClient } from '@/utils/supabase/webhook'
 import {
   ERRO_VITRINE_NAO_ENCONTRADA,
   criarClienteAnonimoVitrine,
@@ -232,7 +233,7 @@ export async function atualizarProdutoAdmin(itemId: string, dados: DadosNovoProd
 
     const { data: itemAtual, error: itemError } = await supabase
       .from('itens_cardapio')
-      .select('id, imagem_url')
+      .select('id, imagem_url, preco_venda')
       .eq('id', itemId)
       .eq('restaurante_id', restauranteId)
       .maybeSingle()
@@ -240,6 +241,13 @@ export async function atualizarProdutoAdmin(itemId: string, dados: DadosNovoProd
     if (itemError || !itemAtual) {
       throw new Error('Item de cardápio não encontrado para este restaurante.')
     }
+
+    // Versão anterior (preço + adicionais): guardada no histórico se o preço mudar, para o checkout
+    // honrar o preço que o cliente viu na vitrine (ver utils/politica-preco.ts).
+    const { data: adicionaisAnteriores } = await supabase
+      .from('complementos_produto')
+      .select('nome, preco_adicional')
+      .eq('item_cardapio_id', itemId)
 
     let imagemUrl: string | null = itemAtual.imagem_url ?? null
 
@@ -332,6 +340,29 @@ export async function atualizarProdutoAdmin(itemId: string, dados: DadosNovoProd
         .insert(complementosInserts)
 
       if (complError) throw complError
+    }
+
+    try {
+      const anteriores = (adicionaisAnteriores ?? []).map((a) => ({ nome: String(a.nome), preco: Number(a.preco_adicional) }))
+      const novos = dados.adicionais.map((a) => ({ nome: a.nome, preco: Number(a.preco) }))
+      const mudouPreco =
+        Math.abs(Number(itemAtual.preco_venda) - Number(dados.preco_venda)) >= 0.005 ||
+        anteriores.length !== novos.length ||
+        anteriores.some((antigo) => {
+          const atual = novos.find((n) => n.nome.trim().toLowerCase() === antigo.nome.trim().toLowerCase())
+          return !atual || Math.abs(atual.preco - antigo.preco) >= 0.005
+        })
+      if (mudouPreco) {
+        const { error: erroHistorico } = await createWebhookAdminClient().from('historico_precos_item').insert({
+          restaurante_id: restauranteId,
+          item_cardapio_id: itemId,
+          preco_venda: Number(itemAtual.preco_venda),
+          adicionais: anteriores,
+        })
+        if (erroHistorico) console.error('Falha ao registrar histórico de preços:', erroHistorico.message)
+      }
+    } catch (erroHistorico) {
+      console.error('Falha ao registrar histórico de preços:', erroHistorico)
     }
 
     revalidatePath(`/${slug}`)
