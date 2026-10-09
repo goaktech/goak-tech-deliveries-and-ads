@@ -18,3 +18,13 @@ export function montarUrlWhatsapp(telefone?: string | null): string | null {
 
   return `https://wa.me/${numero}`;
 }
+
+/**
+ * Link wa.me do número da LOJA com mensagem pré-preenchida (o cliente só aperta enviar).
+ * Retorna null se o número não parecer válido.
+ */
+export function montarUrlWhatsappComMensagem(numeroLoja: string | null | undefined, mensagem: string): string | null {
+  const base = montarUrlWhatsapp(numeroLoja);
+  if (!base) return null;
+  return `${base}?text=${encodeURIComponent(mensagem)}`;
+}
