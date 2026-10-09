@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import CardInsumoAdmin from './insumos-admin/CardInsumoAdmin';
 import ModalNovoInsumo from './insumos-admin/ModalNovoInsumo';
 import ModalEditarInsumo from './insumos-admin/ModalEditarInsumo';
+import { estilosPainel } from '@/components/shared/estilosPainel';
+import { useAvisosPainel } from '@/components/shared/AvisosPainel';
 
 interface ListaProps {
   insumosIniciais: Insumo[];
@@ -14,6 +16,7 @@ interface ListaProps {
 
 export default function ListaInsumosAdmin({ insumosIniciais }: ListaProps) {
   const router = useRouter();
+  const { confirmar, avisar } = useAvisosPainel();
   const [isPending, startTransition] = useTransition();
   const [selecionados, setSelecionados] = useState<string[]>([]);
   
@@ -28,26 +31,43 @@ export default function ListaInsumosAdmin({ insumosIniciais }: ListaProps) {
     setSelecionados(selecionados.length === insumosIniciais.length ? [] : insumosIniciais.map(i => i.id));
   };
 
-  const handleExcluirLote = () => {
+  const handleExcluirLote = async () => {
     if (selecionados.length === 0) return;
-    if (!confirm('Deseja realmente excluir os insumos? Isso afetará o cálculo do CMV das fichas técnicas.')) return;
+    const confirmado = await confirmar({
+      titulo: `Excluir ${selecionados.length} ${selecionados.length === 1 ? 'insumo' : 'insumos'}?`,
+      mensagem: 'Isso afetará o cálculo do CMV das fichas técnicas.',
+      rotuloConfirmar: 'Excluir',
+      perigo: true,
+    });
+    if (!confirmado) return;
 
     startTransition(async () => {
-      if ((await excluirInsumosEmLote(selecionados)).success) {
+      const resultado = await excluirInsumosEmLote(selecionados);
+      if (resultado.success) {
         setSelecionados([]); router.refresh();
+        return;
       }
+      avisar('Não foi possível excluir os insumos. Tente de novo.', 'erro');
     });
   };
 
-  const handleExcluirInsumo = (insumo: Insumo) => {
-    if (!confirm(`Deseja apagar o insumo "${insumo.nome}"?`)) return;
+  const handleExcluirInsumo = async (insumo: Insumo) => {
+    const confirmado = await confirmar({
+      titulo: `Apagar "${insumo.nome}"?`,
+      mensagem: 'Isso afetará o cálculo do CMV das fichas técnicas que usam este insumo.',
+      rotuloConfirmar: 'Apagar',
+      perigo: true,
+    });
+    if (!confirmado) return;
 
     startTransition(async () => {
       const resultado = await excluirInsumosEmLote([insumo.id]);
       if (resultado.success) {
         setSelecionados((prev) => prev.filter((id) => id !== insumo.id));
         router.refresh();
+        return;
       }
+      avisar('Não foi possível apagar o insumo. Tente de novo.', 'erro');
     });
   };
 
@@ -76,7 +96,7 @@ export default function ListaInsumosAdmin({ insumosIniciais }: ListaProps) {
           <h1 className="text-lg font-bold tracking-tight text-[#1A1A1A]">Matérias-primas e custos</h1>
           <p className="mt-0.5 text-xs font-medium text-zinc-500">Gerenciamento de estoque e valores de compra dos fornecedores</p>
         </div>
-        <button onClick={() => setModalNovoAberto(true)} className="rounded-xl bg-[#E16349] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#c8523a]">+ Novo Insumo</button>
+        <button type="button" onClick={() => setModalNovoAberto(true)} className={estilosPainel.botaoPrimario}>+ Novo Insumo</button>
       </div>
 
       <div className="flex flex-col gap-3 border-b border-zinc-100 bg-[#F8F8F8]/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">

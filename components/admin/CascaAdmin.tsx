@@ -2,7 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
+import { AdminNavHeader, BarraNavegacaoMobile } from '@/components/admin/AdminNavHeader';
+import { AvisosPainelProvider } from '@/components/shared/AvisosPainel';
 import type { RestauranteCabecalhoAdmin } from '@/utils/admin-auth';
 
 /**
@@ -19,16 +20,20 @@ export function CascaAdmin({
   const pathname = usePathname();
   const ehCozinha = pathname === '/admin/cozinha' || pathname?.startsWith('/admin/cozinha/');
 
+  // No celular a barra de navegação fica fixa no rodapé; o espaço extra evita que ela cubra o fim da página.
   return (
-    <div
-      className={`flex min-h-screen items-start justify-center bg-[#F3F3F3] p-4 font-sans text-[#1A1A1A] antialiased sm:p-8 md:py-12 ${
-        ehCozinha ? 'pb-24 sm:pb-24' : ''
-      }`}
-    >
-      <div className={`w-full min-w-0 space-y-6 ${ehCozinha ? 'max-w-6xl' : 'max-w-4xl'}`}>
-        <AdminNavHeader restaurante={restaurante} />
-        {children}
+    <AvisosPainelProvider>
+      <div
+        className={`flex min-h-screen items-start justify-center bg-[#F3F3F3] p-4 pb-28 font-sans text-[#1A1A1A] antialiased sm:p-8 sm:pb-28 md:py-12 ${
+          ehCozinha ? 'md:pb-24' : ''
+        }`}
+      >
+        <div className={`w-full min-w-0 space-y-6 ${ehCozinha ? 'max-w-6xl' : 'max-w-4xl'}`}>
+          <AdminNavHeader restaurante={restaurante} />
+          {children}
+        </div>
       </div>
-    </div>
+      <BarraNavegacaoMobile />
+    </AvisosPainelProvider>
   );
 }

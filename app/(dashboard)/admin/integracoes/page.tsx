@@ -11,13 +11,29 @@ import { avaliarTokenMetaAds, obterIntegracaoMetaAdsPorRestauranteId } from '@/u
 import { ConfiguracaoMetaAds } from '@/components/admin/ConfiguracaoMetaAds';
 import { obterIntegracaoIfoodPorRestauranteId, paraIntegracaoIfoodPublica } from '@/utils/ifood';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
+import { FormularioConfirmavel } from '@/components/shared/FormularioConfirmavel';
+import { estilosPainel } from '@/components/shared/estilosPainel';
 
 export const revalidate = 0;
 
 function classeBadgeIntegracao(status: string | null | undefined): string {
-  return status === 'conectado'
-    ? 'rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600'
-    : 'rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-600';
+  return status === 'conectado' ? estilosPainel.seloSucesso : status === 'pendente' || !status ? estilosPainel.seloAlerta : estilosPainel.seloErro;
+}
+
+const ROTULO_STATUS: Record<string, string> = {
+  conectado: 'Conectado',
+  pendente: 'Pendente',
+  desconectado: 'Desconectado',
+};
+
+function rotuloStatus(status: string | null | undefined): string {
+  return ROTULO_STATUS[status ?? 'pendente'] ?? status ?? 'Pendente';
+}
+
+interface ItemResumo {
+  ancora: string;
+  nome: string;
+  ok: boolean;
 }
 
 const MENSAGENS_META_ADS: Record<string, { tipo: 'success' | 'error' | 'info'; texto: string }> = {
@@ -82,6 +98,16 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
       }),
   ]);
   const tokenMetaAds = avaliarTokenMetaAds(integracaoMetaAds);
+  const mpConectado = integracao?.connection_status === 'conectado';
+  const waConectado = integracaoWhatsapp?.connection_status === 'conectado';
+  const resumo: ItemResumo[] = [
+    { ancora: 'mercado-pago', nome: 'Mercado Pago', ok: mpConectado },
+    { ancora: 'whatsapp', nome: 'WhatsApp', ok: waConectado },
+    { ancora: 'meta-ads', nome: 'Meta Ads', ok: tokenMetaAds.estado !== 'ausente' && tokenMetaAds.estado !== 'expirado' },
+    { ancora: 'ifood', nome: 'iFood', ok: integracaoIfood?.connectionStatus === 'conectado' },
+    { ancora: 'pixel', nome: 'Pixel', ok: Boolean(restaurante?.meta_pixel_id) },
+    { ancora: 'capi', nome: 'API de Conversões', ok: Boolean(integracaoCapi) },
+  ];
 
   return (
     <>
@@ -99,7 +125,25 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             <div className="text-sm text-zinc-500">/{restaurante?.slug ?? ''}</div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 p-5 space-y-3">
+          <nav aria-label="Resumo das integrações" className="flex flex-wrap gap-2">
+            {resumo.map((item) => (
+              <a
+                key={item.ancora}
+                href={`#${item.ancora}`}
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold transition sm:min-h-9 ${
+                  item.ok
+                    ? 'border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
+                }`}
+              >
+                <span aria-hidden className={`h-2 w-2 rounded-full ${item.ok ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
+                {item.nome}
+                <span className="sr-only">{item.ok ? ' conectado' : ' não configurado'}</span>
+              </a>
+            ))}
+          </nav>
+
+          <div id="mercado-pago" className="scroll-mt-4 rounded-2xl border border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Mercado Pago</div>
@@ -108,7 +152,7 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
                 </div>
               </div>
               <span className={classeBadgeIntegracao(integracao?.connection_status)}>
-                {integracao?.connection_status ?? 'pendente'}
+                {rotuloStatus(integracao?.connection_status)}
               </span>
             </div>
 
@@ -118,28 +162,33 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
 
             <div className="flex flex-wrap gap-3 pt-2">
               <form action="/api/admin/integracoes/mercado-pago/conectar" method="get">
-                <button
-                  type="submit"
-                  className="rounded-xl bg-zinc-900 px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-white"
-                >
-                  Conectar Mercado Pago
+                <button type="submit" className={mpConectado ? estilosPainel.botaoSecundario : estilosPainel.botaoEscuro}>
+                  {mpConectado ? 'Reconectar' : 'Conectar Mercado Pago'}
                 </button>
               </form>
 
-              <form action="/api/admin/integracoes/mercado-pago/desconectar" method="post">
-                <button
-                  type="submit"
-                  className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700"
+              {mpConectado ? (
+                <FormularioConfirmavel
+                  action="/api/admin/integracoes/mercado-pago/desconectar"
+                  method="post"
+                  confirmacao={{
+                    titulo: 'Desconectar o Mercado Pago?',
+                    mensagem: 'A loja deixa de receber pagamentos por PIX e cartão até você conectar de novo.',
+                    rotuloConfirmar: 'Desconectar',
+                    perigo: true,
+                  }}
                 >
-                  Desconectar
-                </button>
-              </form>
+                  <button type="submit" className={estilosPainel.botaoPerigo}>
+                    Desconectar
+                  </button>
+                </FormularioConfirmavel>
+              ) : null}
             </div>
           </div>
 
           <ConfiguracaoFormasPagamento formasIniciais={restaurante?.formas_pagamento_aceitas} />
 
-          <div className="rounded-2xl border border-zinc-200 p-5 space-y-3">
+          <div id="whatsapp" className="scroll-mt-4 rounded-2xl border border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">WhatsApp Business</div>
@@ -148,7 +197,7 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
                 </div>
               </div>
               <span className={classeBadgeIntegracao(integracaoWhatsapp?.connection_status)}>
-                {integracaoWhatsapp?.connection_status ?? 'pendente'}
+                {rotuloStatus(integracaoWhatsapp?.connection_status)}
               </span>
             </div>
 
@@ -167,22 +216,27 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
 
             <div className="flex flex-wrap gap-3 pt-2">
               <form action="/api/admin/integracoes/whatsapp-business/conectar" method="get">
-                <button
-                  type="submit"
-                  className="rounded-xl bg-zinc-900 px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-white"
-                >
-                  Conectar WhatsApp
+                <button type="submit" className={waConectado ? estilosPainel.botaoSecundario : estilosPainel.botaoEscuro}>
+                  {waConectado ? 'Reconectar' : 'Conectar WhatsApp'}
                 </button>
               </form>
 
-              <form action="/api/admin/integracoes/whatsapp-business/desconectar" method="post">
-                <button
-                  type="submit"
-                  className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700"
+              {waConectado ? (
+                <FormularioConfirmavel
+                  action="/api/admin/integracoes/whatsapp-business/desconectar"
+                  method="post"
+                  confirmacao={{
+                    titulo: 'Desconectar o WhatsApp?',
+                    mensagem: 'Os clientes deixam de receber o aviso de status do pedido por WhatsApp.',
+                    rotuloConfirmar: 'Desconectar',
+                    perigo: true,
+                  }}
                 >
-                  Desconectar
-                </button>
-              </form>
+                  <button type="submit" className={estilosPainel.botaoPerigo}>
+                    Desconectar
+                  </button>
+                </FormularioConfirmavel>
+              ) : null}
             </div>
           </div>
 
@@ -200,6 +254,7 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             </div>
           ) : null}
 
+          <div id="meta-ads" className="scroll-mt-4">
           <ConfiguracaoMetaAds
             situacao={
               tokenMetaAds.estado === 'expirado'
@@ -214,29 +269,37 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             contaNome={integracaoMetaAds?.ad_account_name ?? null}
             contaMoeda={integracaoMetaAds?.ad_account_currency ?? null}
           />
+          </div>
 
+          <div id="ifood" className="scroll-mt-4">
           <ConfiguracaoIfoodEntrega
             integracaoInicial={integracaoIfood}
             enderecoLoja={restaurante?.endereco ?? null}
             latitudeLoja={restaurante?.latitude ?? null}
             longitudeLoja={restaurante?.longitude ?? null}
           />
+          </div>
 
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-5 text-sm text-zinc-500 min-w-0">
-            Callbacks: <span className="font-mono break-all">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
+          <details className="rounded-2xl border border-dashed border-zinc-200 bg-white p-4 text-sm text-zinc-500 min-w-0">
+            <summary className="min-h-11 cursor-pointer text-xs font-semibold uppercase tracking-wider text-zinc-500 sm:min-h-0">Endereços técnicos (para configurar apps)</summary>
+            <p className="mt-2">Callbacks: <span className="font-mono break-all">/api/admin/integracoes/mercado-pago/callback</span>,{' '}
             <span className="font-mono break-all">/api/admin/integracoes/whatsapp-business/callback</span> e{' '}
             <span className="font-mono break-all">/api/admin/integracoes/meta-ads/callback</span>. No app da Meta: desautorização em{' '}
             <span className="font-mono break-all">/api/webhooks/meta-ads/desautorizar</span> e exclusão de dados em{' '}
-            <span className="font-mono break-all">/api/webhooks/meta-ads/exclusao-dados</span>.
+            <span className="font-mono break-all">/api/webhooks/meta-ads/exclusao-dados</span>.</p>
+          </details>
+
+          <div id="pixel" className="scroll-mt-4">
+          <ConfiguracaoPixelFacebook pixelIdInicial={restaurante?.meta_pixel_id ?? null} />
           </div>
 
-          <ConfiguracaoPixelFacebook pixelIdInicial={restaurante?.meta_pixel_id ?? null} />
-
+          <div id="capi" className="scroll-mt-4">
           <ConfiguracaoMetaCapi
             temPixel={Boolean(restaurante?.meta_pixel_id)}
             configurado={Boolean(integracaoCapi)}
             codigoTesteInicial={integracaoCapi?.test_event_code ?? null}
           />
+          </div>
         </section>
     </>
   );

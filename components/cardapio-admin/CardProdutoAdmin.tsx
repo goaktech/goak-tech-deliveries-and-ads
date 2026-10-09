@@ -58,7 +58,7 @@ export default function CardProdutoAdmin({
         type="button"
         onClick={onAlternarStatus}
         disabled={isPending}
-        className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold tracking-wide transition disabled:opacity-60 ${
+        className={`inline-flex min-h-9 items-center rounded-md border px-3 py-1 text-[11px] font-semibold tracking-wide transition disabled:opacity-60 sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[10px] ${
           produto.disponivel
             ? 'border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
             : 'border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
@@ -70,7 +70,7 @@ export default function CardProdutoAdmin({
         type="button"
         onClick={onEditar}
         disabled={isPending}
-        className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-100 disabled:opacity-60"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md border sm:h-6 sm:w-6 border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-100 disabled:opacity-60"
         aria-label={`Editar ${produto.nome}`}
         title="Editar item"
       >
@@ -82,7 +82,7 @@ export default function CardProdutoAdmin({
         type="button"
         onClick={onExcluir}
         disabled={isPending}
-        className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-60"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md border sm:h-6 sm:w-6 border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-60"
         aria-label={`Apagar ${produto.nome}`}
         title="Apagar item"
       >
@@ -124,7 +124,7 @@ export default function CardProdutoAdmin({
     <button
       type="button"
       onClick={() => setDetalhesAbertos((atual) => !atual)}
-      className={`flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 ${classeExtra}`}
+      className={`flex min-h-11 items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 ${classeExtra}`}
       aria-expanded={detalhesAbertos}
     >
       <span>Custo, CMV e margem</span>
@@ -177,7 +177,8 @@ export default function CardProdutoAdmin({
             type="checkbox"
             checked={isSelecionado}
             onChange={onToggleSelect}
-            className="mt-1 w-4 h-4 shrink-0 rounded-md border-zinc-300 text-[#E16349] cursor-pointer accent-[#E16349]"
+            aria-label={`Selecionar ${produto.nome}`}
+            className="mt-1 h-6 w-6 shrink-0 rounded-md border-zinc-300 text-[#E16349] cursor-pointer accent-[#E16349]"
           />
         </div>
 
@@ -187,7 +188,7 @@ export default function CardProdutoAdmin({
         {composicao}
 
         <div className="flex items-center gap-2">
-          {setasOrdenacao('h-6 w-6', 'h-3.5 w-3.5')}
+          {setasOrdenacao('h-9 w-9', 'h-4 w-4')}
           {botaoToggleDetalhes('flex-1')}
         </div>
       </div>

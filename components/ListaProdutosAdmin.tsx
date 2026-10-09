@@ -14,6 +14,8 @@ import BarraAcoesLote from './cardapio-admin/BarraAcoesLote';
 import CardProdutoAdmin from './cardapio-admin/CardProdutoAdmin';
 import ModalNovoProduto from './cardapio-admin/ModalNovoProduto';
 import ModalEditarProduto from './cardapio-admin/ModalEditarProduto';
+import { estilosPainel } from '@/components/shared/estilosPainel';
+import { useAvisosPainel } from '@/components/shared/AvisosPainel';
 
 interface ListaProdutosProps {
   produtosIniciais: ItemCardapioComCMV[];
@@ -25,6 +27,7 @@ export default function ListaProdutosAdmin({
   insumosDisponiveis
 }: ListaProdutosProps) {
   const router = useRouter();
+  const { confirmar, avisar } = useAvisosPainel();
   const [isPending, startTransition] = useTransition();
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoParaEditar, setProdutoParaEditar] = useState<ItemCardapioComCMV | null>(null);
@@ -58,13 +61,20 @@ export default function ListaProdutosAdmin({
         router.refresh();
       } catch (err) {
         console.error("Erro na operação em lote:", err);
+        avisar('Não foi possível atualizar os produtos selecionados. Tente de novo.', 'erro');
       }
     });
   };
 
-  const handleExcluirSelecionados = () => {
+  const handleExcluirSelecionados = async () => {
     if (selecionados.length === 0) return;
-    if (!confirm('Deseja apagar os produtos selecionados? Essa ação não pode ser desfeita.')) return;
+    const confirmado = await confirmar({
+      titulo: `Apagar ${selecionados.length} ${selecionados.length === 1 ? 'produto' : 'produtos'}?`,
+      mensagem: 'Essa ação não pode ser desfeita.',
+      rotuloConfirmar: 'Apagar',
+      perigo: true,
+    });
+    if (!confirmado) return;
 
     startTransition(async () => {
       const resultado = await excluirProdutosEmLote(selecionados);
@@ -73,7 +83,7 @@ export default function ListaProdutosAdmin({
         router.refresh();
         return;
       }
-      alert(resultado.error || 'Não foi possível apagar os produtos selecionados.');
+      avisar(resultado.error || 'Não foi possível apagar os produtos selecionados.', 'erro');
     });
   };
 
@@ -84,12 +94,19 @@ export default function ListaProdutosAdmin({
         router.refresh();
       } catch (error) {
         console.error('Erro ao alternar status do produto:', error);
+        avisar('Não foi possível alterar a disponibilidade do produto. Tente de novo.', 'erro');
       }
     });
   };
 
-  const handleExcluirProduto = (id: string, nome: string) => {
-    if (!confirm(`Deseja apagar o item "${nome}"?`)) return;
+  const handleExcluirProduto = async (id: string, nome: string) => {
+    const confirmado = await confirmar({
+      titulo: `Apagar "${nome}"?`,
+      mensagem: 'Essa ação não pode ser desfeita.',
+      rotuloConfirmar: 'Apagar',
+      perigo: true,
+    });
+    if (!confirmado) return;
 
     startTransition(async () => {
       const resultado = await excluirProdutosEmLote([id]);
@@ -98,7 +115,7 @@ export default function ListaProdutosAdmin({
         router.refresh();
         return;
       }
-      alert(resultado.error || 'Não foi possível apagar o item.');
+      avisar(resultado.error || 'Não foi possível apagar o item.', 'erro');
     });
   };
 
@@ -116,7 +133,7 @@ export default function ListaProdutosAdmin({
         router.refresh();
         return;
       }
-      alert(resultado.error || 'Não foi possível salvar a nova ordem do cardápio.');
+      avisar(resultado.error || 'Não foi possível salvar a nova ordem do cardápio.', 'erro');
     });
   };
 
@@ -141,13 +158,13 @@ export default function ListaProdutosAdmin({
           <button
             type="button"
             onClick={() => setModalAberto(true)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#E16349] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#c8523a]"
+            className={estilosPainel.botaoPrimario}
           >
             + Novo Produto
           </button>
         </div>
 
-        <div className="max-h-[55vh] space-y-4 overflow-y-auto">
+        <div className="space-y-4 md:max-h-[60vh] md:overflow-y-auto">
           {produtos.length === 0 ? (
             <p className="py-12 text-center text-sm text-zinc-400">Nenhum hambúrguer cadastrado no cardápio.</p>
           ) : (
