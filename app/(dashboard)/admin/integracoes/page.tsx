@@ -1,4 +1,3 @@
-import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
 import { ConfiguracaoFormasPagamento } from '@/components/admin/ConfiguracaoFormasPagamento';
 import { ConfiguracaoPixelFacebook } from '@/components/admin/ConfiguracaoPixelFacebook';
 import { ConfiguracaoMetaCapi } from '@/components/admin/ConfiguracaoMetaCapi';
@@ -50,35 +49,42 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
   const mensagemMetaAds = mensagemStatusMetaAds(parametros.status, parametros.motivo);
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const supabase = createWebhookAdminClient();
-  const { data: restaurante } = await supabase
-    .from('restaurantes')
-    .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas, endereco, latitude, longitude')
-    .eq('id', restauranteId)
-    .maybeSingle();
 
-  const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
-  const integracaoWhatsapp = await obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId);
-  const integracaoMetaAds = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
-  // Só informa se há token da API de Conversões; o valor nunca sai do servidor.
-  const { data: integracaoCapi } = await supabase
-    .from('restaurante_integracoes_meta_capi')
-    .select('test_event_code')
-    .eq('restaurante_id', restauranteId)
-    .maybeSingle();
+  // As consultas não dependem umas das outras, então rodam juntas (e não em fila).
+  const [
+    { data: restaurante },
+    integracao,
+    integracaoWhatsapp,
+    integracaoMetaAds,
+    { data: integracaoCapi },
+    integracaoIfood,
+  ] = await Promise.all([
+    supabase
+      .from('restaurantes')
+      .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas, endereco, latitude, longitude')
+      .eq('id', restauranteId)
+      .maybeSingle(),
+    obterIntegracaoMercadoPagoPorRestauranteId(restauranteId),
+    obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId),
+    obterIntegracaoMetaAdsPorRestauranteId(restauranteId),
+    // Só informa se há token da API de Conversões; o valor nunca sai do servidor.
+    supabase
+      .from('restaurante_integracoes_meta_capi')
+      .select('test_event_code')
+      .eq('restaurante_id', restauranteId)
+      .maybeSingle(),
+    // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
+    obterIntegracaoIfoodPorRestauranteId(restauranteId)
+      .then(paraIntegracaoIfoodPublica)
+      .catch((erro) => {
+        console.error('Falha ao carregar integração iFood:', erro);
+        return null;
+      }),
+  ]);
   const tokenMetaAds = avaliarTokenMetaAds(integracaoMetaAds);
-  // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
-  const integracaoIfood = await obterIntegracaoIfoodPorRestauranteId(restauranteId)
-    .then(paraIntegracaoIfoodPublica)
-    .catch((erro) => {
-      console.error('Falha ao carregar integração iFood:', erro);
-      return null;
-    });
 
   return (
-    <div className="min-h-screen bg-[#F3F3F3] text-[#1A1A1A] font-sans antialiased flex items-start justify-center p-4 sm:p-8 md:py-12">
-      <div className="w-full max-w-4xl space-y-6">
-        <AdminNavHeader activeTab="integracoes" />
-
+    <>
         <section className="bg-white rounded-[24px] p-6 shadow-sm shadow-zinc-300/40 space-y-5">
           <div className="space-y-1">
             <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900">Pagamentos e Integrações</h1>
@@ -232,7 +238,6 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             codigoTesteInicial={integracaoCapi?.test_event_code ?? null}
           />
         </section>
-      </div>
-    </div>
+    </>
   );
 }

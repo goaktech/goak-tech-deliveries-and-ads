@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { type PedidoCozinha, useCozinha } from './useCozinha';
-import { BarraNavegacaoCozinha } from '@/components/cozinha/BarraNavegacaoCozinha';
 import { ColunaEsteiraCozinha } from '@/components/cozinha/ColunaEsteiraCozinha';
 import { FaixaPedidosPendentes } from '@/components/cozinha/FaixaPedidosPendentes';
 import { ListaPedidosFinalizados } from '@/components/cozinha/ListaPedidosFinalizados';
@@ -82,7 +81,7 @@ export default function PainelCozinhaAdmin() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F3F3F3]">
+      <div className="flex min-h-[40vh] items-center justify-center">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E16349] border-t-transparent" />
       </div>
     );
@@ -102,10 +101,8 @@ export default function PainelCozinhaAdmin() {
   const somPrecisaDeToque = somLigado && audioBloqueado;
 
   return (
-    <div className="flex min-h-screen items-start justify-center bg-[#F3F3F3] p-4 pb-24 font-sans text-[#1A1A1A] antialiased sm:p-8 sm:pb-24 md:py-12">
-      <div className="w-full max-w-6xl space-y-6">
-        <BarraNavegacaoCozinha />
-
+    <>
+      <div className="space-y-6">
         <header className="flex items-end justify-between gap-3 px-1 select-none">
           <div className="leading-tight">
             <h1 className="text-xl font-bold tracking-tight text-[#1A1A1A]">Monitor de produção</h1>
@@ -248,6 +245,6 @@ export default function PainelCozinhaAdmin() {
       />
 
       <AvisoCozinha aviso={aviso} onDesfazer={desfazer} onFechar={fecharAviso} />
-    </div>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
 import { ConfiguracaoTempoPreparo } from '@/components/admin/ConfiguracaoTempoPreparo';
 import { ConfiguracaoEnderecoLoja } from '@/components/admin/ConfiguracaoEnderecoLoja';
 import { ConfiguracaoHorarioFuncionamento } from '@/components/admin/ConfiguracaoHorarioFuncionamento';
@@ -17,21 +16,13 @@ export default async function PainelConfiguracoesAdmin() {
   const { data: restaurante } = await supabase
     .from('restaurantes')
     .select(
-      'nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url'
+      'nome, slug, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url, largura_papel_impressao'
     )
-    .eq('id', restauranteId)
-    .maybeSingle();
-  const { data: impressao } = await supabase
-    .from('restaurantes')
-    .select('largura_papel_impressao')
     .eq('id', restauranteId)
     .maybeSingle();
 
   return (
-    <div className="min-h-screen bg-[#F3F3F3] text-[#1A1A1A] font-sans antialiased flex items-start justify-center p-4 sm:p-8 md:py-12">
-      <div className="w-full max-w-4xl space-y-6">
-        <AdminNavHeader activeTab="configuracoes" />
-
+    <>
         <section className="bg-white rounded-[24px] p-6 shadow-sm shadow-zinc-300/40 space-y-5">
           <div className="space-y-1">
             <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900">Configurações da loja</h1>
@@ -62,11 +53,10 @@ export default async function PainelConfiguracoesAdmin() {
             horariosIniciais={(restaurante?.horarios_funcionamento as HorarioFuncionamentoDia[] | null) ?? null}
           />
 
-          <ConfiguracaoImpressora larguraInicial={normalizarLarguraPapel(impressao?.largura_papel_impressao)} />
+          <ConfiguracaoImpressora larguraInicial={normalizarLarguraPapel(restaurante?.largura_papel_impressao)} />
 
           <ConfiguracaoFotoCapaLoja fotoCapaUrlInicial={restaurante?.foto_capa_url ?? null} />
         </section>
-      </div>
-    </div>
+    </>
   );
 }

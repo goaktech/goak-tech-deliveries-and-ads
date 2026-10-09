@@ -6,7 +6,6 @@ import { GraficoFunilGrowth } from '@/components/metricas/GraficoFunilGrowth';
 import { MetricasMetaAds } from '@/components/metricas/MetricasMetaAds';
 import { RetornoSobreAnuncios } from '@/components/metricas/RetornoSobreAnuncios';
 import { SeletorPeriodoMetricas } from '@/components/metricas/SeletorPeriodoMetricas';
-import { AdminNavHeader } from '@/components/admin/AdminNavHeader';
 import { descricaoPeriodo, lerPeriodoMetricas } from '@/utils/periodo-metricas';
 
 export const revalidate = 0;
@@ -25,10 +24,7 @@ export default async function PainelMetricasAdmin({
   ]);
 
   return (
-    <div className="min-h-screen bg-[#F3F3F3] text-[#1A1A1A] font-sans antialiased flex items-start justify-center p-4 sm:p-8 md:py-12">
-      <div className="w-full min-w-0 max-w-4xl space-y-6">
-
-        <AdminNavHeader activeTab="metricas" />
+    <>
 
         <SeletorPeriodoMetricas periodo={periodo} />
 
@@ -38,7 +34,6 @@ export default async function PainelMetricasAdmin({
         <MetricasMetaAds dados={dadosMetaAds} textoPeriodo={textoPeriodo} />
         <RetornoSobreAnuncios growth={dadosGrowth} metaAds={dadosMetaAds} textoPeriodo={textoPeriodo} />
 
-      </div>
-    </div>
+    </>
   );
 }

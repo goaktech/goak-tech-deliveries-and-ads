@@ -1,5 +1,6 @@
 'use server';
 
+import { obterRestauranteIdDoGestorLogado } from '@/utils/admin-auth';
 import { createClient } from '@/utils/supabase/server';
 import { Insumo } from '@/types/database';
 
@@ -11,25 +12,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 async function obterRestauranteIdLogado(): Promise<string> {
-  const supabase = await createClient();
-  
-  const { data: { user }, error: errUser } = await supabase.auth.getUser();
-  
-  if (errUser || !user) {
-    throw new Error('Usuário não autenticado no Centro de Comando.');
-  }
-
-  const { data: perfil, error: errPerfil } = await supabase
-    .from('perfis_admin')
-    .select('restaurante_id')
-    .eq('id', user.id)
-    .single();
-
-  if (errPerfil || !perfil) {
-    throw new Error('Perfil administrativo ou restaurante não localizado.');
-  }
-
-  return perfil.restaurante_id;
+  return obterRestauranteIdDoGestorLogado();
 }
 
 export async function listarInsumosAdmin(): Promise<Insumo[]> {

@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { APP_BRAND_NAME } from '@/utils/branding';
 import { logout } from '@/actions/auth';
+import type { RestauranteCabecalhoAdmin } from '@/utils/admin-auth';
 
 type AdminTab =
   | 'produtos'
@@ -19,9 +21,18 @@ type AdminTab =
   | 'entregadores';
 
 interface AdminNavHeaderProps {
-  activeTab: AdminTab;
+  /** Opcional: por padrão a aba ativa vem do endereço atual. */
+  activeTab?: AdminTab;
+  /** Dados da loja, carregados no servidor uma única vez para o painel inteiro. */
+  restaurante?: RestauranteCabecalhoAdmin | null;
   brandActions?: ReactNode;
   showAccountActions?: boolean;
+}
+
+function abaDoEndereco(pathname: string | null): AdminTab | null {
+  if (!pathname) return null;
+  const item = navItems.find((candidato) => pathname === candidato.href || pathname.startsWith(`${candidato.href}/`));
+  return item?.id ?? null;
 }
 
 interface NavItem {
@@ -172,13 +183,19 @@ function AbaNav({ item, isActive }: { item: NavItem; isActive: boolean }) {
   );
 }
 
-export function AdminNavHeader({ activeTab, brandActions, showAccountActions = true }: AdminNavHeaderProps) {
+export function AdminNavHeader({
+  activeTab: abaInformada,
+  restaurante = null,
+  brandActions,
+  showAccountActions = true,
+}: AdminNavHeaderProps) {
+  const pathname = usePathname();
+  const activeTab: AdminTab = abaDoEndereco(pathname) ?? abaInformada ?? 'cozinha';
   const inputLogoRef = useRef<HTMLInputElement | null>(null);
   const menuContaRef = useRef<HTMLDivElement | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [slugLoja, setSlugLoja] = useState<string | null>(null);
-  const [nomeLoja, setNomeLoja] = useState<string | null>(null);
-  const [carregandoLogo, setCarregandoLogo] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(restaurante?.logoUrl ?? null);
+  const slugLoja = restaurante?.slug ?? null;
+  const nomeLoja = restaurante?.nome ?? null;
   const [enviandoLogo, setEnviandoLogo] = useState(false);
   const [menuContaAberto, setMenuContaAberto] = useState(false);
 
@@ -194,36 +211,6 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [menuContaAberto]);
-
-  useEffect(() => {
-    let ativo = true;
-
-    const carregarLogo = async () => {
-      setCarregandoLogo(true);
-      try {
-        const resposta = await fetch('/api/admin/restaurante', { cache: 'no-store' });
-        if (!resposta.ok) return;
-        const body = await resposta.json();
-        if (ativo) {
-          setLogoUrl(typeof body?.logo_url === 'string' ? body.logo_url : null);
-          setSlugLoja(typeof body?.slug === 'string' ? body.slug : null);
-          setNomeLoja(typeof body?.nome === 'string' && body.nome.trim() ? body.nome.trim() : null);
-        }
-      } catch (error) {
-        console.error('Falha ao carregar logo do restaurante:', error);
-      } finally {
-        if (ativo) {
-          setCarregandoLogo(false);
-        }
-      }
-    };
-
-    void carregarLogo();
-
-    return () => {
-      ativo = false;
-    };
-  }, []);
 
   const handleSelecionarLogo = async (event: ChangeEvent<HTMLInputElement>) => {
     const arquivo = event.target.files?.[0];
@@ -264,7 +251,7 @@ export function AdminNavHeader({ activeTab, brandActions, showAccountActions = t
           <button
             type="button"
             onClick={triggerInputLogo}
-            disabled={enviandoLogo || carregandoLogo}
+            disabled={enviandoLogo}
             className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/60 bg-[#F3F3F3] text-zinc-400 shadow-inner disabled:opacity-60"
             title="Editar logo"
           >
