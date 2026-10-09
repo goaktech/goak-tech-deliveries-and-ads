@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Insumo } from '@/types/database';
 import { AdicionalCustomizado } from '@/actions/admin';
 
@@ -58,7 +59,7 @@ export function AbaDadosBasicos({
           value={nome} 
           onChange={(e) => setNome(e.target.value)} 
           placeholder="Ex: Cheddar Bacon Supremo" 
-          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]" 
+          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-3 text-base font-medium sm:py-2 sm:text-xs focus:outline-none focus:bg-white focus:border-[#E16349]" 
         />
       </div>
       <div className="space-y-1">
@@ -68,7 +69,7 @@ export function AbaDadosBasicos({
           onChange={(e) => setDescricao(e.target.value)} 
           placeholder="Ex: Blend artesanal de 150g, muito cheddar derretido..." 
           rows={3} 
-          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349] resize-none" 
+          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-3 text-base font-medium sm:py-2 sm:text-xs focus:outline-none focus:bg-white focus:border-[#E16349] resize-none" 
         />
       </div>
       <div className="space-y-1">
@@ -80,7 +81,7 @@ export function AbaDadosBasicos({
           value={preco} 
           onChange={(e) => setPreco(e.target.value)} 
           placeholder="0,00" 
-          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]"
+          className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-3 text-base font-medium sm:py-2 sm:text-xs focus:outline-none focus:bg-white focus:border-[#E16349]"
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -92,7 +93,7 @@ export function AbaDadosBasicos({
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
             placeholder="Ex: Pratos"
-            className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]"
+            className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-3 text-base font-medium sm:py-2 sm:text-xs focus:outline-none focus:bg-white focus:border-[#E16349]"
           />
           <datalist id="sugestoes-categoria-produto">
             {SUGESTOES_CATEGORIA.map((sugestao) => (
@@ -106,7 +107,7 @@ export function AbaDadosBasicos({
           <select
             value={diaSemana}
             onChange={(e) => setDiaSemana(e.target.value)}
-            className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#E16349]"
+            className="w-full bg-[#F3F3F3]/60 border border-transparent rounded-[14px] px-3.5 py-3 text-base font-medium sm:py-2 sm:text-xs focus:outline-none focus:bg-white focus:border-[#E16349]"
           >
             <option value="">Todos os dias</option>
             {OPCOES_DIA_SEMANA.map((opcao) => (
@@ -121,7 +122,7 @@ export function AbaDadosBasicos({
         <div className="flex flex-wrap items-center gap-2">
           <label
             htmlFor="foto-produto-input"
-            className="inline-flex cursor-pointer items-center rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900"
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900"
           >
             Escolher arquivo
           </label>
@@ -164,6 +165,11 @@ export function AbaFichaTecnica({ insumosDisponiveis, quantidadesFicha, onFichaC
     <div className="space-y-2 flex-1">
       <p className="mb-2 text-[11px] font-medium text-zinc-500">Gasto físico de matéria-prima para cálculo automático de CMV.</p>
       <div className="bg-[#F8F8F8] rounded-[20px] border border-zinc-100 p-3 space-y-1.5 max-h-64 overflow-y-auto">
+        {insumosDisponiveis.length === 0 && (
+          <p className="px-2 py-4 text-center text-xs text-zinc-500">
+            Nenhum insumo cadastrado ainda. Cadastre os insumos na aba <Link href="/admin/insumos" className="font-semibold text-[#E16349] underline">Insumos</Link> para calcular o CMV deste produto.
+          </p>
+        )}
         {insumosDisponiveis.map((insumo) => (
           <div key={insumo.id} className="flex items-center justify-between p-2 rounded-xl bg-white border border-transparent hover:border-zinc-200/50 transition-all gap-4">
             <div className="min-w-0">
@@ -176,7 +182,7 @@ export function AbaFichaTecnica({ insumosDisponiveis, quantidadesFicha, onFichaC
                 placeholder="0" 
                 value={quantidadesFicha[insumo.id] || ''} 
                 onChange={(e) => onFichaChange(insumo.id, e.target.value)} 
-                className="w-20 text-center bg-[#F3F3F3] border border-transparent rounded-lg py-1 text-xs font-semibold focus:outline-none focus:bg-white focus:border-[#E16349]" 
+                className="w-20 text-center bg-[#F3F3F3] border border-transparent rounded-lg py-2 text-base font-semibold sm:py-1 sm:text-xs focus:outline-none focus:bg-white focus:border-[#E16349]" 
               />
               <span className="text-[10px] text-zinc-400 font-bold uppercase w-6">{insumo.unidade_medida}</span>
             </div>
@@ -201,13 +207,13 @@ export function AbaAdicionaisOpcionais({ adicionais, novoNome, setNovoNome, novo
   return (
     <div className="space-y-4 flex-1">
       <p className="text-[11px] font-medium text-zinc-500">Cadastre os adicionais que o cliente final poderá escolher no cardápio.</p>
-      <div className="flex gap-2 items-center bg-[#F8F8F8] p-2 rounded-2xl border border-zinc-100">
+      <div className="flex flex-wrap gap-2 items-center bg-[#F8F8F8] p-2 rounded-2xl border border-zinc-100">
         <input 
           type="text" 
           value={novoNome} 
           onChange={(e) => setNovoNome(e.target.value)} 
           placeholder="Ex: Carne Adicional 150g" 
-          className="flex-1 bg-white border border-zinc-200/60 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-[#E16349]" 
+          className="min-w-0 basis-full sm:basis-0 flex-1 bg-white border border-zinc-200/60 rounded-xl px-3 py-2.5 text-base font-medium sm:py-1.5 sm:text-xs focus:outline-none focus:border-[#E16349]" 
         />
         <input 
           type="number" 
@@ -215,9 +221,9 @@ export function AbaAdicionaisOpcionais({ adicionais, novoNome, setNovoNome, novo
           value={novoPreco} 
           onChange={(e) => setNovoPreco(e.target.value)} 
           placeholder="R$ 0,00" 
-          className="w-24 bg-white border border-zinc-200/60 rounded-xl px-2 py-1.5 text-xs text-center font-semibold focus:outline-none focus:border-[#E16349]" 
+          className="min-w-0 flex-1 sm:flex-none sm:w-24 bg-white border border-zinc-200/60 rounded-xl px-2 py-2.5 text-base text-center font-semibold sm:py-1.5 sm:text-xs focus:outline-none focus:border-[#E16349]" 
         />
-        <button type="button" onClick={onAdicionar} className="bg-zinc-900 text-white font-bold text-xs px-3 py-2 rounded-xl hover:bg-zinc-800 transition-colors shrink-0">
+        <button type="button" onClick={onAdicionar} className="min-h-11 sm:min-h-0 bg-zinc-900 text-white font-bold text-xs px-3 py-2 rounded-xl hover:bg-zinc-800 transition-colors shrink-0">
           Adicionar
         </button>
       </div>
@@ -230,7 +236,7 @@ export function AbaAdicionaisOpcionais({ adicionais, novoNome, setNovoNome, novo
               <span className="text-zinc-800 font-semibold">{adi.nome}</span>
               <div className="flex items-center gap-3">
                 <span className="text-[#E52521] font-bold">+ R$ {adi.preco.toFixed(2)}</span>
-                <button type="button" onClick={() => onRemover(idx)} className="text-zinc-400 hover:text-red-600 font-bold px-1 transition-colors">✕</button>
+                <button type="button" onClick={() => onRemover(idx)} aria-label={`Remover ${adi.nome}`} className="flex h-9 w-9 items-center justify-center text-zinc-400 hover:text-red-600 font-bold transition-colors">✕</button>
               </div>
             </div>
           ))

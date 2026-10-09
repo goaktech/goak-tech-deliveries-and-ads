@@ -9,6 +9,7 @@ import {
   salvarConfiguracaoEntregaIfood,
 } from '@/actions/adminIfood';
 import { atualizarEnderecoLoja } from '@/actions/adminConfiguracoesLoja';
+import { useAvisosPainel } from '@/components/shared/AvisosPainel';
 import type { EnderecoLojaIfood, IntegracaoIfoodPublica } from '@/utils/ifood';
 
 interface ConfiguracaoIfoodEntregaProps {
@@ -53,6 +54,7 @@ export function ConfiguracaoIfoodEntrega({
   latitudeLoja,
   longitudeLoja,
 }: ConfiguracaoIfoodEntregaProps) {
+  const { confirmar } = useAvisosPainel();
   const [integracao, setIntegracao] = useState(integracaoInicial);
   const [merchantId, setMerchantId] = useState(integracaoInicial?.merchantId ?? '');
   const [codigoAutorizacao, setCodigoAutorizacao] = useState('');
@@ -115,7 +117,13 @@ export function ConfiguracaoIfoodEntrega({
   };
 
   const handleDesconectar = async () => {
-    if (!window.confirm('Desconectar a loja iFood? O goak não poderá mais chamar motoboys do iFood para esta loja.')) {
+    const confirmado = await confirmar({
+      titulo: 'Desconectar a loja iFood?',
+      mensagem: 'O goak não poderá mais chamar motoboys do iFood para esta loja.',
+      rotuloConfirmar: 'Desconectar',
+      perigo: true,
+    });
+    if (!confirmado) {
       return;
     }
     await executar(desconectarIfood, 'Loja iFood desconectada.');

@@ -7,6 +7,7 @@ import { Insumo } from '@/types/database'
 import { ItemCardapioComCMV } from '@/actions/admin'
 import { AbaDadosBasicos, AbaFichaTecnica, AbaAdicionaisOpcionais } from './AbasFormularioProduto'
 import { useRouter } from 'next/navigation'
+import { useAvisosPainel } from '@/components/shared/AvisosPainel'
 
 const TAMANHO_MAXIMO_IMAGEM_MB = 7
 
@@ -37,6 +38,7 @@ interface FormularioEdicaoProdutoProps {
 
 function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: FormularioEdicaoProdutoProps) {
   const router = useRouter()
+  const { avisar } = useAvisosPainel()
   const [isPending, startTransition] = useTransition()
   const [abaAtiva, setAbaAtiva] = useState<'DADOS' | 'FICHA' | 'ADICIONAIS'>('DADOS')
 
@@ -80,14 +82,14 @@ function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: Form
     if (!arquivo) return
 
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(arquivo.type)) {
-      alert('Formato inválido. Use PNG, JPG ou WEBP.')
+      avisar('Formato inválido. Use PNG, JPG ou WEBP.', 'erro')
       event.target.value = ''
       return
     }
 
     const tamanhoMaximoBytes = TAMANHO_MAXIMO_IMAGEM_MB * 1024 * 1024
     if (arquivo.size > tamanhoMaximoBytes) {
-      alert(`A imagem deve ter no máximo ${TAMANHO_MAXIMO_IMAGEM_MB}MB.`)
+      avisar(`A imagem deve ter no máximo ${TAMANHO_MAXIMO_IMAGEM_MB}MB.`, 'erro')
       event.target.value = ''
       return
     }
@@ -105,7 +107,7 @@ function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: Form
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!nome || !preco) {
-      alert('Por favor, preencha os campos obrigatórios (Nome e Preço).')
+      avisar('Por favor, preencha os campos obrigatórios (Nome e Preço).', 'erro')
       return
     }
 
@@ -126,56 +128,57 @@ function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: Form
         onFechar()
         router.refresh()
       } else {
-        alert(`Erro ao salvar edição: ${resultado.error}`)
+        avisar(`Não foi possível salvar as alterações: ${resultado.error}`, 'erro')
       }
     })
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/30 p-4 backdrop-blur-sm transition-all duration-200">
-      <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-xl transform transition-all animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/30 p-3 backdrop-blur-sm transition-all duration-200 sm:p-4">
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-xl transform transition-all animate-in fade-in zoom-in-95 duration-150">
 
-        <div className="flex items-center justify-between border-b border-zinc-100 p-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 p-5">
           <div>
             <h2 className="text-sm font-bold tracking-tight text-[#1A1A1A]">Editar {produto.nome}</h2>
           </div>
           <button
             type="button"
             onClick={onFechar}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-500 transition hover:bg-zinc-200"
+            aria-label="Fechar"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 transition hover:bg-zinc-200 sm:h-8 sm:w-8"
           >
             ✕
           </button>
         </div>
 
-        <div className="shrink-0 overflow-x-auto border-b border-zinc-100 bg-[#F8F8F8] p-1 text-[11px] font-semibold">
-          <div className="flex min-w-[500px]">
+        <div className="shrink-0 border-b border-zinc-100 bg-[#F8F8F8] p-1 text-xs font-semibold">
+          <div className="flex gap-1" role="tablist">
             <button
               type="button"
               onClick={() => setAbaAtiva('DADOS')}
-              className={`flex-1 text-center py-2.5 rounded-[10px] transition-all ${abaAtiva === 'DADOS' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
+              className={`min-h-11 flex-1 text-center py-2.5 rounded-[10px] transition-all ${abaAtiva === 'DADOS' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
             >
-              Dados do Cardápio
+              Dados
             </button>
             <button
               type="button"
               onClick={() => setAbaAtiva('FICHA')}
-              className={`flex-1 text-center py-2.5 rounded-[10px] transition-all ${abaAtiva === 'FICHA' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
+              className={`min-h-11 flex-1 text-center py-2.5 rounded-[10px] transition-all ${abaAtiva === 'FICHA' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
             >
-              Ficha Técnica (CMV)
+              Ficha técnica
             </button>
             <button
               type="button"
               onClick={() => setAbaAtiva('ADICIONAIS')}
-              className={`flex-1 text-center py-2.5 rounded-[10px] transition-all ${abaAtiva === 'ADICIONAIS' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
+              className={`min-h-11 flex-1 text-center py-2.5 rounded-[10px] transition-all ${abaAtiva === 'ADICIONAIS' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}
             >
               Adicionais
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6 p-5">
-          <div className="min-h-[220px] flex flex-col">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-[220px] flex-1 flex-col overflow-y-auto p-5">
             {abaAtiva === 'DADOS' && (
               <AbaDadosBasicos
                 nome={nome} setNome={setNome}
@@ -208,20 +211,20 @@ function FormularioEdicaoProduto({ produto, onFechar, insumosDisponiveis }: Form
             )}
           </div>
 
-          <div className="flex items-center gap-3 border-t border-zinc-100 pt-2">
+          <div className="flex shrink-0 items-center gap-3 border-t border-zinc-100 bg-white p-4">
             <button
               type="button"
               onClick={onFechar}
-              className="flex-1 rounded-xl bg-zinc-100 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-600 hover:bg-zinc-200 transition-colors"
+              className="min-h-11 flex-1 rounded-xl bg-zinc-100 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-600 hover:bg-zinc-200 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 rounded-xl bg-[#E16349] py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#c8523a] disabled:opacity-50 transition-all"
+              className="min-h-11 flex-1 rounded-xl bg-[#E16349] py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#c8523a] disabled:opacity-50 transition-all"
             >
-              {isPending ? 'Salvando alterações...' : 'Salvar alterações'}
+              {isPending ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         </form>
