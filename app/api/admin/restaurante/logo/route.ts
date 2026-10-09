@@ -1,3 +1,4 @@
+import { invalidarVitrineDoGestorLogado } from '@/utils/cache-vitrine';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
@@ -80,6 +81,8 @@ export async function POST(request: Request) {
     if (updateError) {
       return NextResponse.json({ error: `Falha ao salvar URL da logo: ${updateError.message}` }, { status: 500 });
     }
+
+    await invalidarVitrineDoGestorLogado();
 
     return NextResponse.json({ logo_url: logoUrlComVersao });
   } catch (error) {

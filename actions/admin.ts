@@ -1,6 +1,7 @@
 'use server'
 
 import { obterRestauranteIdDoGestorLogado } from '@/utils/admin-auth'
+import { invalidarVitrineDoGestorLogado } from '@/utils/cache-vitrine'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -162,6 +163,7 @@ export async function criarProdutoComComplementos(
     }
 
     revalidatePath('/admin/produtos')
+    await invalidarVitrineDoGestorLogado()
     
     return { success: true, itemId }
 
@@ -182,6 +184,7 @@ export async function alternarDisponibilidadeProduto(id: string, statusAtual: bo
 
   if (error) throw new Error(error.message)
   revalidatePath('/admin/produtos')
+  await invalidarVitrineDoGestorLogado()
 }
 
 export async function atualizarStatusEmLote(ids: string[], novoStatus: boolean) {
@@ -193,6 +196,7 @@ export async function atualizarStatusEmLote(ids: string[], novoStatus: boolean) 
 
   if (error) throw new Error(error.message)
   revalidatePath('/admin/produtos')
+  await invalidarVitrineDoGestorLogado()
 }
 
 export async function excluirProdutosEmLote(ids: string[]) {
@@ -212,6 +216,7 @@ export async function excluirProdutosEmLote(ids: string[]) {
   }
 
   revalidatePath('/admin/produtos')
+  await invalidarVitrineDoGestorLogado()
   return { success: true }
 }
 

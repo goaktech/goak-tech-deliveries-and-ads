@@ -1,3 +1,4 @@
+import { invalidarVitrineDoGestorLogado } from '@/utils/cache-vitrine';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
@@ -80,6 +81,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Falha ao salvar URL da foto de capa: ${updateError.message}` }, { status: 500 });
     }
 
+    await invalidarVitrineDoGestorLogado();
+
     return NextResponse.json({ foto_capa_url: fotoCapaUrlComVersao });
   } catch (error) {
     console.error('Erro ao atualizar foto de capa do restaurante:', error);
@@ -118,6 +121,8 @@ export async function DELETE() {
     if (updateError) {
       return NextResponse.json({ error: `Falha ao remover foto de capa: ${updateError.message}` }, { status: 500 });
     }
+
+    await invalidarVitrineDoGestorLogado();
 
     return NextResponse.json({ foto_capa_url: null });
   } catch (error) {

@@ -1,24 +1,8 @@
-import type { ComponentType, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import type { ItemCardapio } from '@/types/database';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 import { normalizarTipoRestaurante, type TipoRestaurante } from '@/utils/tipos-restaurante';
-import ComponenteLojaHamburguer from '@/components/ecommerce/ComponenteLojaHamburguer';
-import ComponenteLojaAcai from '@/components/ecommerce/ComponenteLojaAcai';
-import ComponenteLojaSorveteria from '@/components/ecommerce/ComponenteLojaSorveteria';
-import ComponenteLojaSushiBar from '@/components/ecommerce/ComponenteLojaSushiBar';
-import ComponenteLojaFitness from '@/components/ecommerce/ComponenteLojaFitness';
-import ComponenteLojaRestauranteTradicional from '@/components/ecommerce/ComponenteLojaRestauranteTradicional';
-import ComponenteLojaGeovannaAcaiteria from '@/components/ecommerce/lojas/ComponenteLojaGeovannaAcaiteria';
-import ComponenteLojaPastelECia from '@/components/ecommerce/lojas/ComponenteLojaPastelECia';
-import ComponenteLojaNamiSushiBar from '@/components/ecommerce/lojas/ComponenteLojaNamiSushiBar';
-import ComponenteLojaNaturaz from '@/components/ecommerce/lojas/ComponenteLojaNaturaz';
-import ComponenteLojaWcsAcaiteria from '@/components/ecommerce/lojas/ComponenteLojaWcsAcaiteria';
-import ComponenteLojaGoDog from '@/components/ecommerce/lojas/ComponenteLojaGoDog';
-import ComponenteLojaCantinaBrasil from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasil';
-import ComponenteLojaCantinaBrasilV2 from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV2';
-import ComponenteLojaCantinaBrasilV3 from '@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV3';
-import ComponenteLojaPeruchoBurguer from '@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguer';
-import ComponenteLojaPeruchoBurguerV2 from '@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguerV2';
+import { LojaPublicaDinamica, type ChaveTemaLoja } from '@/components/ecommerce/temas/LojaPublicaDinamica';
 
 export interface RestaurantePropsLoja {
   id: string;
@@ -35,39 +19,36 @@ export interface ComponenteLojaProps {
   produtos: ItemCardapio[];
 }
 
-type ComponenteLoja = ComponentType<ComponenteLojaProps>;
+const SLUGS_CUSTOMIZADOS: ReadonlySet<string> = new Set([
+  'geovanna-acaiteria',
+  'pastel-e-cia',
+  'nami-sushi-bar',
+  'naturaz',
+  'wcs-acaiteria',
+  'godog',
+  'cantina-brasil',
+  'cantina-brasil-v2',
+  'cantina-brasil-v3',
+  'perucho-burguer',
+  'perucho-burguer-v2',
+]);
 
-const LOJAS_CUSTOMIZADAS: Record<string, ComponenteLoja> = {
-  'geovanna-acaiteria': ComponenteLojaGeovannaAcaiteria,
-  'pastel-e-cia': ComponenteLojaPastelECia,
-  'nami-sushi-bar': ComponenteLojaNamiSushiBar,
-  naturaz: ComponenteLojaNaturaz,
-  'wcs-acaiteria': ComponenteLojaWcsAcaiteria,
-  godog: ComponenteLojaGoDog,
-  'cantina-brasil': ComponenteLojaCantinaBrasil,
-  'cantina-brasil-v2': ComponenteLojaCantinaBrasilV2,
-  'cantina-brasil-v3': ComponenteLojaCantinaBrasilV3,
-  'perucho-burguer': ComponenteLojaPeruchoBurguer,
-  'perucho-burguer-v2': ComponenteLojaPeruchoBurguerV2,
-};
+const TIPOS_COM_TEMA: ReadonlySet<TipoRestaurante> = new Set<TipoRestaurante>([
+  'ACAITERIA',
+  'HAMBURGUERIA',
+  'SORVETERIA',
+  'SUSHI_BAR',
+  'FITNESS_SAUDAVEL',
+  'RESTAURANTE_TRADICIONAL',
+]);
 
-const TEMPLATES_POR_TIPO: Partial<Record<TipoRestaurante, ComponenteLoja>> = {
-  ACAITERIA: ComponenteLojaAcai,
-  HAMBURGUERIA: ComponenteLojaHamburguer,
-  SORVETERIA: ComponenteLojaSorveteria,
-  SUSHI_BAR: ComponenteLojaSushiBar,
-  FITNESS_SAUDAVEL: ComponenteLojaFitness,
-  RESTAURANTE_TRADICIONAL: ComponenteLojaRestauranteTradicional,
-};
-
-function obterComponenteLojaPublica(slug: string, tipo: string | null | undefined): ComponenteLoja {
-  const componenteCustomizado = LOJAS_CUSTOMIZADAS[slug];
-  if (componenteCustomizado) {
-    return componenteCustomizado;
+function obterChaveTemaLoja(slug: string, tipo: string | null | undefined): ChaveTemaLoja {
+  if (SLUGS_CUSTOMIZADOS.has(slug)) {
+    return slug as ChaveTemaLoja;
   }
 
   const tipoNormalizado = normalizarTipoRestaurante(tipo);
-  return TEMPLATES_POR_TIPO[tipoNormalizado] ?? ComponenteLojaHamburguer;
+  return TIPOS_COM_TEMA.has(tipoNormalizado) ? (tipoNormalizado as ChaveTemaLoja) : 'HAMBURGUERIA';
 }
 
 export function renderizarLojaPublica(props: {
@@ -76,6 +57,6 @@ export function renderizarLojaPublica(props: {
   restaurante: RestaurantePropsLoja;
   produtos: ItemCardapio[];
 }): ReactElement {
-  const Componente = obterComponenteLojaPublica(props.slug, props.tipo);
-  return <Componente restaurante={props.restaurante} produtos={props.produtos} />;
+  const chave = obterChaveTemaLoja(props.slug, props.tipo);
+  return <LojaPublicaDinamica chave={chave} restaurante={props.restaurante} produtos={props.produtos} />;
 }

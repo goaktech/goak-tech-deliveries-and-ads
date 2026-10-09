@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
+import { obterPixelIdVitrineEmCache } from '@/utils/cache-vitrine';
 import { PixelFacebookScript } from '@/components/ecommerce/PixelFacebookScript';
 
 interface LojaLayoutProps {
@@ -8,17 +8,11 @@ interface LojaLayoutProps {
 
 export default async function LojaLayout({ children, params }: LojaLayoutProps) {
   const { slug } = await params;
-  const supabase = await createClient();
-
-  const { data: restaurante } = await supabase
-    .from('restaurantes')
-    .select('meta_pixel_id')
-    .eq('slug', slug.trim())
-    .maybeSingle();
+  const pixelId = await obterPixelIdVitrineEmCache(slug.trim());
 
   return (
     <>
-      <PixelFacebookScript pixelId={restaurante?.meta_pixel_id ?? null} />
+      <PixelFacebookScript pixelId={pixelId} />
       {children}
     </>
   );

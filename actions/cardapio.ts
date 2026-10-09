@@ -2,6 +2,13 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
+import {
+  ERRO_VITRINE_NAO_ENCONTRADA,
+  criarClienteAnonimoVitrine,
+  invalidarVitrine,
+  obterDadosVitrineEmCache,
+} from '@/utils/cache-vitrine'
 
 interface DadosNovoProduto {
   nome: string
@@ -198,6 +205,7 @@ export async function criarProdutoAdmin(dados: DadosNovoProduto) {
     }
 
     revalidatePath(`/${slug}`)
+    invalidarVitrine(slug)
     revalidatePath('/admin/produtos')
 
     return { success: true }
@@ -327,6 +335,7 @@ export async function atualizarProdutoAdmin(itemId: string, dados: DadosNovoProd
     }
 
     revalidatePath(`/${slug}`)
+    invalidarVitrine(slug)
     revalidatePath('/admin/produtos')
 
     return { success: true }
@@ -373,6 +382,7 @@ export async function atualizarOrdemItensCardapio(idsOrdenados: string[]) {
     if (primeiroErro?.error) throw primeiroErro.error
 
     revalidatePath(`/${slug}`)
+    invalidarVitrine(slug)
     revalidatePath('/admin/produtos')
 
     return { success: true }
@@ -384,73 +394,34 @@ export async function atualizarOrdemItensCardapio(idsOrdenados: string[]) {
 }
 
 export async function obterCardapioPorSlug(slug: string) {
-  const supabase = await createClient()
   const slugNormalizado = slug.trim()
 
   if (!slugNormalizado) {
     return { restaurante: null, produtos: [] }
   }
 
-  const { data: restaurante, error: erroRestaurante } = await supabase
-    .from('restaurantes')
-    .select('id, nome, tipo, endereco, logo_url, foto_capa_url, horarios_funcionamento')
-    .eq('slug', slugNormalizado)
-    .maybeSingle()
-
-  if (erroRestaurante || !restaurante) {
-    console.error('Erro ao localizar restaurante pelo slug:', erroRestaurante)
+  let dados: Awaited<ReturnType<typeof obterDadosVitrineEmCache>>
+  try {
+    dados = await obterDadosVitrineEmCache(slugNormalizado)
+  } catch (erro) {
+    if (!(erro instanceof Error && erro.message === ERRO_VITRINE_NAO_ENCONTRADA)) {
+      console.error('Erro ao buscar o cardápio público:', erro)
+    }
     return { restaurante: null, produtos: [] }
   }
 
+  // A contagem de visitas fica fora do cache (cada abertura conta) e roda depois que a resposta já foi enviada.
+  const restauranteId = dados.restaurante.id
   const hoje = new Date().toISOString().split('T')[0]
-  // A contagem de visitas roda ao mesmo tempo que a busca dos produtos, em vez de segurar a página.
-  const registroVisita = Promise.resolve(
-    supabase.rpc('incrementar_visitas_funil', {
-      p_restaurante_id: restaurante.id,
+  after(async () => {
+    const { error } = await criarClienteAnonimoVitrine().rpc('incrementar_visitas_funil', {
+      p_restaurante_id: restauranteId,
       p_data: hoje,
     })
-  )
+    if (error) {
+      console.error('Falha ao registrar visita no funil de métricas:', error)
+    }
+  })
 
-  const { data: produtos, error: erroProdutos } = await supabase
-    .from('itens_cardapio')
-    .select(`
-      id,
-      restaurante_id,
-      nome,
-      descricao,
-      preco_venda,
-      imagem_url,
-      disponivel,
-      categoria,
-      dia_semana,
-      created_at,
-      complementos_produto (
-        id,
-        item_cardapio_id,
-        nome,
-        preco_adicional,
-        disponivel,
-        created_at,
-        grupo
-      )
-    `)
-    .eq('restaurante_id', restaurante.id)
-    .eq('disponivel', true)
-    .order('ordem', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: true })
-
-  const { error: erroFunil } = await registroVisita
-  if (erroFunil) {
-    console.error('Falha ao registrar visita no funil de métricas:', erroFunil)
-  }
-
-  if (erroProdutos) {
-    console.error('Erro ao buscar itens e complementos do cardápio:', erroProdutos)
-    return { restaurante, produtos: [] }
-  }
-
-  return {
-    restaurante,
-    produtos: produtos || []
-  }
+  return dados
 }
