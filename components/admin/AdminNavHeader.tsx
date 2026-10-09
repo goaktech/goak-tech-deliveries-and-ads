@@ -532,11 +532,10 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
           <button
             type="button"
             onClick={() => setMenuMaisAberto((atual) => !atual)}
-            // O "!" é necessário: a regra global `button { font: inherit }` ganharia das classes de fonte normais.
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! transition-all ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
               itensOcultos.some((item) => item.id === activeTab)
-                ? 'bg-[#E16349] font-bold! text-white shadow-sm'
-                : 'font-medium! text-zinc-600 hover:text-[#1A1A1A]'
+                ? 'bg-[#E16349] font-bold text-white shadow-sm'
+                : 'font-medium text-zinc-600 hover:text-[#1A1A1A]'
             }`}
             aria-expanded={menuMaisAberto}
           >
@@ -586,7 +585,7 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
         ref={medidorBotaoMaisRef}
         type="button"
         tabIndex={-1}
-        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! font-medium! opacity-0"
+        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium opacity-0"
         style={{ zIndex: -1 }}
         aria-hidden
       >
@@ -613,8 +612,8 @@ export function BarraNavegacaoMobile() {
   const extraAtivo = itensExtras.some((item) => item.id === activeTab);
 
   const classeBotao = (ativo: boolean) =>
-    `flex min-h-12 flex-1 items-center justify-center rounded-2xl px-1 text-xs! leading-4! transition ${
-      ativo ? 'bg-[#E16349] font-bold! text-white shadow-sm' : 'font-medium! text-zinc-600'
+    `flex min-h-12 flex-1 items-center justify-center rounded-2xl px-1 text-xs transition ${
+      ativo ? 'bg-[#E16349] font-bold text-white shadow-sm' : 'font-medium text-zinc-600'
     }`;
 
   return (
