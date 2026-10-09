@@ -274,7 +274,44 @@ export function AdminNavHeader({
       />
 
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+        <div className="hidden md:block">
+            <button
+              type="button"
+              onClick={triggerInputLogo}
+              disabled={enviandoLogo}
+              className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/60 bg-[#F3F3F3] text-zinc-400 shadow-inner disabled:opacity-60"
+              title="Editar logo"
+            >
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt="Logo do restaurante"
+                  width={44}
+                  height={44}
+                  unoptimized
+                  className="h-11 w-11 rounded-full object-cover"
+                />
+              ) : (
+                <svg className="h-5 w-5 text-[#E16349]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m0 0a3.001 3.001 0 00-3.75-.615A2.993 2.993 0 009.75 9.75c0 .358.063.702.18 1.025m10.965-1.426c.229-.112.483-.174.75-.174a1.5 1.5 0 011.5 1.5v6.75m-4.5-9a3.97 3.97 0 00-1.22-.112m-1.48 1.137A3.987 3.987 0 0112 11.25c-1.192 0-2.261-.523-3-1.362m-.75 0a3.987 3.987 0 01-3-1.362m0 0a3 3 0 00-3.75.615A2.993 2.993 0 001.5 9.75c0 .358.063.702.18 1.025m0 0A3.987 3.987 0 013 11.25c1.192 0 2.261-.523 3-1.362m0 0c.267.267.58.483.925.64" />
+                </svg>
+              )}
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-zinc-900/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                {enviandoLogo ? (
+                  <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                  </svg>
+                )}
+              </span>
+            </button>
+
+        </div>
           {slugLoja ? (
             <Link
               href={`/${slugLoja}`}
@@ -299,41 +336,6 @@ export function AdminNavHeader({
               <span className="mt-0.5 block text-[11px] font-semibold tracking-wide text-[#E16349]">Painel Administrativo</span>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={triggerInputLogo}
-            disabled={enviandoLogo}
-            className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/60 bg-[#F3F3F3] text-zinc-400 shadow-inner disabled:opacity-60"
-            title="Editar logo"
-          >
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt="Logo do restaurante"
-                width={44}
-                height={44}
-                unoptimized
-                className="h-11 w-11 rounded-full object-cover"
-              />
-            ) : (
-              <svg className="h-5 w-5 text-[#E16349]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m0 0a3.001 3.001 0 00-3.75-.615A2.993 2.993 0 009.75 9.75c0 .358.063.702.18 1.025m10.965-1.426c.229-.112.483-.174.75-.174a1.5 1.5 0 011.5 1.5v6.75m-4.5-9a3.97 3.97 0 00-1.22-.112m-1.48 1.137A3.987 3.987 0 0112 11.25c-1.192 0-2.261-.523-3-1.362m-.75 0a3.987 3.987 0 01-3-1.362m0 0a3 3 0 00-3.75.615A2.993 2.993 0 001.5 9.75c0 .358.063.702.18 1.025m0 0A3.987 3.987 0 013 11.25c1.192 0 2.261-.523 3-1.362m0 0c.267.267.58.483.925.64" />
-              </svg>
-            )}
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-zinc-900/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              {enviandoLogo ? (
-                <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg>
-              ) : (
-                <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
-                </svg>
-              )}
-            </span>
-          </button>
 
           {showAccountActions ? <MenuConta variante="desktop" /> : null}
         </div>
@@ -530,10 +532,11 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
           <button
             type="button"
             onClick={() => setMenuMaisAberto((atual) => !atual)}
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all ${
+            // O "!" é necessário: a regra global `button { font: inherit }` ganharia das classes de fonte normais.
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! transition-all ${
               itensOcultos.some((item) => item.id === activeTab)
-                ? 'bg-[#E16349] font-bold text-white shadow-sm'
-                : 'font-medium text-zinc-600 hover:text-[#1A1A1A]'
+                ? 'bg-[#E16349] font-bold! text-white shadow-sm'
+                : 'font-medium! text-zinc-600 hover:text-[#1A1A1A]'
             }`}
             aria-expanded={menuMaisAberto}
           >
@@ -583,7 +586,7 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
         ref={medidorBotaoMaisRef}
         type="button"
         tabIndex={-1}
-        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium opacity-0"
+        className="pointer-events-none absolute left-0 top-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs! leading-4! font-medium! opacity-0"
         style={{ zIndex: -1 }}
         aria-hidden
       >
@@ -610,8 +613,8 @@ export function BarraNavegacaoMobile() {
   const extraAtivo = itensExtras.some((item) => item.id === activeTab);
 
   const classeBotao = (ativo: boolean) =>
-    `flex min-h-12 flex-1 items-center justify-center rounded-2xl px-1 text-xs transition ${
-      ativo ? 'bg-[#E16349] font-bold text-white shadow-sm' : 'font-medium text-zinc-600'
+    `flex min-h-12 flex-1 items-center justify-center rounded-2xl px-1 text-xs! leading-4! transition ${
+      ativo ? 'bg-[#E16349] font-bold! text-white shadow-sm' : 'font-medium! text-zinc-600'
     }`;
 
   return (

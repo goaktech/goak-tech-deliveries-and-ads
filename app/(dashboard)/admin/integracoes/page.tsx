@@ -147,6 +147,7 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
           <SecaoRecolhivel
             id="mercado-pago"
             titulo="Mercado Pago"
+            abertaInicialmente
             selo={<span className={classeBadgeIntegracao(integracao?.connection_status)}>{rotuloStatus(integracao?.connection_status)}</span>}
           >
             <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 md:border-0 md:p-1">

@@ -1,40 +1,28 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-
-const TELA_LARGA = '(min-width: 768px)';
-
-function assinarTamanhoDaTela(aviso: () => void) {
-  const consulta = window.matchMedia(TELA_LARGA);
-  consulta.addEventListener('change', aviso);
-  return () => consulta.removeEventListener('change', aviso);
-}
+import { useEffect, useState, type ReactNode } from 'react';
 
 interface SecaoRecolhivelProps {
   id: string;
   titulo: string;
   /** Selo de estado (ex.: "Conectado") mostrado ao lado do título, mesmo com a seção fechada. */
   selo?: ReactNode;
+  /** Só a primeira seção da página começa aberta; as demais começam fechadas. */
+  abertaInicialmente?: boolean;
   children: ReactNode;
 }
 
 /**
- * Seção de integração que abre e fecha. No celular começa fechada (a página era longa demais); no
- * desktop e tablet começa aberta. Depois que o gestor clica, vale a escolha dele.
+ * Seção de integração que abre e fecha, em qualquer tamanho de tela. Começa fechada, exceto quando
+ * `abertaInicialmente` é verdadeiro. Depois que o gestor clica, vale a escolha dele.
  */
-export function SecaoRecolhivel({ id, titulo, selo, children }: SecaoRecolhivelProps) {
-  const telaLarga = useSyncExternalStore(
-    assinarTamanhoDaTela,
-    () => window.matchMedia(TELA_LARGA).matches,
-    () => false
-  );
-  const [escolha, setEscolha] = useState<boolean | null>(null);
-  const aberta = escolha ?? telaLarga;
+export function SecaoRecolhivel({ id, titulo, selo, abertaInicialmente = false, children }: SecaoRecolhivelProps) {
+  const [aberta, setAberta] = useState(abertaInicialmente);
 
   // Os atalhos do resumo no topo apontam para #id: abrem a seção correspondente.
   useEffect(() => {
     const abrirSeHashForEstaSecao = () => {
-      if (window.location.hash === `#${id}`) setEscolha(true);
+      if (window.location.hash === `#${id}`) setAberta(true);
     };
     window.addEventListener('hashchange', abrirSeHashForEstaSecao);
     return () => window.removeEventListener('hashchange', abrirSeHashForEstaSecao);
@@ -44,7 +32,7 @@ export function SecaoRecolhivel({ id, titulo, selo, children }: SecaoRecolhivelP
     <section id={id} className="scroll-mt-4 rounded-2xl border border-zinc-200 bg-white">
       <button
         type="button"
-        onClick={() => setEscolha(!aberta)}
+        onClick={() => setAberta((atual) => !atual)}
         aria-expanded={aberta}
         aria-controls={`${id}-conteudo`}
         className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left"
