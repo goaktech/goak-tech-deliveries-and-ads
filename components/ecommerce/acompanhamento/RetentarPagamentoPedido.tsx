@@ -25,6 +25,7 @@ interface PropsRetentarPagamentoPedido {
 interface DadosPix {
   qr_code: string;
   qr_code_base64?: string;
+  expira_em?: string | null;
 }
 
 export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal }: PropsRetentarPagamentoPedido) {
@@ -50,11 +51,26 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
         console.error('Erro ao carregar formas de pagamento da loja:', error);
       }
     };
+    // PIX que o cliente já gerou e ainda vale: mostra o mesmo código em vez de obrigar a gerar outro
+    const carregarPixExistente = async () => {
+      try {
+        const resposta = await fetch(
+          `/api/checkout/pix-pendente?slug=${encodeURIComponent(slug)}&codigo=${encodeURIComponent(codigoAcompanhamento)}`,
+          { cache: 'no-store' }
+        );
+        const body = await resposta.json().catch(() => null);
+        if (!ativo || !body?.pix?.qr_code) return;
+        setPix({ qr_code: body.pix.qr_code, qr_code_base64: body.pix.qr_code_base64, expira_em: body.pix.expira_em ?? null });
+      } catch {
+        // sem o PIX existente o cliente ainda pode gerar um novo
+      }
+    };
     void carregarLoja();
+    void carregarPixExistente();
     return () => {
       ativo = false;
     };
-  }, [slug]);
+  }, [slug, codigoAcompanhamento]);
 
   const chamarNovaTentativa = async (paymentMethod: 'PIX' | 'CARTAO', cartao?: DadosCartaoBrick) => {
     const resposta = await fetch('/api/checkout/retomar', {
@@ -79,7 +95,11 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
     setErro('');
     try {
       const body = await chamarNovaTentativa('PIX');
-      setPix({ qr_code: String(body.qr_code ?? ''), qr_code_base64: String(body.qr_code_base64 ?? '') });
+      setPix({
+        qr_code: String(body.qr_code ?? ''),
+        qr_code_base64: String(body.qr_code_base64 ?? ''),
+        expira_em: typeof body.expira_em === 'string' ? body.expira_em : null,
+      });
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Não foi possível gerar o PIX.');
     } finally {
@@ -128,7 +148,7 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
 
   return (
     <section className="mt-4 rounded-2xl border border-amber-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-zinc-900">Pagamento não concluído?</h2>
+      <h2 className="text-sm font-semibold text-zinc-900">Falta pagar este pedido</h2>
       <p className="mt-1 text-xs text-zinc-500">
         Tente novamente com outro cartão ou pague com PIX. É o mesmo pedido ({valorFormatado}): você não precisa
         montar a sacola de novo.
@@ -187,7 +207,7 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
             className="rounded-2xl border border-[#E9B31E] bg-[#FFC72C] px-4 py-3 text-left text-zinc-900 shadow-sm disabled:opacity-50"
           >
             <div className="text-xs font-bold uppercase tracking-widest">PIX</div>
-            <div className="text-sm font-medium">{pix ? 'Gerar um novo PIX' : 'Pagar com QR Code e copia e cola'}</div>
+            <div className="text-sm font-medium">{pix ? 'Gerar um novo PIX (cancela o anterior)' : 'Pagar com QR Code e copia e cola'}</div>
           </button>
         )}
       </div>
@@ -222,7 +242,12 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
           >
             {pixCopiado ? 'Código copiado!' : 'Copiar código PIX'}
           </button>
-          <p className="text-center text-[11px] text-zinc-400">Assim que o pagamento for confirmado, esta tela atualiza sozinha.</p>
+          <p className="text-center text-[11px] text-zinc-400">
+            {pix.expira_em
+              ? `Este código vale até as ${new Date(pix.expira_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. `
+              : ''}
+            Assim que o pagamento for confirmado, esta tela atualiza sozinha.
+          </p>
         </div>
       )}
     </section>

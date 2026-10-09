@@ -81,6 +81,15 @@ export interface ParamsCobrancaPedido {
   idempotencyKey: string;
 }
 
+/** Validade do QR Code PIX (o Mercado Pago aceita de 30 min a 30 dias; o padrão dele é 24 h). */
+export const PIX_VALIDADE_MINUTOS = 30;
+
+/** Data no formato do Mercado Pago (ISO 8601 com fuso). Brasília é UTC-3 o ano todo. */
+function formatarDataMercadoPago(data: Date) {
+  const local = new Date(data.getTime() - 3 * 60 * 60 * 1000);
+  return `${local.toISOString().slice(0, 23)}-03:00`;
+}
+
 export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Promise<NextResponse> {
   const {
     appUrl,
@@ -117,6 +126,7 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
   const emailPayer = normalizarEmailPayer(dadosCliente.email, slug, dadosCliente.telefone);
 
   if (paymentMethod === 'PIX') {
+    const expiraEm = new Date(Date.now() + PIX_VALIDADE_MINUTOS * 60 * 1000);
     const response = await fetch(`${MP_API_BASE}/v1/payments`, {
       method: 'POST',
       headers: {
@@ -128,6 +138,7 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
         transaction_amount: Number(valorTotal.toFixed(2)),
         description: `${restaurante.nome} - Pedido`,
         payment_method_id: 'pix',
+        date_of_expiration: formatarDataMercadoPago(expiraEm),
         notification_url: notificationUrl,
         external_reference: externalReference,
         payer: {
@@ -160,6 +171,8 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
       qr_code: transactionData.qr_code ?? '',
       qr_code_base64: transactionData.qr_code_base64 ?? '',
       ticket_url: transactionData.ticket_url ?? '',
+      expira_em: expiraEm.toISOString(),
+      valor_total: Number(valorTotal.toFixed(2)),
       tempo_preparo_estimado_min: tempoPreparoEstimadoMin,
       tempo_deslocamento_min: tempoDeslocamentoMin,
     });

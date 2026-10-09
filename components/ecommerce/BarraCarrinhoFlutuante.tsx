@@ -18,7 +18,7 @@ export default function BarraCarrinhoFlutuante({
 }: BarraProps) {
   const params = useParams();
   const slug = (params?.slug as string) || '';
-  const { totalItens, valorTotal } = useCarrinho();
+  const { totalItens, valorTotal, avisosCarrinho } = useCarrinho();
 
   if (totalItens === 0) return null;
 
@@ -28,6 +28,11 @@ export default function BarraCarrinhoFlutuante({
 
   return (
     <div className="fixed bottom-0 inset-x-0 p-4 bg-transparent z-40 animate-in slide-in-from-bottom duration-300 select-none">
+      {avisosCarrinho.length > 0 && (
+        <p role="status" className="mx-auto mb-2 max-w-md rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-center text-[11px] font-semibold text-amber-900 shadow">
+          Alguns itens da sua sacola mudaram. Toque em &quot;Ver sacola&quot; para conferir.
+        </p>
+      )}
       <div className="max-w-md mx-auto rounded-[24px] p-4 flex items-center justify-between shadow-xl border bg-white/80 border-zinc-200/60 shadow-zinc-300/40 backdrop-blur-xl">
         <div className="flex items-center gap-3.5">
           <div

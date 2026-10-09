@@ -15,8 +15,8 @@ interface ConfiguracaoFormasPagamentoProps {
 
 const DESCRICAO_FORMA: Record<FormaPagamentoLoja, string> = {
   PIX: 'QR Code e copia e cola gerados na hora, direto no checkout da loja.',
-  CARTAO_CREDITO: 'O cliente conclui o pagamento na página segura do Mercado Pago.',
-  CARTAO_DEBITO: 'O cliente conclui o pagamento na página segura do Mercado Pago.',
+  CARTAO_CREDITO: 'Pagamento seguro pelo Mercado Pago, direto no checkout da loja.',
+  CARTAO_DEBITO: 'Pagamento seguro pelo Mercado Pago, direto no checkout da loja.',
 };
 
 export function ConfiguracaoFormasPagamento({ formasIniciais }: ConfiguracaoFormasPagamentoProps) {
