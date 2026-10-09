@@ -28,7 +28,7 @@ export function CascaAdmin({
           ehCozinha ? 'md:pb-24' : ''
         }`}
       >
-        <div className={`w-full min-w-0 space-y-6 ${ehCozinha ? 'max-w-6xl' : 'max-w-4xl'}`}>
+        <div className="w-full min-w-0 max-w-5xl space-y-6">
           <AdminNavHeader restaurante={restaurante} />
           {children}
         </div>
