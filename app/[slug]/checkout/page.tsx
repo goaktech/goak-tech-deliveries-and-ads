@@ -1443,7 +1443,7 @@ export default function TelaDeCheckoutDedicada() {
         </div>
 
         <footer className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-zinc-100 bg-white space-y-4 shrink-0 select-none w-full max-w-xl mx-auto">
-          <div className="flex items-center justify-between">
+          <div className={`flex items-center justify-between ${modoPix ? 'hidden' : ''}`}>
             <div>
               <span className="text-[11px] text-zinc-400 block font-bold uppercase tracking-wider">
                 {taxaEntrega > 0 ? 'Total com Entrega' : 'Subtotal Líquido'}
