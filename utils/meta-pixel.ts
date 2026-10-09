@@ -103,6 +103,21 @@ export function trackPurchase(params: {
   );
 }
 
+/**
+ * Clique no botão de WhatsApp da vitrine. Evento padrão "Contact" da Meta (serve de conversão em campanhas
+ * de tráfego/engajamento). `origem` identifica o botão; o eventID evita contar o mesmo clique em dobro.
+ */
+export function trackContatoWhatsApp(params: { origem: string }) {
+  if (!fbqDisponivel()) return;
+
+  window.fbq!(
+    'track',
+    'Contact',
+    { content_name: 'WhatsApp', contact_method: 'whatsapp', origem: params.origem },
+    { eventID: `wa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` }
+  );
+}
+
 export function trackClicouPagarPix(params: {
   valorTotal: number;
   itens: Array<{ id: string; quantidade: number }>;
