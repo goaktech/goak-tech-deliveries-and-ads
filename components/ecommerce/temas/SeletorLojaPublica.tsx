@@ -31,6 +31,7 @@ const SLUGS_CUSTOMIZADOS: ReadonlySet<string> = new Set([
   'cantina-brasil-v3',
   'perucho-burguer',
   'perucho-burguer-v2',
+  'perucho-burguer-v3',
 ]);
 
 const TIPOS_COM_TEMA: ReadonlySet<TipoRestaurante> = new Set<TipoRestaurante>([

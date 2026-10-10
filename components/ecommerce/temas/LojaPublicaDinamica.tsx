@@ -18,7 +18,9 @@ export const TEMAS_DE_LOJA = {
   'cantina-brasil-v2': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV2')),
   'cantina-brasil-v3': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaCantinaBrasilV3')),
   'perucho-burguer': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguer')),
-  'perucho-burguer-v2': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguerV2')),
+  // v2 e v3 são visuais alternativos da mesma loja (ver utils/alias-vitrines.ts).
+  'perucho-burguer-v2': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguerMercado')),
+  'perucho-burguer-v3': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaPeruchoBurguerParrilla')),
   ACAITERIA: dynamic(() => import('@/components/ecommerce/ComponenteLojaAcai')),
   HAMBURGUERIA: dynamic(() => import('@/components/ecommerce/ComponenteLojaHamburguer')),
   SORVETERIA: dynamic(() => import('@/components/ecommerce/ComponenteLojaSorveteria')),

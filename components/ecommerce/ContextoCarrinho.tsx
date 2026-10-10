@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { trackAddToCart } from '@/utils/meta-pixel';
+import { resolverSlugLoja } from '@/utils/alias-vitrines';
 
 export interface Complemento {
   id: string;
@@ -92,7 +93,8 @@ function lerCarrinhoDoStorage(chave: string): ItemCarrinho[] {
 
 export function ProvedorCarrinho({ children }: { children: React.ReactNode }) {
   const params = useParams();
-  const slugAtual = (params?.slug as string) || '';
+  // Versões alternativas de design (ex.: perucho-burguer-v2) usam o carrinho da loja real.
+  const slugAtual = resolverSlugLoja((params?.slug as string) || '');
   const chaveCarrinhoAtual = montarChaveCarrinho(slugAtual);
 
   const [itens, setItens] = useState<ItemCarrinho[]>(() => lerCarrinhoDoStorage(chaveCarrinhoAtual));

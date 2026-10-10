@@ -1,8 +1,10 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { obterCardapioPorSlug } from '@/actions/cardapio';
 import { renderizarLojaPublica } from '@/components/ecommerce/temas/SeletorLojaPublica';
 import { LojaFechadaAviso } from '@/components/ecommerce/LojaFechadaAviso';
 import { estaLojaAberta, type HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
+import { ehVitrineAlternativa, resolverSlugLoja } from '@/utils/alias-vitrines';
 
 interface PaginaCardapioProps {
   params: Promise<{
@@ -34,13 +36,20 @@ interface ProdutoPagina {
   complementos_produto: ComplementoProdutoPagina[] | null;
 }
 
+/** Versões alternativas de design (ex.: perucho-burguer-v2) não devem aparecer no Google. */
+export async function generateMetadata({ params }: PaginaCardapioProps): Promise<Metadata> {
+  const { slug } = await params;
+  return ehVitrineAlternativa(slug) ? { robots: { index: false, follow: false } } : {};
+}
+
 // Renderiza a cada visita (horário de abertura muda ao longo do dia); os dados da loja vêm do cache em utils/cache-vitrine.
 export const dynamic = 'force-dynamic';
 
 export default async function PaginaCardapioPublico({ params }: PaginaCardapioProps) {
   const { slug } = await params;
 
-  const { restaurante, produtos } = await obterCardapioPorSlug(slug);
+  // O visual vem do slug da URL; os dados (cardápio, horários) são da loja real por trás dele.
+  const { restaurante, produtos } = await obterCardapioPorSlug(resolverSlugLoja(slug));
 
   if (!restaurante) {
     notFound();
