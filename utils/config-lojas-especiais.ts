@@ -37,6 +37,11 @@ export interface ConfigLojaEspecial {
   zonasEntrega?: ZonaEntrega[];
   /** Cidade usada na geocodificação do endereço digitado (melhora o "abrir no Maps"). */
   cidadeEntrega?: string;
+  /**
+   * WhatsApp de atendimento da loja (DDD + número, ex.: "61999998888"). Quando preenchido, a vitrine mostra
+   * "Você pode pedir por aqui ou pelo WhatsApp". Vazio/ausente = a faixa não aparece.
+   */
+  whatsappAtendimento?: string;
 }
 
 const CONFIG_PADRAO: ConfigLojaEspecial = {
@@ -162,6 +167,7 @@ const CONFIGS_LOJAS_ESPECIAIS: Record<string, ConfigLojaEspecial> = {
     ocultarRetirada: false,
     zonasEntrega: ZONAS_ENTREGA_PERUCHO,
     cidadeEntrega: 'Brasília - DF',
+    whatsappAtendimento: '61999684454', // WhatsApp de atendimento do Perucho (DDD + número)
   },
 };
 
