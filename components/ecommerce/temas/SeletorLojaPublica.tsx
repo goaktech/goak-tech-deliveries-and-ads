@@ -12,6 +12,7 @@ export interface RestaurantePropsLoja {
   horariosFuncionamento?: HorarioFuncionamentoDia[] | null;
   /** Opcional: foto de capa cadastrada pelo gestor (Configurações da loja). Só o Perucho Burguer usa isso por enquanto. */
   fotoCapaUrl?: string | null;
+  logoUrl?: string | null;
 }
 
 export interface ComponenteLojaProps {
@@ -31,6 +32,8 @@ const SLUGS_CUSTOMIZADOS: ReadonlySet<string> = new Set([
   'cantina-brasil-v3',
   'perucho-burguer',
   'perucho-burguer-v2',
+  'dona-fit',
+  'dona-fit-v2',
 ]);
 
 const TIPOS_COM_TEMA: ReadonlySet<TipoRestaurante> = new Set<TipoRestaurante>([

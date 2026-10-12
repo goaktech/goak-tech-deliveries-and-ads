@@ -156,7 +156,30 @@ const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
   { nome: 'Parque do Mirante', taxa: 40 },
 ];
 
+const ZONAS_ENTREGA_DONA_FIT: ZonaEntrega[] = [
+  { nome: 'Lago Norte CA', taxa: 15, aliases: ['Lago Norte', 'CA'] },
+  { nome: 'Sudoeste 2', taxa: 15 },
+  { nome: 'Lago Norte 3', taxa: 20 },
+  { nome: 'Sudoeste', taxa: 20 },
+  { nome: 'Lago Norte 2', taxa: 25 },
+  { nome: 'Península Lago Norte', taxa: 25, aliases: ['Peninsula Lago Norte'] },
+  { nome: 'Asa Sul', taxa: 25 },
+  { nome: 'Granja do Torto', taxa: 25 },
+  { nome: 'Asa Norte', taxa: 30 },
+  { nome: 'Guará', taxa: 30, aliases: ['Guara'] },
+  { nome: 'Taquari', taxa: 30 },
+  { nome: 'Águas Claras', taxa: 38, aliases: ['Aguas Claras'] },
+  { nome: 'Riacho Fundo Park Way', taxa: 40, aliases: ['Park Way'] },
+];
+
 const CONFIGS_LOJAS_ESPECIAIS: Record<string, ConfigLojaEspecial> = {
+  'dona-fit': {
+    taxaEntregaFixa: 0,
+    ocultarRetirada: false,
+    zonasEntrega: ZONAS_ENTREGA_DONA_FIT,
+    cidadeEntrega: 'Brasília - DF',
+    whatsappAtendimento: '61996170808',
+  },
   godog: {
     taxaEntregaFixa: 5,
     ocultarRetirada: true,

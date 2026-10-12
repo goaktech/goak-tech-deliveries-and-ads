@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCarrinho } from './ContextoCarrinho';
+import { resolverSlugLoja } from '@/utils/alias-vitrines';
 
 interface BarraProps {
   corBotaoAcao?: string;
@@ -17,7 +18,7 @@ export default function BarraCarrinhoFlutuante({
   corBadgeTexto = '#27272A',
 }: BarraProps) {
   const params = useParams();
-  const slug = (params?.slug as string) || '';
+  const slug = resolverSlugLoja((params?.slug as string) || '');
   const { totalItens, valorTotal, avisosCarrinho } = useCarrinho();
 
   if (totalItens === 0) return null;
