@@ -58,7 +58,7 @@ No ambiente de teste o código fica em `delivery.pickupCode` dos detalhes do ped
 
 ## Requisitos não funcionais (já atendidos)
 
-- Polling de eventos a cada 30 s com `x-polling-merchants`, acknowledgment imediato e deduplicação por `eventId` (`eventos_ifood`).
+- Polling de eventos a cada 30 s no servidor (`utils/ifood-polling.ts`, não depende da cozinha aberta) com `x-polling-merchants`, acknowledgment imediato e deduplicação por `eventId` (`eventos_ifood`).
 - Token renovado antes de expirar; retry com backoff exponencial + jitter em 429/5xx; `idempotency-key` nos POSTs (`utils/ifood.ts`).
 - Observações do cliente (`delivery.observations`) destacadas no card.
 

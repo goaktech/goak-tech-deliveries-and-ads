@@ -156,9 +156,6 @@ const INTERVALO_ALARME_MS = 30000;
 const CHAVE_PREFERENCIA_SOM = 'goak:cozinha:som';
 // Intervalo recomendado pelo iFood pro polling de eventos.
 const INTERVALO_EVENTOS_IFOOD_MS = 30000;
-// Modo homologação (vídeos para o iFood): consulta mais frequente, pra os
-// eventos aparecerem logo e as gravações ficarem curtas.
-const INTERVALO_EVENTOS_IFOOD_HOMOLOGACAO_MS = 10000;
 
 function inicioDoDiaIso() {
   const data = new Date();
@@ -834,34 +831,40 @@ export function useCozinha() {
     [mostrarAviso]
   );
 
-  // Eventos do iFood Entrega (entregador alocado, coletou, entregou, endereço,
-  // cancelamento): polling enquanto a cozinha estiver aberta. Quando chega
-  // evento novo, recarrega a lista (o servidor já aplicou nos pedidos).
+  // iFood Entrega: confere se a loja está conectada. O polling de eventos roda
+  // no servidor (utils/ifood-polling.ts) e esta chamada só devolve o último
+  // evento gravado; sem esse laço (serverless sem cron), ela mesma faz o
+  // polling. Nos dois casos, evento novo recarrega a lista.
   useEffect(() => {
     if (!restauranteId) return;
     let ativo = true;
+    let ultimoEvento: string | null | undefined;
     const buscarEventos = async () => {
       try {
         const resposta = await fetch('/api/admin/ifood/eventos', { method: 'POST', cache: 'no-store' });
-        const corpo = (await resposta.json().catch(() => ({}))) as { conectado?: boolean; novos?: number; clientIdHomologacao?: string | null };
+        const corpo = (await resposta.json().catch(() => ({}))) as {
+          conectado?: boolean;
+          novos?: number;
+          ultimoEvento?: string | null;
+          clientIdHomologacao?: string | null;
+        };
         if (!ativo) return;
         setIfoodConectado(corpo.conectado === true);
         setClientIdHomologacaoIfood(corpo.clientIdHomologacao ?? null);
-        if ((corpo.novos ?? 0) > 0) void sincronizar();
+        const mudou = ultimoEvento !== undefined && corpo.ultimoEvento !== undefined && corpo.ultimoEvento !== ultimoEvento;
+        if (corpo.ultimoEvento !== undefined) ultimoEvento = corpo.ultimoEvento;
+        if ((corpo.novos ?? 0) > 0 || mudou) void sincronizar();
       } catch {
         // sem conexão: tenta de novo no próximo ciclo
       }
     };
     void buscarEventos();
-    const intervalo = setInterval(
-      () => void buscarEventos(),
-      clientIdHomologacaoIfood ? INTERVALO_EVENTOS_IFOOD_HOMOLOGACAO_MS : INTERVALO_EVENTOS_IFOOD_MS
-    );
+    const intervalo = setInterval(() => void buscarEventos(), INTERVALO_EVENTOS_IFOOD_MS);
     return () => {
       ativo = false;
       clearInterval(intervalo);
     };
-  }, [restauranteId, sincronizar, clientIdHomologacaoIfood]);
+  }, [restauranteId, sincronizar]);
 
   return {
     pedidos,

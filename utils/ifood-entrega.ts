@@ -21,6 +21,7 @@ import {
   obterIntegracaoIfoodPorRestauranteId,
   requisicaoIfood,
 } from '@/utils/ifood';
+import { aplicarEventoPedidoIfood } from '@/utils/ifood-pedidos';
 
 export interface CotacaoIfood {
   id: string;
@@ -523,6 +524,13 @@ export async function processarEventosIfood(restauranteId: string) {
         await aplicarEvento(pedido as PedidoDoEvento, evento);
       } catch (erro) {
         console.error('Falha ao aplicar evento do iFood no pedido:', { eventId: evento.id, pedidoId: pedido.id, erro });
+      }
+    } else {
+      // Não é entrega de um pedido do goak: pedido recebido do iFood (módulo Order).
+      try {
+        await aplicarEventoPedidoIfood(restauranteId, accessToken, evento);
+      } catch (erro) {
+        console.error('Falha ao aplicar evento de pedido recebido do iFood:', { eventId: evento.id, erro });
       }
     }
   }

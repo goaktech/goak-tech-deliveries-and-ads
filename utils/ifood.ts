@@ -418,3 +418,83 @@ export function formatarEnderecoLojaIfood(endereco: EnderecoLojaIfood | null) {
     .filter(Boolean)
     .join(', ');
 }
+
+// ------------------------------------------------------------ status de operação
+
+export type EstadoOperacaoIfood = 'OK' | 'WARNING' | 'CLOSED' | 'ERROR';
+
+export interface PendenciaOperacaoIfood {
+  codigo: string;
+  estado: EstadoOperacaoIfood;
+  titulo: string | null;
+  descricao: string | null;
+}
+
+/** Uma operação da loja (delivery, takeout...) num canal de venda. */
+export interface StatusOperacaoIfood {
+  operacao: string;
+  canal: string | null;
+  disponivel: boolean;
+  estado: EstadoOperacaoIfood;
+  titulo: string | null;
+  descricao: string | null;
+  /** Validações que não estão OK (loja fechada, sem polling, fora do horário...). */
+  pendencias: PendenciaOperacaoIfood[];
+}
+
+interface MensagemStatusBruta {
+  title?: string;
+  subtitle?: string;
+  description?: string;
+}
+
+interface StatusOperacaoBruto {
+  operation?: string;
+  salesChannel?: string;
+  available?: boolean;
+  state?: string;
+  message?: MensagemStatusBruta;
+  validations?: Array<{ id?: string; code?: string; state?: string; message?: MensagemStatusBruta }>;
+}
+
+function estadoOperacao(estado: string | undefined): EstadoOperacaoIfood {
+  return estado === 'OK' || estado === 'WARNING' || estado === 'CLOSED' ? estado : 'ERROR';
+}
+
+/**
+ * Status de operação da loja (GET /merchant/v1.0/merchants/{id}/status): se
+ * está aberta e recebendo pedidos e, quando não está, o porquê. A validação
+ * `is-connected` é o próprio iFood dizendo se o polling de eventos está chegando.
+ */
+export async function obterStatusOperacaoLojaIfood(restauranteId: string): Promise<StatusOperacaoIfood[]> {
+  const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId);
+  if (!integracao?.merchant_id || integracao.connection_status !== 'conectado') {
+    throw new Error('Loja iFood não conectada.');
+  }
+
+  const accessToken = await obterAccessTokenIfood(restauranteId);
+  const resposta = await requisicaoIfood<StatusOperacaoBruto[]>(
+    `/merchant/v1.0/merchants/${integracao.merchant_id}/status`,
+    { accessToken }
+  );
+  if (resposta.status !== 200 || !Array.isArray(resposta.body)) {
+    throw new Error('Não foi possível consultar o status da loja no iFood.');
+  }
+
+  return resposta.body.map((item) => ({
+    operacao: item.operation ?? '',
+    canal: item.salesChannel ?? null,
+    disponivel: item.available === true,
+    estado: estadoOperacao(item.state),
+    titulo: item.message?.title ?? null,
+    descricao: item.message?.subtitle ?? item.message?.description ?? null,
+    pendencias: (item.validations ?? [])
+      .filter((validacao) => validacao.state !== 'OK')
+      .map((validacao) => ({
+        codigo: validacao.code ?? validacao.id ?? '',
+        estado: estadoOperacao(validacao.state),
+        titulo: validacao.message?.title ?? null,
+        descricao: validacao.message?.subtitle ?? validacao.message?.description ?? null,
+      })),
+  }));
+}
