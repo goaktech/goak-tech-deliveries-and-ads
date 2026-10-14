@@ -25,7 +25,8 @@ export function FaixaHomologacaoIfood({ clientId }: { clientId: string }) {
   return (
     <div className="sticky top-2 z-50 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 font-mono text-[11px] font-semibold text-[#EA1D2C] shadow-sm">
       <span>iFood · homologação · client_id {clientId}</span>
-      <span>{FORMATO_DATA_HORA.format(agora)}</span>
+      {/* Servidor e navegador podem divergir em 1 s na primeira renderização. */}
+      <span suppressHydrationWarning>{FORMATO_DATA_HORA.format(agora)}</span>
     </div>
   );
 }
