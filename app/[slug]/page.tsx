@@ -1,8 +1,10 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { obterCardapioPorSlug } from '@/actions/cardapio';
 import { renderizarLojaPublica } from '@/components/ecommerce/temas/SeletorLojaPublica';
 import { LojaFechadaAviso } from '@/components/ecommerce/LojaFechadaAviso';
 import { estaLojaAberta, type HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
+import { ehVitrineAlternativa, resolverSlugLoja } from '@/utils/alias-vitrines';
 
 interface PaginaCardapioProps {
   params: Promise<{
@@ -35,12 +37,17 @@ interface ProdutoPagina {
 }
 
 // Renderiza a cada visita (horário de abertura muda ao longo do dia); os dados da loja vêm do cache em utils/cache-vitrine.
+export async function generateMetadata({ params }: PaginaCardapioProps): Promise<Metadata> {
+  const { slug } = await params;
+  return ehVitrineAlternativa(slug) ? { robots: { index: false, follow: false } } : {};
+}
+
 export const dynamic = 'force-dynamic';
 
 export default async function PaginaCardapioPublico({ params }: PaginaCardapioProps) {
   const { slug } = await params;
 
-  const { restaurante, produtos } = await obterCardapioPorSlug(slug);
+  const { restaurante, produtos } = await obterCardapioPorSlug(resolverSlugLoja(slug));
 
   if (!restaurante) {
     notFound();
@@ -88,6 +95,7 @@ export default async function PaginaCardapioPublico({ params }: PaginaCardapioPr
       endereco: restaurante.endereco ?? null,
       horariosFuncionamento: horariosFuncionamento ?? null,
       fotoCapaUrl: restaurante.foto_capa_url ?? null,
+      logoUrl: restaurante.logo_url ?? null,
     },
     produtos: produtosNormalizados,
   });

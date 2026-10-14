@@ -12,11 +12,18 @@ const hostnamesImagens = [supabaseHostname, hostnameStorageStagingTemporario].fi
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: hostnamesImagens.map((hostname) => ({
-      protocol: "https" as const,
-      hostname,
-      pathname: "/storage/v1/object/public/**",
-    })),
+    remotePatterns: [
+      ...hostnamesImagens.map((hostname) => ({
+        protocol: "https" as const,
+        hostname,
+        pathname: "/storage/v1/object/public/**",
+      })),
+      {
+        protocol: "https" as const,
+        hostname: "client-assets.anota.ai",
+        pathname: "/**",
+      },
+    ],
   },
 };
 
