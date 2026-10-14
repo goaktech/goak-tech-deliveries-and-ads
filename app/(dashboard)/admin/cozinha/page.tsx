@@ -7,6 +7,9 @@ import { FaixaPedidosPendentes } from '@/components/cozinha/FaixaPedidosPendente
 import { ListaPedidosFinalizados } from '@/components/cozinha/ListaPedidosFinalizados';
 import { ModalCancelarPedido } from '@/components/cozinha/ModalCancelarPedido';
 import { AvisoCozinha } from '@/components/cozinha/AvisoCozinha';
+import { FaixaHomologacaoIfood } from '@/components/cozinha/FaixaHomologacaoIfood';
+import { StatusOperacaoIfood } from '@/components/admin/StatusOperacaoIfood';
+import { PedidosIfoodCozinha } from '@/components/cozinha/PedidosIfoodCozinha';
 import { formatarNumeroPedido } from '@/utils/pedido-status';
 
 type EtapaCozinha = 'novos' | 'preparo' | 'prontos' | 'caminho' | 'finalizados';
@@ -56,6 +59,7 @@ export default function PainelCozinhaAdmin() {
     cancelarPedido,
     atribuirEntregador,
     ifoodConectado,
+    clientIdHomologacaoIfood,
   } = useCozinha();
 
   const [etapaAtiva, setEtapaAtiva] = useState<EtapaCozinha>('novos');
@@ -103,6 +107,9 @@ export default function PainelCozinhaAdmin() {
   return (
     <>
       <div className="space-y-6">
+        {clientIdHomologacaoIfood ? <FaixaHomologacaoIfood clientId={clientIdHomologacaoIfood} /> : null}
+        {ifoodConectado ? <StatusOperacaoIfood compacto /> : null}
+        {ifoodConectado ? <PedidosIfoodCozinha /> : null}
         <h1 className="sr-only">Monitor de produção</h1>
         <header className="flex items-center justify-end gap-3 px-1 select-none">
           <div className="flex items-center gap-2">

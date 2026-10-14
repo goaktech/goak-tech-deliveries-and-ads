@@ -20,6 +20,8 @@ import {
 type Resultado = { success: true; integracao: IntegracaoIfoodPublica | null } | { success: false; error: string };
 
 const PAGINA_INTEGRACOES = '/admin/integracoes';
+const TENTATIVAS_CONFERIR_LOJA = 4;
+const ESPERA_CONFERIR_LOJA_MS = 3000;
 
 function mensagemDeErro(erro: unknown, padrao: string) {
   return erro instanceof Error ? erro.message : padrao;
@@ -86,16 +88,38 @@ export async function concluirConexaoIfood(authorizationCode: string): Promise<R
 
     const tokens = await trocarAuthorizationCodeIfood(codigo, integracao.authorization_code_verifier);
 
-    const autorizadas = await listarLojasAutorizadasIfood(tokens.accessToken);
-    if (!autorizadas.some((loja) => loja.id === integracao.merchant_id)) {
-      const nomes = autorizadas.map((loja) => loja.name || loja.id).join(', ') || 'nenhuma';
+    // O código de autorização só vale uma vez: a conferência da loja não pode
+    // jogar o token fora por um atraso do iFood. Logo depois da aprovação a
+    // loja às vezes ainda não aparece para o token, então tenta algumas vezes
+    // buscar a loja informada antes de concluir que a autorização foi para outra.
+    let loja: Awaited<ReturnType<typeof buscarDadosLojaIfood>> | null = null;
+    for (let tentativa = 1; tentativa <= TENTATIVAS_CONFERIR_LOJA && !loja; tentativa++) {
+      loja = await buscarDadosLojaIfood(tokens.accessToken, integracao.merchant_id).catch(() => null);
+      if (!loja && tentativa < TENTATIVAS_CONFERIR_LOJA) {
+        await new Promise((resolve) => setTimeout(resolve, ESPERA_CONFERIR_LOJA_MS));
+      }
+    }
+
+    if (!loja) {
+      const autorizadas = await listarLojasAutorizadasIfood(tokens.accessToken).catch(() => []);
+      console.error('Loja informada não aparece para o token do iFood:', {
+        merchantId: integracao.merchant_id,
+        autorizadas: autorizadas.map((item) => item.id),
+      });
+      if (autorizadas.length === 0) {
+        return {
+          success: false,
+          error:
+            'O iFood aceitou o código, mas ainda não liberou nenhuma loja para ele. Aguarde alguns minutos, gere um novo código e autorize de novo. Se continuar, confira no Portal do Parceiro se a integração aparece como ativa na loja.',
+        };
+      }
+      const nomes = autorizadas.map((item) => item.name || item.id).join(', ');
       return {
         success: false,
         error: `A autorização foi feita para outra loja (${nomes}), não para o ID informado. Confira o ID ou entre no Portal do Parceiro com a conta da loja certa.`,
       };
     }
 
-    const loja = await buscarDadosLojaIfood(tokens.accessToken, integracao.merchant_id);
     await salvarIntegracaoIfood(restauranteId, {
       connection_status: 'conectado',
       access_token: tokens.accessToken,

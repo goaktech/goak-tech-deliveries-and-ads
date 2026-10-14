@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { clientIdIfoodHomologacao } from '@/utils/ifood';
 import {
   type CotacaoIfood,
   cancelarEntregaIfood,
   chamarEntregadorIfood,
   cotarEntregaIfood,
   listarMotivosCancelamentoIfood,
+  obterDadosHomologacaoColetaIfood,
   responderAlteracaoEnderecoIfood,
   validarCodigoColetaIfood,
 } from '@/utils/ifood-entrega';
@@ -20,7 +22,8 @@ type Corpo =
   | { acao: 'motivos' }
   | { acao: 'cancelar'; codigo: string; descricao: string }
   | { acao: 'endereco'; aceitar: boolean }
-  | { acao: 'coleta'; codigo: string };
+  | { acao: 'coleta'; codigo: string }
+  | { acao: 'homologacao' };
 
 // iFood Entrega a partir do card da cozinha — ver utils/ifood-entrega.ts.
 export async function POST(request: Request, { params }: Params) {
@@ -74,6 +77,12 @@ export async function POST(request: Request, { params }: Params) {
           return NextResponse.json({ error: 'Informe o código que o entregador mostrou.' }, { status: 400 });
         }
         return NextResponse.json({ valido: await validarCodigoColetaIfood(restauranteId, pedidoId, corpo.codigo) });
+      case 'homologacao':
+        // Código de coleta e eventos do pedido — só com IFOOD_HOMOLOGACAO=true.
+        if (!clientIdIfoodHomologacao()) {
+          return NextResponse.json({ error: 'Disponível só no modo homologação.' }, { status: 403 });
+        }
+        return NextResponse.json(await obterDadosHomologacaoColetaIfood(restauranteId, pedidoId));
       default:
         return NextResponse.json({ error: 'Ação inválida.' }, { status: 400 });
     }
