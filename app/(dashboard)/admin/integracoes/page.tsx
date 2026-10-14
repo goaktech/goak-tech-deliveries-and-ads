@@ -9,7 +9,12 @@ import {
 import { obterIntegracaoWhatsappBusinessPorRestauranteId } from '@/utils/whatsapp-business';
 import { avaliarTokenMetaAds, obterIntegracaoMetaAdsPorRestauranteId } from '@/utils/meta-ads';
 import { ConfiguracaoMetaAds } from '@/components/admin/ConfiguracaoMetaAds';
-import { obterIntegracaoIfoodPorRestauranteId, paraIntegracaoIfoodPublica } from '@/utils/ifood';
+import { FaixaHomologacaoIfood } from '@/components/cozinha/FaixaHomologacaoIfood';
+import {
+  clientIdIfoodHomologacao,
+  obterIntegracaoIfoodPorRestauranteId,
+  paraIntegracaoIfoodPublica,
+} from '@/utils/ifood';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { SecaoRecolhivel } from '@/components/admin/SecaoRecolhivel';
 import { FormularioConfirmavel } from '@/components/shared/FormularioConfirmavel';
@@ -110,8 +115,11 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
     { ancora: 'capi', nome: 'API de Conversões', ok: Boolean(integracaoCapi) },
   ];
 
+  const clientIdHomologacaoIfood = clientIdIfoodHomologacao();
+
   return (
     <>
+        {clientIdHomologacaoIfood ? <FaixaHomologacaoIfood clientId={clientIdHomologacaoIfood} /> : null}
         <section className="bg-white rounded-[24px] p-6 shadow-sm shadow-zinc-300/40 space-y-5">
           <div className="space-y-1">
             <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900">Pagamentos e Integrações</h1>

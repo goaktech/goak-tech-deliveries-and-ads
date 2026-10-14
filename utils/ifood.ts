@@ -139,7 +139,7 @@ const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)
 export async function requisicaoIfood<T>(
   caminho: string,
   opcoes: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     accessToken?: string;
     form?: Record<string, string>;
     json?: unknown;
@@ -473,10 +473,14 @@ export async function obterStatusOperacaoLojaIfood(restauranteId: string): Promi
   }
 
   const accessToken = await obterAccessTokenIfood(restauranteId);
-  const resposta = await requisicaoIfood<StatusOperacaoBruto[]>(
-    `/merchant/v1.0/merchants/${integracao.merchant_id}/status`,
-    { accessToken }
-  );
+  return consultarStatusOperacaoIfood(accessToken, integracao.merchant_id);
+}
+
+/** Mesmo status, para qualquer loja que o token pode operar. */
+export async function consultarStatusOperacaoIfood(accessToken: string, merchantId: string): Promise<StatusOperacaoIfood[]> {
+  const resposta = await requisicaoIfood<StatusOperacaoBruto[]>(`/merchant/v1.0/merchants/${merchantId}/status`, {
+    accessToken,
+  });
   if (resposta.status !== 200 || !Array.isArray(resposta.body)) {
     throw new Error('Não foi possível consultar o status da loja no iFood.');
   }
