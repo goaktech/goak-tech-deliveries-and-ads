@@ -79,7 +79,13 @@ export interface EntregadorIfoodCozinha {
 export interface AlteracaoEnderecoIfoodCozinha {
   estado: string;
   solicitadoEm?: string;
-  endereco?: { streetName?: string; streetNumber?: string; neighborhood?: string; city?: string } | null;
+  endereco?: {
+    streetName?: string;
+    streetNumber?: string;
+    neighborhood?: string;
+    city?: string;
+    coordinates?: { latitude?: number; longitude?: number };
+  } | null;
 }
 
 export interface AvisoCozinha {
@@ -240,6 +246,7 @@ export function useCozinha() {
   const [audioBloqueado, setAudioBloqueado] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
   const [ifoodConectado, setIfoodConectado] = useState(false);
+  const [clientIdHomologacaoIfood, setClientIdHomologacaoIfood] = useState<string | null>(null);
 
   const pedidosRef = useRef<PedidoCozinha[]>([]);
   const entregadoresRef = useRef<EntregadorCozinha[]>([]);
@@ -824,19 +831,29 @@ export function useCozinha() {
     [mostrarAviso]
   );
 
-  // Eventos do iFood Entrega (entregador alocado, coletou, entregou, endereço,
-  // cancelamento): polling enquanto a cozinha estiver aberta. Quando chega
-  // evento novo, recarrega a lista (o servidor já aplicou nos pedidos).
+  // iFood Entrega: confere se a loja está conectada. O polling de eventos roda
+  // no servidor (utils/ifood-polling.ts) e esta chamada só devolve o último
+  // evento gravado; sem esse laço (serverless sem cron), ela mesma faz o
+  // polling. Nos dois casos, evento novo recarrega a lista.
   useEffect(() => {
     if (!restauranteId) return;
     let ativo = true;
+    let ultimoEvento: string | null | undefined;
     const buscarEventos = async () => {
       try {
         const resposta = await fetch('/api/admin/ifood/eventos', { method: 'POST', cache: 'no-store' });
-        const corpo = (await resposta.json().catch(() => ({}))) as { conectado?: boolean; novos?: number };
+        const corpo = (await resposta.json().catch(() => ({}))) as {
+          conectado?: boolean;
+          novos?: number;
+          ultimoEvento?: string | null;
+          clientIdHomologacao?: string | null;
+        };
         if (!ativo) return;
         setIfoodConectado(corpo.conectado === true);
-        if ((corpo.novos ?? 0) > 0) void sincronizar();
+        setClientIdHomologacaoIfood(corpo.clientIdHomologacao ?? null);
+        const mudou = ultimoEvento !== undefined && corpo.ultimoEvento !== undefined && corpo.ultimoEvento !== ultimoEvento;
+        if (corpo.ultimoEvento !== undefined) ultimoEvento = corpo.ultimoEvento;
+        if ((corpo.novos ?? 0) > 0 || mudou) void sincronizar();
       } catch {
         // sem conexão: tenta de novo no próximo ciclo
       }
@@ -871,5 +888,6 @@ export function useCozinha() {
     cancelarPedido,
     atribuirEntregador,
     ifoodConectado,
+    clientIdHomologacaoIfood,
   };
 }

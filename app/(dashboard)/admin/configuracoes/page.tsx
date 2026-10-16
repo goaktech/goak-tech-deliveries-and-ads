@@ -3,6 +3,7 @@ import { ConfiguracaoEnderecoLoja } from '@/components/admin/ConfiguracaoEnderec
 import { ConfiguracaoHorarioFuncionamento } from '@/components/admin/ConfiguracaoHorarioFuncionamento';
 import { ConfiguracaoFotoCapaLoja } from '@/components/admin/ConfiguracaoFotoCapaLoja';
 import { ConfiguracaoImpressora } from '@/components/admin/ConfiguracaoImpressora';
+import { ConfiguracaoSenha } from '@/components/admin/ConfiguracaoSenha';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
@@ -65,6 +66,8 @@ export default async function PainelConfiguracoesAdmin() {
           <ConfiguracaoImpressora larguraInicial={normalizarLarguraPapel(restaurante?.largura_papel_impressao)} />
 
           <ConfiguracaoFotoCapaLoja fotoCapaUrlInicial={restaurante?.foto_capa_url ?? null} />
+
+          <ConfiguracaoSenha />
           </div>
         </section>
     </>

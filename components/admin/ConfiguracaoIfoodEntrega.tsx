@@ -10,6 +10,8 @@ import {
 } from '@/actions/adminIfood';
 import { atualizarEnderecoLoja } from '@/actions/adminConfiguracoesLoja';
 import { useAvisosPainel } from '@/components/shared/AvisosPainel';
+import { GestaoLojaIfood } from '@/components/admin/GestaoLojaIfood';
+import { StatusOperacaoIfood } from '@/components/admin/StatusOperacaoIfood';
 import type { EnderecoLojaIfood, IntegracaoIfoodPublica } from '@/utils/ifood';
 
 interface ConfiguracaoIfoodEntregaProps {
@@ -247,6 +249,8 @@ export function ConfiguracaoIfoodEntrega({
             Situação no iFood:{' '}
             <b>{ROTULO_STATUS_LOJA[integracao?.merchantStatus ?? ''] ?? integracao?.merchantStatus ?? '—'}</b>
           </div>
+          <StatusOperacaoIfood />
+          <GestaoLojaIfood />
           <div>Endereço de coleta (cadastro iFood): {formatarEndereco(enderecoIfood) || '—'}</div>
           {integracao?.dadosAtualizadosEm ? (
             <div className="text-xs text-zinc-400">
