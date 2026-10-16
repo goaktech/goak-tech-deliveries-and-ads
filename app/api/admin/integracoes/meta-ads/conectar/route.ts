@@ -6,7 +6,6 @@ export async function GET(request: Request) {
   try {
     const { authUrl, nonce } = await gerarUrlAutorizacaoMetaAds();
     const resposta = NextResponse.redirect(authUrl);
-    // O nonce vai no state (assinado) e neste cookie: o callback só vale para quem iniciou o fluxo.
     resposta.cookies.set(COOKIE_NONCE_META_ADS, nonce, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

@@ -1,16 +1,3 @@
-// utils/ifood.ts
-// Integração com a Merchant API do iFood (app DISTRIBUÍDO: cada lojista
-// autoriza o goak a operar a própria loja). Fluxo de conexão:
-//   1. gestor informa o ID da loja (merchantId) → geramos um userCode;
-//   2. lojista aprova no Portal do Parceiro e recebe um authorizationCode;
-//   3. trocamos o código por accessToken/refreshToken e conferimos que a
-//      loja autorizada é a mesma do ID informado.
-// Tokens ficam só no banco (service role) — nunca vão para o cliente.
-//
-// Requisitos de homologação já cobertos aqui: renovação do token antes de
-// expirar, retry com backoff exponencial + jitter em 429/5xx/rede e
-// idempotency-key em operações que alteram estado.
-
 import { randomUUID } from 'node:crypto';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 
@@ -54,7 +41,6 @@ export interface RestauranteIntegracaoIfood {
   updated_at: string;
 }
 
-/** O que pode ir para o navegador: sem tokens nem verifier. */
 export interface IntegracaoIfoodPublica {
   merchantId: string | null;
   merchantNome: string | null;
@@ -105,10 +91,6 @@ function getEnvOrThrow(value: string | undefined, name: string): string {
   return value;
 }
 
-/**
- * client_id do app quando IFOOD_HOMOLOGACAO=true: a cozinha exibe numa faixa
- * com relógio, como o iFood exige nos vídeos de homologação. Fora disso, null.
- */
 export function clientIdIfoodHomologacao() {
   return process.env.IFOOD_HOMOLOGACAO === 'true' ? process.env.IFOOD_CLIENT_ID ?? null : null;
 }
@@ -131,11 +113,6 @@ export function merchantIdValido(merchantId: string) {
 
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Chamada HTTP à API do iFood com retry (1s, 2s, 4s + jitter) em falhas
- * transitórias. POSTs levam idempotency-key — a mesma em todas as
- * tentativas, para o iFood não executar a operação duas vezes.
- */
 export async function requisicaoIfood<T>(
   caminho: string,
   opcoes: {
@@ -204,8 +181,6 @@ export async function requisicaoIfood<T>(
   }
 }
 
-// ------------------------------------------------------------ autenticação
-
 export async function gerarUserCodeIfood() {
   const { clientId } = getIfoodConfig();
   const resposta = await requisicaoIfood<UserCodeIfood>('/authentication/v1.0/oauth/userCode', {
@@ -251,8 +226,6 @@ function renovarTokenIfood(refreshToken: string) {
 export function expiracaoDoToken(expiresIn: number) {
   return new Date(Date.now() + expiresIn * 1000).toISOString();
 }
-
-// ------------------------------------------------------------ persistência
 
 export async function obterIntegracaoIfoodPorRestauranteId(restauranteId: string) {
   const { data, error } = await getSupabase()
@@ -303,11 +276,6 @@ export function paraIntegracaoIfoodPublica(integracao: RestauranteIntegracaoIfoo
   };
 }
 
-/**
- * Access token válido da loja, renovado via refresh token quando faltam
- * menos de 5 minutos para expirar. Se a renovação falhar (lojista revogou
- * o acesso, refresh expirado), a integração volta para "desconectado".
- */
 export async function obterAccessTokenIfood(restauranteId: string) {
   const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId);
   if (!integracao || integracao.connection_status !== 'conectado' || !integracao.access_token) {
@@ -344,9 +312,6 @@ export async function obterAccessTokenIfood(restauranteId: string) {
   }
 }
 
-// ------------------------------------------------------------ loja (merchant)
-
-/** IDs das lojas que este token pode operar. */
 export async function listarLojasAutorizadasIfood(accessToken: string) {
   const resposta = await requisicaoIfood<Array<{ id: string; name?: string }>>('/merchant/v1.0/merchants', {
     accessToken,
@@ -388,8 +353,6 @@ export async function buscarDadosLojaIfood(accessToken: string, merchantId: stri
 
   const loja = resposta.body;
   const a = loja.address ?? {};
-  // No cadastro do iFood o "street" às vezes já vem com número e bairro
-  // ("Ramal Bujari, 122, Bujari") — guardamos só o logradouro.
   const logradouro = a.street ? a.street.split(',')[0].trim() : null;
 
   return {
@@ -419,8 +382,6 @@ export function formatarEnderecoLojaIfood(endereco: EnderecoLojaIfood | null) {
     .join(', ');
 }
 
-// ------------------------------------------------------------ status de operação
-
 export type EstadoOperacaoIfood = 'OK' | 'WARNING' | 'CLOSED' | 'ERROR';
 
 export interface PendenciaOperacaoIfood {
@@ -430,7 +391,6 @@ export interface PendenciaOperacaoIfood {
   descricao: string | null;
 }
 
-/** Uma operação da loja (delivery, takeout...) num canal de venda. */
 export interface StatusOperacaoIfood {
   operacao: string;
   canal: string | null;
@@ -438,7 +398,6 @@ export interface StatusOperacaoIfood {
   estado: EstadoOperacaoIfood;
   titulo: string | null;
   descricao: string | null;
-  /** Validações que não estão OK (loja fechada, sem polling, fora do horário...). */
   pendencias: PendenciaOperacaoIfood[];
 }
 
@@ -461,11 +420,6 @@ function estadoOperacao(estado: string | undefined): EstadoOperacaoIfood {
   return estado === 'OK' || estado === 'WARNING' || estado === 'CLOSED' ? estado : 'ERROR';
 }
 
-/**
- * Status de operação da loja (GET /merchant/v1.0/merchants/{id}/status): se
- * está aberta e recebendo pedidos e, quando não está, o porquê. A validação
- * `is-connected` é o próprio iFood dizendo se o polling de eventos está chegando.
- */
 export async function obterStatusOperacaoLojaIfood(restauranteId: string): Promise<StatusOperacaoIfood[]> {
   const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId);
   if (!integracao?.merchant_id || integracao.connection_status !== 'conectado') {
@@ -476,7 +430,6 @@ export async function obterStatusOperacaoLojaIfood(restauranteId: string): Promi
   return consultarStatusOperacaoIfood(accessToken, integracao.merchant_id);
 }
 
-/** Mesmo status, para qualquer loja que o token pode operar. */
 export async function consultarStatusOperacaoIfood(accessToken: string, merchantId: string): Promise<StatusOperacaoIfood[]> {
   const resposta = await requisicaoIfood<StatusOperacaoBruto[]>(`/merchant/v1.0/merchants/${merchantId}/status`, {
     accessToken,

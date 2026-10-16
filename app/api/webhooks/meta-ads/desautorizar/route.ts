@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { removerDadosDoUsuarioMetaAds, validarSignedRequestMetaAds } from '@/utils/meta-ads';
 
-// "Deauthorize Callback URL" do app Meta: chamado quando o usuário remove o app nas
-// configurações do Facebook. Apagamos o token e os dados da conta de anúncios dele.
 export async function POST(request: Request) {
   try {
     const formulario = await request.formData();

@@ -1,16 +1,3 @@
-// utils/ifood-entrega.ts
-// "Chamar motoboy iFood" a partir do card da cozinha (iFood Entrega / Shipping,
-// pedidos fora da plataforma — salesChannel=POS). Usa a conexão da loja feita
-// em /admin/integracoes (utils/ifood.ts).
-//
-// Fluxo validado contra a API real com a loja de teste (ver
-// docs/integracao-ifood-entrega.md):
-//   cotação (deliveryAvailabilities) → registro (POST orders) → eventos
-//   (polling + acknowledgment) que avançam o status do pedido no goak.
-//
-// Todo pedido do goak é pago online (PIX/cartão via Mercado Pago), então a
-// entrega vai sem `payments`: o motoboy não cobra nada na entrega.
-
 import { randomUUID } from 'node:crypto';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { atualizarStatusPedidoComNotificacoes } from '@/utils/pedidos-acompanhamento';
@@ -60,10 +47,8 @@ interface PedidoParaIfood {
   }> | null;
 }
 
-// Ordem da esteira do goak: eventos do iFood só fazem o pedido avançar.
 const ORDEM_STATUS: StatusPedido[] = ['PENDENTE', 'PAGO', 'PREPARANDO', 'PRONTO', 'SAIU_PARA_ENTREGA', 'ENTREGUE'];
 
-// Erros de cotação/registro documentados pelo iFood → mensagem pra cozinha.
 const MENSAGENS_ERRO_IFOOD: Record<string, string> = {
   DeliveryDistanceTooHigh: 'Endereço do cliente fica longe demais da loja para o iFood Entrega (cerca de 10 km).',
   OffOpeningHours: 'Fora do horário de operação do iFood Entrega.',
@@ -128,7 +113,6 @@ function exigirIfood(pedido: PedidoParaIfood) {
   return pedido.ifood_order_id;
 }
 
-/** UF pelo CEP (ViaCEP → BrasilAPI); sem resposta, usa o estado da loja no iFood. */
 async function obterUf(cep: string | undefined, estadoLoja: string | null) {
   const digitos = String(cep ?? '').replace(/\D/g, '');
   if (digitos.length === 8) {
@@ -141,14 +125,11 @@ async function obterUf(cep: string | undefined, estadoLoja: string | null) {
           if (!dados.erro && uf && /^[A-Z]{2}$/.test(uf)) return uf;
         }
       } catch {
-        // tenta o próximo provedor
       }
     }
   }
   return estadoLoja;
 }
-
-// ------------------------------------------------------------ cotação e registro
 
 export async function cotarEntregaIfood(restauranteId: string, pedidoId: string): Promise<CotacaoIfood> {
   const pedido = await carregarPedido(restauranteId, pedidoId);
@@ -225,15 +206,9 @@ export async function chamarEntregadorIfood(restauranteId: string, pedidoId: str
     };
   });
 
-  // Taxa de entrega que o CLIENTE pagou à loja (o goak não guarda à parte:
-  // é o total menos os itens, como em app/api/checkout/retomar). Vai em
-  // merchantFee só como informação — aparece na página de acompanhamento do
-  // iFood. Não é o que o iFood cobra da loja pelo entregador (isso é a cotação).
   const totalItens = itens.reduce((soma, item) => soma + item.totalPrice, 0);
   const taxaEntregaCliente = Math.max(0, Math.round((Number(pedido.valor_total) - totalItens) * 100) / 100);
 
-  // Tempo de preparo restante, em segundos: o iFood aloca o entregador pra
-  // chegar quando o pedido estiver pronto. Pronto → aloca já.
   let preparoSegundos = 0;
   if (pedido.status !== 'PRONTO' && pedido.tempo_preparo_estimado_min) {
     const decorrido = (Date.now() - new Date(pedido.created_at).getTime()) / 1000;
@@ -291,27 +266,15 @@ export async function chamarEntregadorIfood(restauranteId: string, pedidoId: str
     .eq('id', pedidoId);
 
   if (error) {
-    // O iFood já registrou a entrega: não dá pra perder o ID dela.
     console.error('Entrega iFood registrada mas não salva no pedido:', { pedidoId, ifoodOrderId: resposta.body.id, error });
     throw new Error(`Entrega registrada no iFood (${resposta.body.id}), mas houve falha ao salvar no pedido.`);
   }
 
-  // Já em preparo/pronto: avisa logo (se o iFood ainda não aceitar, o CONFIRMED avisa de novo).
   await sincronizarEtapasIfood(restauranteId, pedidoId, pedido.status);
 
   return { ifoodOrderId: resposta.body.id, trackingUrl: resposta.body.trackingUrl ?? null };
 }
 
-// ------------------------------------------------------------ ações durante a entrega
-
-/**
- * Avisa o iFood da etapa do pedido na cozinha: startPreparation (em preparo)
- * e readyToPickup (pronto para coleta). Sem o readyToPickup o entregador
- * chega e fica esperando na loja — visto no teste em 04-10-2026: a coleta só
- * saiu depois do READY_TO_PICKUP. Chamado quando a cozinha muda o status, ao
- * chamar o entregador e no CONFIRMED do iFood. Não lança erro: falha aqui não
- * pode travar a cozinha.
- */
 export async function avisarEtapaPedidoIfood(restauranteId: string, pedidoId: string, etapa: 'PREPARANDO' | 'PRONTO') {
   const acao = etapa === 'PRONTO' ? 'readyToPickup' : 'startPreparation';
   try {
@@ -333,10 +296,6 @@ export async function avisarEtapaPedidoIfood(restauranteId: string, pedidoId: st
   }
 }
 
-/**
- * Envia ao iFood as etapas que o pedido já passou na cozinha (preparo e, se
- * for o caso, pronto). Repetir uma etapa já enviada só gera log de recusa.
- */
 export async function sincronizarEtapasIfood(restauranteId: string, pedidoId: string, status: StatusPedido) {
   if (status === 'PREPARANDO' || status === 'PRONTO') {
     await avisarEtapaPedidoIfood(restauranteId, pedidoId, 'PREPARANDO');
@@ -366,7 +325,6 @@ export async function listarMotivosCancelamentoIfood(restauranteId: string, pedi
 export async function cancelarEntregaIfood(restauranteId: string, pedidoId: string, codigo: string, descricao: string) {
   const ifoodOrderId = exigirIfood(await carregarPedido(restauranteId, pedidoId));
   const { accessToken } = await lojaConectada(restauranteId);
-  // cancellationCode vai como string: a doc diz integer, mas a API recusa número.
   const resposta = await requisicaoIfood(`/shipping/v1.0/orders/${ifoodOrderId}/cancel`, {
     method: 'POST',
     accessToken,
@@ -376,7 +334,6 @@ export async function cancelarEntregaIfood(restauranteId: string, pedidoId: stri
   if (resposta.status !== 202 && resposta.status !== 200) {
     throw new Error(mensagemErroIfood(resposta.body, 'O iFood não aceitou o cancelamento.'));
   }
-  // A confirmação chega pelo evento CANCELLED (ou CANCELLATION_REQUEST_FAILED).
   await getSupabase()
     .from('pedidos')
     .update({ ifood_status: 'CANCELAMENTO_SOLICITADO', ifood_atualizado_em: new Date().toISOString() })
@@ -406,7 +363,6 @@ export async function responderAlteracaoEnderecoIfood(restauranteId: string, ped
     .eq('id', pedidoId);
 }
 
-/** O entregador informa o código na loja; só entregue o pedido se for válido. */
 export async function validarCodigoColetaIfood(restauranteId: string, pedidoId: string, codigo: string) {
   const ifoodOrderId = exigirIfood(await carregarPedido(restauranteId, pedidoId));
   const { accessToken } = await lojaConectada(restauranteId);
@@ -421,7 +377,6 @@ export async function validarCodigoColetaIfood(restauranteId: string, pedidoId: 
   }
   if (resposta.status !== 200) {
     if (clientIdIfoodHomologacao()) {
-      // Vídeos de homologação: o analista precisa ver a resposta real da API.
       const corpo = resposta.texto.trim();
       throw new Error(
         `O iFood respondeu HTTP ${resposta.status}${corpo ? `: ${corpo.slice(0, 200)}` : ' (sem mensagem)'}.`
@@ -432,12 +387,6 @@ export async function validarCodigoColetaIfood(restauranteId: string, pedidoId: 
   return resposta.body?.valid === true;
 }
 
-/**
- * Só no modo homologação (IFOOD_HOMOLOGACAO=true): código de coleta que o
- * iFood informa nos detalhes do pedido (`delivery.pickupCode`) e eventos já
- * recebidos — o roteiro do cenário 4 pede para mostrar onde o código aparece.
- * Em operação normal a loja não vê o código: quem o apresenta é o entregador.
- */
 export async function obterDadosHomologacaoColetaIfood(restauranteId: string, pedidoId: string) {
   const ifoodOrderId = exigirIfood(await carregarPedido(restauranteId, pedidoId));
   const { accessToken } = await lojaConectada(restauranteId);
@@ -456,8 +405,6 @@ export async function obterDadosHomologacaoColetaIfood(restauranteId: string, pe
   };
 }
 
-// ------------------------------------------------------------ eventos
-
 interface EventoIfood {
   id: string;
   code?: string;
@@ -467,11 +414,6 @@ interface EventoIfood {
   metadata?: Record<string, unknown>;
 }
 
-/**
- * Polling dos eventos da loja (chamado pela cozinha a cada 30s): grava cada
- * evento uma vez só (event_id é a chave), aplica no pedido e confirma
- * (acknowledgment) tudo que recebeu, inclusive duplicados.
- */
 export async function processarEventosIfood(restauranteId: string) {
   const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId);
   if (!integracao?.merchant_id || integracao.connection_status !== 'conectado') {
@@ -515,7 +457,7 @@ export async function processarEventosIfood(restauranteId: string) {
     });
 
     if (duplicado) {
-      continue; // já processado (chave primária) — só confirma de novo no acknowledgment
+      continue;
     }
     novos += 1;
 
@@ -526,7 +468,6 @@ export async function processarEventosIfood(restauranteId: string) {
         console.error('Falha ao aplicar evento do iFood no pedido:', { eventId: evento.id, pedidoId: pedido.id, erro });
       }
     } else {
-      // Não é entrega de um pedido do goak: pedido recebido do iFood (módulo Order).
       try {
         await aplicarEventoPedidoIfood(restauranteId, accessToken, evento);
       } catch (erro) {
@@ -585,7 +526,6 @@ async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
       };
       break;
     case 'DELIVERY_DROP_CODE_REQUESTED':
-      // Código que o entregador pede ao cliente na entrega.
       campos.ifood_codigo_entrega = typeof metadata.CODE === 'string' ? metadata.CODE : null;
       break;
     case 'DELIVERY_ADDRESS_CHANGE_REQUESTED':
@@ -603,7 +543,6 @@ async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
         estado: codigo.replace('DELIVERY_ADDRESS_CHANGE_', ''),
       };
       if (codigo === 'DELIVERY_ADDRESS_CHANGE_ACCEPTED') {
-        // O entregador vai para o endereço novo: o pedido passa a mostrar ele.
         const novo = ((metadata.address ?? pedido.ifood_alteracao_endereco?.endereco) ?? null) as EnderecoEventoIfood | null;
         if (novo) {
           const cliente = pedido.dados_cliente ?? { nome: '', telefone: '' };
@@ -627,9 +566,6 @@ async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
       break;
     case 'CANCELLED':
     case 'DELIVERY_CANCELLED':
-      // Entrega cancelada no iFood (pela loja, pelo iFood ou por falta de
-      // entregador): libera o pedido pra motoboy próprio. O pedido em si
-      // continua — quem decide cancelar a venda é a cozinha.
       campos.logistica = null;
       break;
   }
@@ -637,7 +573,6 @@ async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
   await getSupabase().from('pedidos').update(campos).eq('id', pedido.id);
 
   if (codigo === 'CONFIRMED') {
-    // A cozinha pode ter avançado antes de o iFood confirmar a entrega.
     await sincronizarEtapasIfood(pedido.restaurante_id, pedido.id, pedido.status);
   } else if (['DISPATCHED', 'COLLECTED', 'DELIVERY_IN_TRANSIT'].includes(codigo)) {
     await avancarStatus(pedido, 'SAIU_PARA_ENTREGA');
@@ -646,26 +581,17 @@ async function aplicarEvento(pedido: PedidoDoEvento, evento: EventoIfood) {
   }
 }
 
-// ------------------------------------------------------------ taxa no checkout
-
 export interface TaxaEntregaIfoodCheckout {
-  /** O que o cliente paga de entrega: cotação do iFood + acréscimo da loja. */
   taxaCliente: number;
   cotacao: CotacaoIfood;
   acrescimo: number;
 }
 
-/** A loja ligou "Entregas pelo iFood" (e está conectada)? Não chama o iFood. */
 export async function lojaEntregaPeloIfood(restauranteId: string) {
   const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId).catch(() => null);
   return Boolean(integracao?.merchant_id && integracao.connection_status === 'conectado' && integracao.entregas_pelo_ifood);
 }
 
-/**
- * Taxa de entrega do checkout quando a loja entrega pelo iFood. Devolve null
- * (e o checkout usa a taxa normal da loja) se a opção estiver desligada ou se
- * o iFood não atender o endereço agora (fora de área/horário, sem frota).
- */
 export async function cotarTaxaEntregaIfoodCheckout(
   restauranteId: string,
   coordenada: { latitude: number; longitude: number }

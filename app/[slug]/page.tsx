@@ -36,7 +36,6 @@ interface ProdutoPagina {
   complementos_produto: ComplementoProdutoPagina[] | null;
 }
 
-// Renderiza a cada visita (horário de abertura muda ao longo do dia); os dados da loja vêm do cache em utils/cache-vitrine.
 export async function generateMetadata({ params }: PaginaCardapioProps): Promise<Metadata> {
   const { slug } = await params;
   return ehVitrineAlternativa(slug) ? { robots: { index: false, follow: false } } : {};

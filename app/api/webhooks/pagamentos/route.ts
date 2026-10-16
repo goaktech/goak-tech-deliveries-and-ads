@@ -160,7 +160,6 @@ export async function POST(request: Request) {
     const topicoIpn = String(body?.topic ?? urlWebhook.searchParams.get('topic') ?? '').trim();
     const tipoEvento = String(body?.type ?? body?.action ?? (topicoIpn || 'desconhecido'));
 
-    // Notificações de merchant_order não trazem pagamento e são ignoradas de propósito.
     if (topicoIpn === 'merchant_order' || tipoEvento === 'topic_merchant_order_wh') {
       return NextResponse.json({ received: true, ignored: 'merchant_order' });
     }
@@ -188,11 +187,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    // 1) Assinatura (x-signature). Inválida => rejeita. Ausente: segue (IPN), pois tudo é reconfirmado na API do MP.
-    // O manifesto da assinatura usa o data.id da query string (quando existir); senão, o do corpo.
     const idParaAssinatura = urlWebhook.searchParams.get('data.id') ?? String(body?.data?.id ?? paymentId);
-    // Notificações IPN (topic=payment&id=...) não trazem data.id e o x-signature delas não segue o manifesto
-    // dos webhooks; elas não alteram nada sem antes reconfirmar o pagamento na API do Mercado Pago.
     const ehWebhookAssinavel = urlWebhook.searchParams.has('data.id') || body?.data?.id != null;
     const assinatura = ehWebhookAssinavel
       ? verificarAssinaturaWebhook(request, idParaAssinatura)
@@ -221,7 +216,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Assinatura inválida.' }, { status: 401 });
     }
     if (assinatura === 'sem_segredo') {
-      // Sem segredo configurado a assinatura não é checada; o pagamento continua sendo reconfirmado na API do MP.
       await registrarLogWebhook({
         supabase,
         idCorrelacao,
@@ -233,7 +227,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2) Restaurante
     if (!UUID_REGEX.test(restauranteIdQuery)) {
       await registrarLogWebhook({
         supabase,
@@ -277,7 +270,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Integração Mercado Pago indisponível.' }, { status: 409 });
     }
 
-    // A API só devolve pagamentos da conta do restaurante: ID forjado de outra conta falha aqui.
     let pagamento: Awaited<ReturnType<typeof buscarPagamentoMercadoPago>>;
     try {
       pagamento = await buscarPagamentoMercadoPago(accessToken, paymentId);
@@ -297,7 +289,6 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    // 3) external_reference -> pedido do MESMO restaurante
     etapaAtual = 'validacao_pedido';
     const externalReference = String(pagamento.external_reference ?? '').trim();
     if (!externalReference) {
@@ -348,11 +339,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true, ignored: 'metadata_divergente' });
     }
 
-    // 4) Valor
     const valorPago = Number(pagamento.transaction_amount ?? 0);
     const valorConfere = valoresIguais(valorPago, Number(pedido.valor_total));
 
-    // Registro do pagamento (qualquer status) para histórico/estorno.
     const { data: registroExistente } = await supabase
       .from('pagamentos_pedido')
       .select('id, duplicado')
@@ -389,7 +378,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true, ignored: 'valor_divergente' });
     }
 
-    // 5) Duplicidade / pagamento tardio -> estorno automático
     const jaTemOutroPagamento =
       !!pedido.mercado_pago_payment_id && pedido.mercado_pago_payment_id !== String(pagamento.id);
     let outroPagamentoAprovado = false;
@@ -447,7 +435,6 @@ export async function POST(request: Request) {
       return await tratarDuplicado(pedidoCancelado);
     }
 
-    // 6) Confirma: só PENDENTE vira PAGO; webhooks repetidos nunca regridem o pedido.
     etapaAtual = 'atualizacao_status_pedido';
     await registrarPagamentoPedido({ pedidoId: pedido.id, restauranteId: pedido.restaurante_id, pagamento, duplicado: false });
     const resultado = await atualizarStatusPedidoComNotificacoes({
@@ -460,7 +447,6 @@ export async function POST(request: Request) {
       resultado.pedido.mercado_pago_payment_id &&
       resultado.pedido.mercado_pago_payment_id !== String(pagamento.id)
     ) {
-      // Outro pagamento venceu a corrida para este pedido.
       return await tratarDuplicado(false);
     }
 

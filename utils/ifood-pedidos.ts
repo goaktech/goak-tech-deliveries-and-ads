@@ -1,10 +1,3 @@
-// utils/ifood-pedidos.ts
-// Pedidos recebidos do iFood (módulo Order): vendas feitas no app do iFood para
-// a loja conectada. Chegam pelo polling de eventos (PLACED), ficam em
-// `pedidos_ifood` e a cozinha confirma, cancela, marca como pronto e despacha.
-// As vendas do próprio goak continuam em `pedidos`; a entrega delas pelo iFood
-// (Shipping) está em utils/ifood-entrega.ts.
-
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { obterAccessTokenIfood, requisicaoIfood } from '@/utils/ifood';
 
@@ -27,7 +20,6 @@ export interface ItemPedidoIfood {
   opcoes: string[];
 }
 
-/** O que a cozinha recebe: só o necessário pra operar o pedido. */
 export interface PedidoIfoodCozinha {
   id: string;
   numero: string | null;
@@ -71,7 +63,6 @@ interface LinhaPedidoIfood {
   criado_em: string;
 }
 
-// Eventos de status do pedido (fullCode) que mudam a coluna `status`.
 const STATUS_POR_EVENTO: Record<string, StatusPedidoIfood> = {
   PLACED: 'PLACED',
   CONFIRMED: 'CONFIRMED',
@@ -112,11 +103,6 @@ async function carregar(restauranteId: string, ifoodOrderId: string) {
   return data as { ifood_order_id: string; status: StatusPedidoIfood };
 }
 
-/**
- * Aplica um evento de pedido que não é uma entrega Shipping do goak. PLACED
- * busca os detalhes e cria o pedido; os demais atualizam o que já existe.
- * Devolve false quando o evento não é de um pedido recebido do iFood.
- */
 export async function aplicarEventoPedidoIfood(
   restauranteId: string,
   accessToken: string,
@@ -132,7 +118,6 @@ export async function aplicarEventoPedidoIfood(
       throw new Error(`Não foi possível buscar os detalhes do pedido ${evento.orderId} no iFood (HTTP ${resposta.status}).`);
     }
     const detalhes = resposta.body;
-    // ignoreDuplicates: PLACED repetido não pode voltar o status de um pedido já confirmado.
     const { error } = await supabase.from('pedidos_ifood').upsert(
       {
         ifood_order_id: evento.orderId,
@@ -159,7 +144,7 @@ export async function aplicarEventoPedidoIfood(
   if (STATUS_POR_EVENTO[codigo]) {
     campos.status = STATUS_POR_EVENTO[codigo];
   } else if (codigo === 'CANCELLATION_REQUEST_FAILED') {
-    campos.status = 'CONFIRMED'; // o iFood negou o cancelamento: o pedido segue
+    campos.status = 'CONFIRMED';
   }
   const { data } = await supabase
     .from('pedidos_ifood')
@@ -170,7 +155,6 @@ export async function aplicarEventoPedidoIfood(
   return (data ?? []).length > 0;
 }
 
-/** Pedidos do iFood das últimas 12 h, mais novos primeiro. */
 export async function listarPedidosIfood(restauranteId: string): Promise<PedidoIfoodCozinha[]> {
   const { data, error } = await getSupabase()
     .from('pedidos_ifood')
@@ -204,7 +188,6 @@ export async function listarPedidosIfood(restauranteId: string): Promise<PedidoI
   }));
 }
 
-/** Confirmar, avisar que está pronto ou despachar. O evento do iFood confirma depois. */
 export async function executarAcaoPedidoIfood(restauranteId: string, ifoodOrderId: string, acao: AcaoPedidoIfood) {
   const pedido = await carregar(restauranteId, ifoodOrderId);
   const { caminho, status, nome } = ENDPOINT_ACAO[acao];
@@ -241,7 +224,6 @@ export async function listarMotivosCancelamentoPedidoIfood(restauranteId: string
   return resposta.body.map((motivo) => ({ codigo: String(motivo.cancelCodeId), descricao: motivo.description }));
 }
 
-/** Pede o cancelamento; quem cancela de fato é o iFood (evento CANCELLED). */
 export async function cancelarPedidoIfood(restauranteId: string, ifoodOrderId: string, codigo: string, descricao: string) {
   const pedido = await carregar(restauranteId, ifoodOrderId);
   const accessToken = await obterAccessTokenIfood(restauranteId);

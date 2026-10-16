@@ -19,9 +19,7 @@ interface DadosNovoProduto {
   fichaTecnica: Record<string, string>
   adicionais: Array<{ nome: string; preco: number }>
   imagemDataUrl?: string
-  /** Categoria estrutural do item (ex.: "Pratos", "Acompanhamentos", "Bebidas", "Sobremesas"). Opcional. */
   categoria?: string | null
-  /** Dia da semana em que o item fica disponível (0=Domingo .. 6=Sábado). null/undefined = todos os dias. */
   diaSemana?: number | null
 }
 
@@ -242,8 +240,6 @@ export async function atualizarProdutoAdmin(itemId: string, dados: DadosNovoProd
       throw new Error('Item de cardápio não encontrado para este restaurante.')
     }
 
-    // Versão anterior (preço + adicionais): guardada no histórico se o preço mudar, para o checkout
-    // honrar o preço que o cliente viu na vitrine (ver utils/politica-preco.ts).
     const { data: adicionaisAnteriores } = await supabase
       .from('complementos_produto')
       .select('nome, preco_adicional')
@@ -441,7 +437,6 @@ export async function obterCardapioPorSlug(slug: string) {
     return { restaurante: null, produtos: [] }
   }
 
-  // A contagem de visitas fica fora do cache (cada abertura conta) e roda depois que a resposta já foi enviada.
   const restauranteId = dados.restaurante.id
   const hoje = new Date().toISOString().split('T')[0]
   after(async () => {

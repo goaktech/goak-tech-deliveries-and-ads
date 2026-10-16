@@ -334,7 +334,6 @@ export async function obterTokenMercadoPagoValido(restauranteId: string): Promis
   const supabase = createWebhookAdminClient();
 
   for (let tentativa = 0; tentativa < 6; tentativa += 1) {
-    // Reivindica o lock de forma atômica: só uma requisição renova (refresh_token é de uso único).
     const agora = new Date();
     const { data: reivindicado, error: errLock } = await supabase
       .from('restaurante_integracoes_pagamento')
@@ -366,7 +365,6 @@ export async function obterTokenMercadoPagoValido(restauranteId: string): Promis
       }
     }
 
-    // Outra requisição está renovando (ou já renovou): aguarda e relê.
     await new Promise((resolve) => setTimeout(resolve, 500));
     const atual = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
     if (!atual || atual.connection_status !== 'conectado' || !atual.access_token) {
@@ -440,11 +438,6 @@ export function montarMetadataPedido(params: {
 }
 
 
-/**
- * Chave pública da conta Mercado Pago da loja (usada no navegador para tokenizar o cartão).
- * Se ainda não foi guardada (loja conectada antes deste recurso), renova o token — a resposta
- * do OAuth traz a chave — e salva. Retorna null se não for possível obter.
- */
 export async function obterChavePublicaMercadoPago(restauranteId: string): Promise<string | null> {
   const integracao = await obterIntegracaoMercadoPagoPorRestauranteId(restauranteId);
   if (!integracao || integracao.connection_status !== 'conectado') return null;
@@ -459,10 +452,6 @@ export async function obterChavePublicaMercadoPago(restauranteId: string): Promi
   return tokens.public_key ?? null;
 }
 
-/**
- * Tipos (credit_card, debit_card, prepaid_card...) que o Mercado Pago associa a um meio de pagamento.
- * Pode haver mais de um registro com o mesmo id; lista vazia = não foi possível saber.
- */
 export async function obterTiposMeioPagamentoMercadoPago(accessToken: string, paymentMethodId: string) {
   try {
     const response = await fetch(`${MP_API_BASE}/v1/payment_methods`, {

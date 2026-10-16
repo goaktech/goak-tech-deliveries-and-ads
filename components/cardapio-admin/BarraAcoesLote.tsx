@@ -11,10 +11,6 @@ interface BarraAcoesProps {
   isPending: boolean;
 }
 
-/**
- * Linha compacta com "Selecionar todos". As ações em lote só aparecem depois que algum item é marcado:
- * no celular ficam numa barra flutuante acima da navegação, no desktop numa linha ao lado.
- */
 export default function BarraAcoesLote({
   todosSelecionados,
   onSelecionarTodos,

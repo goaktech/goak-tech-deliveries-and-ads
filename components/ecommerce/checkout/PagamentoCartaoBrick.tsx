@@ -2,10 +2,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
-// Formulário de cartão embutido no checkout (Card Payment Brick do Mercado Pago).
-// Os campos de número/validade/CVV são iframes do Mercado Pago: o cartão nunca passa pelo nosso
-// servidor (só o token gerado), então não há exigência de PCI para a plataforma.
-
 export interface DadosCartaoBrick {
   token: string;
   payment_method_id: string;
@@ -20,9 +16,7 @@ interface PropsPagamentoCartaoBrick {
   valor: number;
   aceitaCredito: boolean;
   aceitaDebito: boolean;
-  /** Deve lançar erro (com mensagem amigável) se o pagamento não for concluído. */
   aoEnviar: (dados: DadosCartaoBrick) => Promise<void>;
-  /** Chamado se o formulário não puder ser carregado (o checkout oferece o caminho alternativo). */
   aoFalharCarregamento?: () => void;
 }
 
@@ -82,7 +76,6 @@ export default function PagamentoCartaoBrick({
   const [carregando, setCarregando] = useState(true);
   const [erroCarregamento, setErroCarregamento] = useState('');
   const [erroPagamento, setErroPagamento] = useState('');
-  // sempre chama a versão mais recente do callback, sem recriar o formulário
   const aoEnviarRef = useRef(aoEnviar);
   const aoFalharRef = useRef(aoFalharCarregamento);
 
@@ -122,7 +115,6 @@ export default function PagamentoCartaoBrick({
               },
             },
             paymentMethods: {
-              // pedido de comida: sempre à vista
               maxInstallments: 1,
               types: { excluded: excluidos },
             },
@@ -140,13 +132,11 @@ export default function PagamentoCartaoBrick({
                 });
               } catch (erro) {
                 setErroPagamento(erro instanceof Error ? erro.message : 'Não foi possível concluir o pagamento.');
-                // rejeitar libera o formulário para uma nova tentativa
                 throw erro;
               }
             },
             onError: (erro: { type?: string; cause?: string; message?: string }) => {
               console.error('Erro no formulário de cartão do Mercado Pago:', erro);
-              // Erros "critical" (ex.: valor abaixo do mínimo aceito pelo cartão) impedem o formulário de abrir.
               if (cancelado || erro?.type !== 'critical') return;
               setCarregando(false);
               setErroCarregamento(
@@ -180,7 +170,6 @@ export default function PagamentoCartaoBrick({
       try {
         controlador?.unmount();
       } catch {
-        // o formulário já pode ter sido removido da tela
       }
     };
   }, [chavePublica, valor, aceitaCredito, aceitaDebito]);

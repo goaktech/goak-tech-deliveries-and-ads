@@ -48,8 +48,6 @@ export interface PedidoCozinha {
   itens_pedido: ItemPedidoDetalhado[];
   entregador_id: string | null;
   entregador_nome: string | null;
-  // iFood Entrega (ver utils/ifood-entrega.ts). logistica = 'IFOOD' enquanto
-  // a entrega estiver com o iFood.
   logistica: string | null;
   ifood_status: string | null;
   ifood_tracking_url: string | null;
@@ -66,7 +64,6 @@ export interface CotacaoIfoodCozinha {
   tempoMinimoMin: number;
   tempoMaximoMin: number;
   expiraEm: string | null;
-  /** Gravado pelo checkout quando a loja usa "Entregas pelo iFood". */
   taxaCobradaCliente?: number;
 }
 
@@ -154,7 +151,6 @@ const JANELA_PENDENTES_MS = 12 * 60 * 60 * 1000;
 const ATRASO_CONFIRMACAO_MS = 5000;
 const INTERVALO_ALARME_MS = 30000;
 const CHAVE_PREFERENCIA_SOM = 'goak:cozinha:som';
-// Intervalo recomendado pelo iFood pro polling de eventos.
 const INTERVALO_EVENTOS_IFOOD_MS = 30000;
 
 function inicioDoDiaIso() {
@@ -831,10 +827,6 @@ export function useCozinha() {
     [mostrarAviso]
   );
 
-  // iFood Entrega: confere se a loja está conectada. O polling de eventos roda
-  // no servidor (utils/ifood-polling.ts) e esta chamada só devolve o último
-  // evento gravado; sem esse laço (serverless sem cron), ela mesma faz o
-  // polling. Nos dois casos, evento novo recarrega a lista.
   useEffect(() => {
     if (!restauranteId) return;
     let ativo = true;
@@ -855,7 +847,6 @@ export function useCozinha() {
         if (corpo.ultimoEvento !== undefined) ultimoEvento = corpo.ultimoEvento;
         if ((corpo.novos ?? 0) > 0 || mudou) void sincronizar();
       } catch {
-        // sem conexão: tenta de novo no próximo ciclo
       }
     };
     void buscarEventos();

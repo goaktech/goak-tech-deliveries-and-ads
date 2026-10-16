@@ -17,7 +17,6 @@ import { montarUrlWhatsappComMensagem } from '@/utils/whatsapp';
 import { trackContatoWhatsApp } from '@/utils/meta-pixel';
 
 const fonteExibicao = Fraunces({ subsets: ['latin'], weight: ['600', '700', '800'], style: ['normal', 'italic'] });
-// fonte condensada e pesada da arte dos combos ("COMBO" + número)
 const fonteCartaz = Anton({ subsets: ['latin'], weight: '400' });
 const fonteCorpo = Work_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
@@ -26,22 +25,12 @@ interface ComponenteLojaPeruchoBurguerProps {
     id: string;
     nome: string;
     endereco: string | null;
-    /** Usado pra tarja "Aberto agora · fecha às Xh" no herói. */
     horariosFuncionamento?: HorarioFuncionamentoDia[] | null;
-    /** Foto de capa cadastrada pelo gestor em Configurações. Tem prioridade sobre a foto de produto no herói. */
     fotoCapaUrl?: string | null;
   };
   produtos: ItemCardapio[];
 }
 
-/* =============================================================
-   Paleta — essência marrom/dourado/creme do Perucho Burguer, com
-   o painel escurecido pra passar no contraste WCAG AA (o `#b15e33`
-   original dava ~2.9:1 com texto branco; o `#7a3814` dá ~8.8:1).
-   Os cards de item agora usam fundo branco (ver seção "cards de
-   item" abaixo), então COR_PAINEL só é usada nas pills inativas
-   da barra de categorias.
-   ============================================================= */
 const COR_MARROM = '#3B2011';
 const COR_MARROM_SUAVE = '#6B4A33';
 const COR_PAINEL = '#7A3814';
@@ -55,19 +44,12 @@ const COR_INDISPONIVEL = '#F1EAD9';
 const SOMBRA = '0 10px 26px rgba(59, 32, 17, 0.16)';
 const SOMBRA_CARD = '0 2px 10px rgba(59, 32, 17, 0.07)';
 const COR_FUNDO_CARDAPIO = '#FBF7EE';
-/* anel de foco visível só pra teclado (não aparece no toque) */
 const CLASSE_FOCO = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3B2011]';
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-/* =============================================================
-   Categorização — usa o campo `categoria` cadastrado no admin
-   quando bate com um sinônimo conhecido; senão cai numa heurística
-   por nome, então itens ainda não categorizados continuam
-   aparecendo no lugar certo.
-   ============================================================= */
 type CategoriaPerucho = 'COMBOS' | 'HAMBURGUERES' | 'ENTRADAS' | 'BEBIDAS' | 'SOBREMESAS';
 
 interface ProdutoParaCategorizar {
@@ -120,27 +102,14 @@ const ORDEM_CATEGORIAS: { chave: CategoriaPerucho; rotulo: string }[] = [
   { chave: 'SOBREMESAS', rotulo: 'Sobremesas' },
 ];
 
-/* =============================================================
-   Disponibilidade — sem `dia_semana` o item vale todo dia
-   (comportamento padrão); com `dia_semana`, só aparece liberado
-   no dia certo. `disponivel === false` sempre bloqueia,
-   independente do dia.
-   ============================================================= */
 function produtoDisponivelHoje(produto: Pick<ItemCardapio, 'disponivel' | 'dia_semana'>, agora = new Date()): boolean {
   if (produto.disponivel === false) return false;
   if (produto.dia_semana === null || produto.dia_semana === undefined) return true;
   return produto.dia_semana === obterDiaSemanaAtualBrasil(agora);
 }
 
-/* =============================================================
-   Item em destaque no bloco "Lanche do Momento" (topo do
-   cardápio). Sem flag de destaque no banco, o nome fica
-   configurado aqui — troque quando quiser destacar outro item.
-   Deixe "" pra desativar o bloco.
-   ============================================================= */
 const NOME_ITEM_DESTAQUE = 'Extra Bacon';
 
-/* ---------- ícones de categoria (linha, marrom) ---------- */
 function IconeCategoria({
   categoria,
   className,
@@ -220,7 +189,6 @@ function IconeSacola({ className }: { className?: string }) {
   );
 }
 
-/* ---------- selo redondo "PB" (topo/rodapé) ---------- */
 function SeloPB({ tom = 'escuro', className }: { tom?: 'claro' | 'escuro'; className?: string }) {
   const cor = tom === 'claro' ? COR_DOURADO : COR_MARROM;
   return (
@@ -235,23 +203,8 @@ function SeloPB({ tom = 'escuro', className }: { tom?: 'claro' | 'escuro'; class
   );
 }
 
-/* =============================================================
-   Foto do prato — miniatura quadrada 1:1 de cantos arredondados,
-   sempre DENTRO do fluxo do card (nada de position:absolute: na v1
-   a foto era centralizada no artigo inteiro e "escapava" por cima
-   do painel de adicionais quando o card crescia). Sem foto
-   cadastrada, mostra o ícone da categoria como retrato de espera.
-   ============================================================= */
 const TAMANHO_FOTO = 96;
 
-/* =============================================================
-   Arte dos combos — cartaz "vem de COMBO" desenhado em SVG (laranja,
-   vinho e branco do cartaz de referência). Aparece no lugar da
-   foto enquanto o combo não tiver imagem cadastrada; o número (ou
-   "Família") vem do próprio nome do item, então combos novos já
-   nascem com a arte certa.
-   ============================================================= */
-// cores tiradas do cartaz "Vem de COMBO" de referência
 const ARTE_COMBO_VINHO = '#6C120A';
 const ARTE_COMBO_SOMBRA = '#3A0B06';
 const ARTE_COMBO_BRANCO = '#F7F7F5';
@@ -298,7 +251,6 @@ function ArteCombo({ nome, className, style }: { nome: string; className?: strin
         ))}
       </g>
 
-      {/* "vem de" (sombra + texto) */}
       <g className={fonteExibicao.className} fontStyle="italic" fontWeight={700} fontSize={40} textAnchor="middle">
         <text x="101.5" y="56.5" fill={ARTE_COMBO_SOMBRA}>
           vem de
@@ -308,7 +260,6 @@ function ArteCombo({ nome, className, style }: { nome: string; className?: strin
         </text>
       </g>
 
-      {/* "COMBO" (sombra + texto) */}
       <g fontSize={72}>
         <text x="15" y="132" textLength="176" lengthAdjust="spacingAndGlyphs" fill={ARTE_COMBO_SOMBRA}>
           COMBO
@@ -318,7 +269,6 @@ function ArteCombo({ nome, className, style }: { nome: string; className?: strin
         </text>
       </g>
 
-      {/* número do combo (ou "Família") */}
       {ehNumero && (
         <>
           <circle cx="100" cy="162" r="21" fill={ARTE_COMBO_VINHO} />
@@ -368,7 +318,6 @@ function FotoProduto({
     );
   }
 
-  // combo sem foto: cartaz "vem de COMBO" em vez do ícone genérico
   if (categoria === 'COMBOS') {
     return (
       <div className="relative flex-none overflow-hidden rounded-2xl" style={dimensoes}>
@@ -397,11 +346,9 @@ interface SeletorQuantidadeProps {
   complementosSelecionados: Complemento[];
   onAdicionar: (produto: ItemCardapio, complementos: Complemento[]) => void;
   onRemover: (idUnico: string) => void;
-  /** 'claro' = para usar sobre fundo creme/branco · 'escuro' = para usar sobre fundo marrom */
   variante?: 'claro' | 'escuro';
 }
 
-/* Toques de 44px (mínimo recomendado pra toque em telas pequenas). */
 function SeletorQuantidade({
   qtd,
   idUnicoCarrinho,
@@ -462,15 +409,6 @@ interface CartaoPratoPeruchoProps {
   onToggleExpandir: () => void;
 }
 
-/* =============================================================
-   Card de item (mobile-first) — um único contêiner com borda e
-   sombra suave, em 3 faixas:
-     1. foto 96px + nome/descrição/preço (grid flex, sem absolute)
-     2. barra de ação: "adicionais" (se houver) + Adicionar/quantidade
-     3. painel de adicionais, agrupado por `grupo`, aberto por baixo
-   A barra de ação fica SEMPRE visível: dá pra pedir o lanche
-   simples sem abrir os adicionais.
-   ============================================================= */
 function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPratoPeruchoProps) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const [complementosSelecionadosIds, setComplementosSelecionadosIds] = useState<string[]>([]);
@@ -498,7 +436,6 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPrat
   const idPainel = `adicionais-${produto.id}`;
   const painelAberto = expandido && temComplementos;
 
-  // agrupa os adicionais pelo campo `grupo` (sem grupo → "adicionais")
   const gruposDeComplementos = complementosDisponiveis.reduce<{ titulo: string; itens: ComplementoProduto[] }[]>(
     (acc, complemento) => {
       const titulo = complemento.grupo?.trim() || 'adicionais';
@@ -610,7 +547,6 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPrat
           ) : (
             <span aria-hidden />
           )}
-          {/* com o painel aberto, o seletor vive no rodapé do painel (perto das opções) */}
           {!painelAberto && seletor}
         </div>
       )}
@@ -674,8 +610,6 @@ function CartaoPratoPerucho({ produto, expandido, onToggleExpandir }: CartaoPrat
   );
 }
 
-/* botão de adicionar do bloco "Lanche do Momento" — vive fora do card porque
-   usa o contexto do carrinho isoladamente (o item pode não ter complementos) */
 function ItemDestaqueBotao({ produto }: { produto: ItemCardapio }) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const itemNoCarrinho = itens.find((item) => item.idUnico === produto.id);
@@ -707,8 +641,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
     setProdutoExpandidoId((atual) => (atual === produtoId ? null : produtoId));
   };
 
-  // agrupa os produtos por categoria — só entram categorias que
-  // realmente têm produto cadastrado
   const grupos = useMemo(
     () =>
       ORDEM_CATEGORIAS.map((categoria) => ({
@@ -720,7 +652,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
 
   const [categoriaAtiva, setCategoriaAtiva] = useState<CategoriaPerucho>(grupos[0]?.chave ?? 'HAMBURGUERES');
 
-  // realça na barra sticky a categoria que está no topo da tela
   useEffect(() => {
     const elementos = grupos
       .map((grupo) => secoesRef.current[grupo.chave])
@@ -746,8 +677,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
     secoesRef.current[chave]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // mantém a pill da categoria ativa visível/centralizada na barra
-  // (rola só a barra horizontal, nunca a página)
   useEffect(() => {
     const nav = navRef.current;
     const botao = botoesNavRef.current[categoriaAtiva];
@@ -762,7 +691,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
       )
     : undefined;
 
-  // A etiqueta [site] na mensagem permite ver, na própria conversa, quem chegou pelo botão da vitrine.
   const urlWhatsapp = montarUrlWhatsappComMensagem(
     obterConfigLojaEspecial(slug).whatsappAtendimento,
     'Olá! Vim pelo site da Perucho Burguer e quero fazer um pedido. [site]'
@@ -774,7 +702,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
         className="relative mx-auto min-h-screen w-full max-w-[560px] pb-32 antialiased"
         style={{ backgroundColor: COR_CREME, boxShadow: '0 0 60px rgba(59, 32, 17, 0.18)' }}
       >
-        {/* ---------- topo: logo + nome da loja | sacola ---------- */}
         <div className="flex items-center justify-between gap-3 px-5 py-3.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <Image
@@ -785,8 +712,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
               className="h-12 w-12 flex-none"
               priority
             />
-            {/* badge "Aberto agora" removido por enquanto (posição a definir): usar
-                obterStatusFuncionamento(restaurante.horariosFuncionamento, new Date()) */}
             <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: COR_MARROM }}>
               {restaurante.nome || 'Perucho Burguer'}
             </span>
@@ -809,7 +734,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </Link>
         </div>
 
-        {/* ---------- herói: banner da marca (já traz logo e nome) + status real ---------- */}
         <h1 className="sr-only">{restaurante.nome || 'Perucho Burguer'}</h1>
         <Image
           src="/perucho-burguer-banner.webp"
@@ -821,7 +745,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           priority
         />
 
-        {/* ---------- barra de categorias (sticky, pills com rolagem horizontal) ---------- */}
         {grupos.length > 0 && (
           <nav
             ref={navRef}
@@ -883,8 +806,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </div>
         )}
 
-        {/* ---------- lanche do momento (destaque opcional) — foto real do
-            banco, moldura quadrada de cantos arredondados ---------- */}
         {itemDestaque && (
           <section className="px-6 pb-2 pt-6 text-center" style={{ backgroundColor: COR_CREME }}>
             <span
@@ -932,8 +853,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </section>
         )}
 
-        {/* ---------- cardápio: todas as categorias em sequência, cada uma
-            com id próprio (compartilhável / acessível) ---------- */}
         <section className="relative mt-3 rounded-t-[26px] px-4 pb-10 pt-6" style={{ backgroundColor: COR_FUNDO_CARDAPIO }}>
           {grupos.length === 0 ? (
             <div className="py-16 text-center">
@@ -971,7 +890,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           )}
         </section>
 
-        {/* ---------- CTA final — leva pra sacola/checkout de verdade ---------- */}
         <section className="px-6 py-10 text-center" style={{ backgroundColor: COR_TERRACOTA }}>
           <h2 className={`${fonteExibicao.className} text-2xl font-extrabold`} style={{ color: COR_CREME }}>
             Deu fome?
@@ -989,7 +907,6 @@ export default function ComponenteLojaPeruchoBurguer({ restaurante, produtos }: 
           </Link>
         </section>
 
-        {/* ---------- rodapé ---------- */}
         <footer className="px-6 py-9 text-center" style={{ backgroundColor: COR_MARROM }}>
           <SeloPB tom="claro" className="mx-auto h-11 w-11 text-base" />
           <p className={`${fonteExibicao.className} mt-3 mb-3.5 text-lg italic`} style={{ color: COR_DOURADO }}>

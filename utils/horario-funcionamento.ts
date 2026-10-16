@@ -29,7 +29,6 @@ function converterMinutos(horaMinuto: string): number {
   return horas * 60 + minutos;
 }
 
-/** Dia da semana atual no fuso horário da loja (0=Domingo .. 6=Sábado). */
 export function obterDiaSemanaAtualBrasil(agora = new Date()): number {
   return obterDiaEHoraAtualBrasilia(agora).dia;
 }
@@ -97,17 +96,6 @@ function formatarHoraCurta(horaMinuto: string): string {
   return minutos === '00' ? `${horas}h` : `${horas}h${minutos}`;
 }
 
-/**
- * Resumo em texto do status de funcionamento agora (pra tarjas tipo "Aberto
- * agora · fecha às 15h"), a partir do mesmo `horarios_funcionamento` que
- * `estaLojaAberta` já usa pra decidir se mostra a tela de loja fechada.
- *
- * Simplificação conhecida: quando a loja está aberta por causa da janela de
- * ONTEM que vira a virada da meia-noite (`fechamento <= abertura`), o texto
- * usa o horário de hoje mesmo assim — casos assim (loja que fecha de
- * madrugada) são raros pra cantina de almoço e não valem a complexidade
- * extra aqui.
- */
 export function obterStatusFuncionamento(
   horarios: HorarioFuncionamentoDia[] | null | undefined,
   agora = new Date()

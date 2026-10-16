@@ -23,10 +23,6 @@ import {
   valoresIguais,
 } from '@/utils/pagamentos-mercado-pago';
 
-// Nova tentativa de pagamento de um pedido que ainda está PENDENTE (cartão recusado, PIX expirado,
-// cliente que fechou a tela...). Reaproveita o MESMO pedido: valor, itens e cliente vêm do banco,
-// nunca do navegador. Só o meio de pagamento (e o token do cartão) é enviado agora.
-
 const PRAZO_NOVA_TENTATIVA_MS = 12 * 60 * 60 * 1000;
 
 interface RequestBody {
@@ -118,14 +114,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Esta loja não está aceitando cartão no momento.' }, { status: 400 });
     }
 
-    // A conferência do tipo do cartão só importa quando a loja aceita APENAS crédito ou APENAS débito.
-    // Aceitando os dois, qualquer crédito/débito serve (o formulário já esconde pré-pago), e uma consulta
-    // que falhe ou devolva algo inesperado não deve barrar um pagamento legítimo.
     if (cartaoEmbutido && !(aceitaCartaoCredito(formasAceitas) && aceitaCartaoDebito(formasAceitas))) {
       const token = await obterTokenMercadoPagoValido(restaurante.id);
       const tiposCartao = await obterTiposMeioPagamentoMercadoPago(token, cartaoEmbutido.payment_method_id);
-      // sem informação do Mercado Pago, o formulário (que já filtra por tipo) prevalece;
-      // com informação, basta que algum dos tipos do cartão seja aceito pela loja
       const tipoAceito =
         tiposCartao.length === 0 ||
         tiposCartao.some(
@@ -153,7 +144,6 @@ export async function POST(request: Request) {
       item_cardapio_id: linha.item_cardapio_id,
       quantidade: linha.quantidade,
       nome: primeiro(linha.itens_cardapio)?.nome ?? 'Produto',
-      // o preço unitário gravado no pedido já inclui os adicionais
       precoUnitario: Number(linha.preco_unitario),
       adicionais: (linha.itens_pedido_complementos ?? []).map((adicional) => ({
         id: adicional.id,
@@ -175,7 +165,6 @@ export async function POST(request: Request) {
       await supabase.from('pedidos').update({ forma_pagamento: paymentMethod }).eq('id', pedido.id);
     }
 
-    // Antes de cobrar de novo: concilia com o Mercado Pago para nunca gerar cobrança dupla.
     const tokenConciliacao = await obterTokenMercadoPagoValido(restaurante.id);
     const pagamentosExistentes = await buscarPagamentosPorExternalReference(tokenConciliacao, externalReference);
     const aprovado = pagamentosExistentes.find(
@@ -205,7 +194,6 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    // PIX anteriores ainda pendentes são cancelados: só a nova tentativa pode ser paga.
     await Promise.all(
       pagamentosExistentes
         .filter((pagamento) => pagamento.status === 'pending')
@@ -231,7 +219,6 @@ export async function POST(request: Request) {
       formasAceitas,
       tempoPreparoEstimadoMin: pedido.tempo_preparo_estimado_min ?? null,
       tempoDeslocamentoMin: pedido.tempo_deslocamento_min ?? null,
-      // cada tentativa precisa de uma chave própria, senão o Mercado Pago devolveria a tentativa anterior
       idempotencyKey: `${externalReference}-${paymentMethod.toLowerCase()}-${randomUUID()}`,
     });
   } catch (error: unknown) {

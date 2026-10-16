@@ -214,7 +214,6 @@ export async function criarPedidoPendente(params: {
   distanciaEntregaKm?: number | null;
   tempoDeslocamentoMin?: number | null;
   tempoPreparoEstimadoMin?: number | null;
-  // Identificadores do navegador para a API de Conversões da Meta (opcionais).
   fbp?: string | null;
   fbc?: string | null;
   clienteIp?: string | null;
@@ -568,7 +567,6 @@ export async function atualizarStatusPedidoComNotificacoes(
 
   if (params.novoStatus === 'PAGO' && statusAnterior === 'PENDENTE') {
     await processarEfeitosColateraisPagamentoAprovado(params.pedidoId, pedidoAtual.restaurante_id);
-    // API de Conversões: avisa a Meta da compra pelo servidor (não lança; falha só vai para o log).
     await enviarPurchaseCapi(params.pedidoId);
   }
 

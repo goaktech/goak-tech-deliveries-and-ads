@@ -9,7 +9,6 @@ interface ConfiguracaoMetaCapiProps {
   codigoTesteInicial: string | null;
 }
 
-// O token nunca volta para o navegador: o campo começa vazio e só mostra se existe um token salvo.
 export function ConfiguracaoMetaCapi({ temPixel, configurado, codigoTesteInicial }: ConfiguracaoMetaCapiProps) {
   const [token, setToken] = useState('');
   const [codigoTeste, setCodigoTeste] = useState(codigoTesteInicial ?? '');

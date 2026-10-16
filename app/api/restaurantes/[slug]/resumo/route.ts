@@ -14,7 +14,6 @@ export async function GET(_request: Request, { params }: Params) {
     const { slug } = await params;
     const supabase = await createClient();
 
-    // colunas públicas de `restaurantes` (o papel anon/authenticated só enxerga as que têm GRANT)
     const { data: restaurante, error } = await supabase
       .from('restaurantes')
       .select('nome, slug, endereco, latitude, longitude')
@@ -25,9 +24,6 @@ export async function GET(_request: Request, { params }: Params) {
       return NextResponse.json({ error: 'Restaurante não encontrado.' }, { status: 404 });
     }
 
-    // `formas_pagamento_aceitas` não tem GRANT de leitura para anon/authenticated: é lida no
-    // servidor com o cliente administrativo, e só esse campo (a lista de formas aceitas) sai daqui.
-    // Se essa leitura falhar, o checkout cai no padrão (só PIX) sem perder o resto do resumo.
     const { data: configPagamento, error: erroPagamento } = await createWebhookAdminClient()
       .from('restaurantes')
       .select('id, formas_pagamento_aceitas')
@@ -40,8 +36,6 @@ export async function GET(_request: Request, { params }: Params) {
 
     const formasAceitas = normalizarFormasPagamento(configPagamento?.formas_pagamento_aceitas);
 
-    // Chave PÚBLICA do Mercado Pago da loja: é feita para ir ao navegador (tokeniza o cartão no
-    // formulário embutido). Sem ela, o checkout usa o Checkout Pro do Mercado Pago como antes.
     let mpPublicKey: string | null = null;
     if (configPagamento?.id && aceitaCartao(formasAceitas)) {
       try {
@@ -51,7 +45,6 @@ export async function GET(_request: Request, { params }: Params) {
       }
     }
 
-    // Só o liga/desliga — nenhum dado da integração iFood sai daqui.
     const entregaIfood = configPagamento?.id ? await lojaEntregaPeloIfood(configPagamento.id) : false;
 
     return NextResponse.json({

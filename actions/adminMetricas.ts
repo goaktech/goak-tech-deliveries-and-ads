@@ -34,7 +34,6 @@ export interface ResumoMetricasFunil {
   visitas: number;
   checkouts: number;
   compras: number;
-  /** Pedidos pagos no período (base do CPA e do ticket médio). */
   pedidosPagos: number;
   taxaConversaoCardapio: number;
   taxaAbandonoCarrinho: number;

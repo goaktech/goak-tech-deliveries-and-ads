@@ -6,10 +6,6 @@ import { AdminNavHeader, BarraNavegacaoMobile } from '@/components/admin/AdminNa
 import { AvisosPainelProvider } from '@/components/shared/AvisosPainel';
 import type { RestauranteCabecalhoAdmin } from '@/utils/admin-auth';
 
-/**
- * Moldura única do painel: o cabeçalho com as abas fica aqui, fora das páginas, e por isso não é
- * recriado nem recarregado a cada troca de aba. Só o conteúdo abaixo dele muda.
- */
 export function CascaAdmin({
   restaurante,
   children,
@@ -20,7 +16,6 @@ export function CascaAdmin({
   const pathname = usePathname();
   const ehCozinha = pathname === '/admin/cozinha' || pathname?.startsWith('/admin/cozinha/');
 
-  // No celular a barra de navegação fica fixa no rodapé; o espaço extra evita que ela cubra o fim da página.
   return (
     <AvisosPainelProvider>
       <div

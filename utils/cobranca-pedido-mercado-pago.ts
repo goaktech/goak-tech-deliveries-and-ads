@@ -15,12 +15,8 @@ import {
 import { tiposMercadoPagoExcluidos, type FormaPagamentoLoja } from '@/utils/formas-pagamento';
 import type { DadosClientePedido } from '@/utils/pedido-status';
 
-// Cobrança de um pedido JÁ CRIADO (PENDENTE) no Mercado Pago. Usada pelo checkout (pedido novo)
-// e pela nova tentativa de pagamento (mesmo pedido, outra forma de pagamento ou outro cartão).
-
 const MP_API_BASE = 'https://api.mercadopago.com';
 
-/** Dados gerados pelo formulário de cartão embutido (Card Payment Brick). O cartão em si nunca chega aqui: só o token. */
 export interface DadosCartaoEmbutido {
   token: string;
   payment_method_id: string;
@@ -70,7 +66,6 @@ export interface ParamsCobrancaPedido {
   paymentMethod: 'PIX' | 'CARTAO';
   cartaoEmbutido: DadosCartaoEmbutido | null;
   dadosCliente: DadosClientePedido;
-  /** Itens no formato dos metadados do Mercado Pago (id + quantidade + adicionais). */
   itensMetadata: unknown;
   itensPrecificados: ItemPrecificado[];
   taxaEntrega: number;
@@ -81,10 +76,8 @@ export interface ParamsCobrancaPedido {
   idempotencyKey: string;
 }
 
-/** Validade do QR Code PIX (o Mercado Pago aceita de 30 min a 30 dias; o padrão dele é 24 h). */
 export const PIX_VALIDADE_MINUTOS = 30;
 
-/** Data no formato do Mercado Pago (ISO 8601 com fuso). Brasília é UTC-3 o ano todo. */
 function formatarDataMercadoPago(data: Date) {
   const local = new Date(data.getTime() - 3 * 60 * 60 * 1000);
   return `${local.toISOString().slice(0, 23)}-03:00`;
@@ -194,7 +187,6 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
       method: 'POST',
       headers,
       body: JSON.stringify({
-        // o valor é SEMPRE o calculado aqui no servidor, nunca o do navegador
         transaction_amount: Number(valorTotal.toFixed(2)),
         token: cartaoEmbutido.token,
         description: `${restaurante.nome} - Pedido`,
@@ -259,7 +251,6 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
 
     if (statusPagamento === 'approved') {
       try {
-        // o webhook também fará isso (é idempotente); aqui só adianta a confirmação para o cliente
         const resultado = await atualizarStatusPedidoComNotificacoes({
           pedidoId: pedido.id,
           novoStatus: 'PAGO',
@@ -267,7 +258,6 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
         });
         const pagoCom = resultado.pedido.mercado_pago_payment_id;
         if (pagoCom && pagoCom !== String(pagamento.id)) {
-          // O pedido já foi pago por outra cobrança: estorna esta (duplicada) para não cobrar duas vezes.
           await registrarPagamentoPedido({
             pedidoId: pedido.id,
             restauranteId: restaurante.id,
@@ -299,7 +289,6 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
       });
     }
 
-    // in_process / pending: o webhook confirma depois; a tela de acompanhamento atualiza sozinha
     return NextResponse.json({ ...respostaBase, status: 'in_process' });
   }
 
@@ -333,7 +322,6 @@ export async function cobrarPedidoMercadoPago(params: ParamsCobrancaPedido): Pro
     },
     body: JSON.stringify({
       items: itensPreferencia,
-      // mostra no checkout do Mercado Pago só crédito e/ou débito, conforme a loja aceita
       payment_methods: {
         excluded_payment_types: tiposMercadoPagoExcluidos(formasAceitas),
       },

@@ -7,7 +7,6 @@ interface PropsPainelPix {
   valor: number;
   qrCode: string;
   qrCodeBase64?: string;
-  /** ISO 8601 de quando o QR deixa de valer; null = sem prazo conhecido. */
   expiraEm: string | null;
   gerandoNovo: boolean;
   erro?: string;
@@ -37,7 +36,6 @@ export default function PainelPix({ valor, qrCode, qrCodeBase64, expiraEm, geran
     return () => window.clearInterval(intervalo);
   }, []);
 
-  // no celular o QR nasce abaixo da dobra: leva o cliente direto até ele
   useEffect(() => {
     painelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [qrCode]);

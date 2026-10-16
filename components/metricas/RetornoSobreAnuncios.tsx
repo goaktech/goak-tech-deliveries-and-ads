@@ -11,7 +11,6 @@ interface Props {
   textoPeriodo: string;
 }
 
-/** Cruza o faturamento do Appetitoso com o gasto real na Meta. Só aparece com a conta em reais e gasto > 0. */
 export function RetornoSobreAnuncios({ growth, metaAds, textoPeriodo }: Props) {
   if (!metaAds.conectado || metaAds.moeda !== 'BRL' || metaAds.gasto <= 0) return null;
 

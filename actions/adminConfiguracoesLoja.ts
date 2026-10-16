@@ -180,16 +180,11 @@ export async function atualizarFormasPagamentoLoja(formas: string[]) {
     return { success: false, error: 'Forma de pagamento inválida.' };
   }
 
-  // sem repetição e em ordem fixa, independente da ordem em que o gestor clicou
   const formasNormalizadas = FORMAS_PAGAMENTO_LOJA.filter((forma) => formas.includes(forma));
   if (formasNormalizadas.length === 0) {
     return { success: false, error: 'Escolha pelo menos uma forma de pagamento.' };
   }
 
-  // O id da loja vem SEMPRE da sessão do gestor logado (nunca do formulário). A gravação usa o
-  // cliente administrativo porque o papel `authenticated` só tem UPDATE em colunas específicas
-  // de `restaurantes` (ver o erro "permission denied for table restaurantes") — mesmo padrão
-  // da rota de upload de logo.
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const supabaseAdmin = createWebhookAdminClient();
 

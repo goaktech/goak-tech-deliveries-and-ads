@@ -112,7 +112,6 @@ function SeletorQuantidade({ qtd, idUnicoCarrinho, produto, complementosSelecion
   );
 }
 
-/** Prato do dia fora do dia dele: mostra quando ele volta em vez do botão de adicionar. */
 function EtiquetaForaDoDia({ diaSemana }: { diaSemana: number }) {
   return (
     <span
@@ -155,9 +154,6 @@ function LinhaProdutoCantina({ produto, expandido, onToggleExpandir }: LinhaProd
   const valorComplementos = complementosSelecionados.reduce((acc, c) => acc + Number(c.preco_adicional), 0);
   const temComplementos = complementosDisponiveis.length > 0;
 
-  // Cada prato do dia é servido em 1 dia da semana fixo; fora desse dia o
-  // item continua visível no cardápio, só não dá pra adicionar. Acompanhamentos,
-  // bebidas e sobremesas não têm essa restrição.
   const categoria = categoriaDoProduto(produto);
   const disponivelHoje = categoria !== 'PRATOS' || produtoDisponivelHoje(produto);
 
@@ -270,10 +266,6 @@ export default function ComponenteLojaCantinaBrasil({ restaurante, produtos }: C
     setProdutoExpandidoId((atual) => (atual === produtoId ? null : produtoId));
   };
 
-  // Categoria vem do cadastro (campo `categoria`, com fallback pro nome pros
-  // itens ainda não categorizados) — a barra só mostra as categorias que
-  // realmente têm produto, então sobremesas e bebidas aparecem sozinhas
-  // assim que existir pelo menos 1 item cadastrado em cada uma.
   const categoriasDisponiveis = ORDEM_CATEGORIAS.filter((categoria) =>
     produtos.some((produto) => categoriaDoProduto(produto) === categoria.chave)
   );

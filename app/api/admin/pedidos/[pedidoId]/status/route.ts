@@ -60,8 +60,6 @@ export async function POST(request: Request, { params }: Params) {
     });
 
     if ((novoStatus === 'PREPARANDO' || novoStatus === 'PRONTO') && resultado.mudouStatus) {
-      // Entrega pelo iFood: startPreparation / readyToPickup (não faz nada nos outros pedidos).
-      // Pedido que pulou de PAGO para PRONTO também manda o startPreparation antes.
       await sincronizarEtapasIfood(perfil.restaurante_id as string, pedidoId, novoStatus);
     }
 

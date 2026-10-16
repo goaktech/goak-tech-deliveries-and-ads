@@ -18,8 +18,6 @@ interface ComponenteLojaGoDogProps {
 const COR_PRIMARIA = '#C1272D';
 const COR_ACENTO = '#F4B41A';
 
-// Deixe em `false` para ocultar o aviso de promoção de inauguração sem
-// precisar remover o bloco do código.
 const MOSTRAR_PROMO_INAUGURACAO = true;
 
 function formatarMoeda(valor: number) {

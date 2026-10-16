@@ -1,4 +1,3 @@
-/** Aparece na hora ao trocar de aba, enquanto o servidor monta a página. */
 export function EsqueletoPaginaAdmin() {
   return (
     <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">

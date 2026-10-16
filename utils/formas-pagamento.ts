@@ -1,17 +1,7 @@
-// Formas de pagamento que cada loja aceita no checkout.
-// Configuradas pelo gestor em /admin/integracoes e guardadas em
-// `restaurantes.formas_pagamento_aceitas` (text[]).
-//
-// - PIX             → QR Code / copia e cola gerado direto pela API de pagamentos do Mercado Pago.
-// - CARTAO_CREDITO  → checkout do Mercado Pago (Checkout Pro), somente cartão de crédito.
-// - CARTAO_DEBITO   → checkout do Mercado Pago (Checkout Pro), somente cartão de débito.
-// Se a loja aceitar crédito e débito, os dois aparecem no mesmo checkout do Mercado Pago.
-
 export type FormaPagamentoLoja = 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO';
 
 export const FORMAS_PAGAMENTO_LOJA: FormaPagamentoLoja[] = ['PIX', 'CARTAO_CREDITO', 'CARTAO_DEBITO'];
 
-/** Padrão de toda loja (comportamento anterior à configuração: só PIX). */
 export const FORMAS_PAGAMENTO_PADRAO: FormaPagamentoLoja[] = ['PIX'];
 
 export const ROTULO_FORMA_PAGAMENTO: Record<FormaPagamentoLoja, string> = {
@@ -24,10 +14,6 @@ export function ehFormaPagamentoLoja(valor: unknown): valor is FormaPagamentoLoj
   return typeof valor === 'string' && (FORMAS_PAGAMENTO_LOJA as string[]).includes(valor);
 }
 
-/**
- * Converte o valor cru do banco (ou de um formulário) numa lista válida, sem
- * repetição e na ordem PIX → crédito → débito. Vazio/inválido cai no padrão.
- */
 export function normalizarFormasPagamento(valor: unknown): FormaPagamentoLoja[] {
   if (!Array.isArray(valor)) return [...FORMAS_PAGAMENTO_PADRAO];
   const escolhidas = FORMAS_PAGAMENTO_LOJA.filter((forma) => valor.includes(forma));
@@ -50,20 +36,10 @@ export function aceitaCartaoDebito(formas: FormaPagamentoLoja[]): boolean {
   return formas.includes('CARTAO_DEBITO');
 }
 
-/**
- * Texto do botão de cartão no checkout. Na tela do cliente não citamos "débito": no Mercado Pago o débito
- * é bem restrito, então mostramos "Cartão de crédito" (ou só "Cartão" se a loja aceitar apenas débito).
- * A configuração e a validação de débito continuam funcionando normalmente.
- */
 export function rotuloBotaoCartao(formas: FormaPagamentoLoja[]): string {
   return formas.includes('CARTAO_CREDITO') ? ROTULO_FORMA_PAGAMENTO.CARTAO_CREDITO : 'Cartão';
 }
 
-/**
- * Tipos de pagamento que o checkout do Mercado Pago deve esconder para que só
- * apareçam as formas de cartão que a loja aceita. PIX é tratado à parte
- * (fluxo próprio), então também fica de fora do checkout de cartão.
- */
 export function tiposMercadoPagoExcluidos(formas: FormaPagamentoLoja[]): Array<{ id: string }> {
   const excluidos = new Set<string>(['ticket', 'atm', 'bank_transfer', 'prepaid_card']);
   if (!formas.includes('CARTAO_CREDITO')) excluidos.add('credit_card');

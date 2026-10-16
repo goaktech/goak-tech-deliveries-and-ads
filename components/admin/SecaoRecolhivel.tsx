@@ -5,21 +5,14 @@ import { useEffect, useState, type ReactNode } from 'react';
 interface SecaoRecolhivelProps {
   id: string;
   titulo: string;
-  /** Selo de estado (ex.: "Conectado") mostrado ao lado do título, mesmo com a seção fechada. */
   selo?: ReactNode;
-  /** Só a primeira seção da página começa aberta; as demais começam fechadas. */
   abertaInicialmente?: boolean;
   children: ReactNode;
 }
 
-/**
- * Seção de integração que abre e fecha, em qualquer tamanho de tela. Começa fechada, exceto quando
- * `abertaInicialmente` é verdadeiro. Depois que o gestor clica, vale a escolha dele.
- */
 export function SecaoRecolhivel({ id, titulo, selo, abertaInicialmente = false, children }: SecaoRecolhivelProps) {
   const [aberta, setAberta] = useState(abertaInicialmente);
 
-  // Os atalhos do resumo no topo apontam para #id: abrem a seção correspondente.
   useEffect(() => {
     const abrirSeHashForEstaSecao = () => {
       if (window.location.hash === `#${id}`) setAberta(true);

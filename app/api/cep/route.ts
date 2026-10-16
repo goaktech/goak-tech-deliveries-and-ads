@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
 import { somenteDigitosCep, type EnderecoPorCep } from '@/utils/cep';
 
-// Consulta de CEP feita pelo servidor (o navegador não chama o provedor direto:
-// evita bloqueio por CORS/extensões e permite trocar de provedor sem mexer no app).
-// Tenta o ViaCEP e, se ele não responder ou não achar, o BrasilAPI.
-
 type ResultadoConsulta =
   | { status: 'ok'; endereco: EnderecoPorCep }
   | { status: 'nao_encontrado' }
@@ -23,7 +19,6 @@ async function consultarViaCep(cep: string): Promise<ResultadoConsulta> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
       next: { revalidate: CACHE_SEGUNDOS },
     });
-    // o ViaCEP responde 400 para CEP mal formatado e 200 + {"erro": true} para CEP inexistente
     if (resposta.status === 400) return { status: 'nao_encontrado' };
     if (!resposta.ok) return { status: 'indisponivel' };
 

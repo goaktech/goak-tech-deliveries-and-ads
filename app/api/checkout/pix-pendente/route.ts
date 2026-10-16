@@ -3,10 +3,6 @@ import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { obterTokenMercadoPagoValido } from '@/utils/mercado-pago';
 import { buscarPagamentosPorExternalReference } from '@/utils/pagamentos-mercado-pago';
 
-// Devolve o PIX ainda válido de um pedido PENDENTE (para a tela continuar de onde parou depois de
-// um reload ou ao reabrir o acompanhamento). Não cria cobrança. Quem tem o código do pedido já pode
-// ver o pedido na tela de acompanhamento; o QR só vale para pagar ESTE pedido.
-
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);

@@ -11,7 +11,6 @@ interface PainelIfoodEntregaProps {
 
 type Resposta = { error?: string; cotacao?: CotacaoIfoodCozinha; motivos?: Array<{ codigo: string; descricao: string }>; valido?: boolean };
 
-// Rótulos dos eventos do iFood que a cozinha vê enquanto a entrega acontece.
 const ROTULO_STATUS_IFOOD: Record<string, string> = {
   REGISTRADO: 'Entrega solicitada ao iFood',
   PLACED: 'Entrega solicitada ao iFood',
@@ -37,7 +36,6 @@ const ROTULO_STATUS_IFOOD: Record<string, string> = {
   CANCELLATION_REQUEST_FAILED: 'O iFood não aceitou o cancelamento',
 };
 
-// Cotação feita no checkout (loja com "Entregas pelo iFood") ainda dentro da validade.
 function cotacaoDoCheckout(pedido: PedidoCozinha): CotacaoIfoodCozinha | null {
   const cotacao = pedido.ifood_cotacao;
   if (!cotacao?.id || typeof cotacao.taxaCobradaCliente !== 'number') return null;
@@ -45,7 +43,6 @@ function cotacaoDoCheckout(pedido: PedidoCozinha): CotacaoIfoodCozinha | null {
   return cotacao;
 }
 
-// Distância em metros entre dois pontos (haversine).
 function distanciaMetros(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
   const rad = (grau: number) => (grau * Math.PI) / 180;
   const dLat = rad(b.latitude - a.latitude);
@@ -54,7 +51,6 @@ function distanciaMetros(a: { latitude: number; longitude: number }, b: { latitu
   return Math.round(6371000 * 2 * Math.asin(Math.sqrt(h)));
 }
 
-// O iFood recusa sozinho a alteração de endereço 15 min depois do pedido do cliente.
 const PRAZO_ALTERACAO_ENDERECO_MS = 15 * 60 * 1000;
 
 const BOTAO = 'h-9 rounded-xl px-3 text-[11px] font-bold uppercase tracking-wide transition disabled:opacity-50';
@@ -75,7 +71,6 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
   const alteracao = pedido.ifood_alteracao_endereco;
   const alteracaoPendente = alteracao?.estado === 'PENDENTE';
 
-  // relógio do prazo da alteração de endereço (só roda enquanto está pendente)
   const [agora, setAgora] = useState(() => Date.now());
   useEffect(() => {
     if (!alteracaoPendente) return;
@@ -83,9 +78,6 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
     return () => clearInterval(intervalo);
   }, [alteracaoPendente]);
 
-  // Modo homologação (IFOOD_HOMOLOGACAO=true): código de coleta dos detalhes do
-  // pedido e eventos recebidos, para o vídeo do cenário 4. Fora desse modo a
-  // API responde 403 e nada aparece.
   const [homologacao, setHomologacao] = useState<{
     pickupCode: string | null;
     eventos: Array<{ codigo: string; recebidoEm: string }>;
@@ -149,7 +141,6 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
     }
   };
 
-  // ------------------------------------------------ antes de chamar o iFood
   if (!comIfood) {
     return (
       <div className="mt-2 space-y-2">
@@ -207,7 +198,6 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
     );
   }
 
-  // ------------------------------------------------ entrega em andamento no iFood
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -325,8 +315,6 @@ export function PainelIfoodEntrega({ pedido, onAtualizado }: PainelIfoodEntregaP
           } else if (dados) {
             setErro('Código inválido: não entregue o pedido.');
           }
-          // erro de API (ex.: HTTP 400) já vem em `erro` por chamar(); no modo
-          // homologação, explica a limitação da loja de teste.
           if (!dados && homologacao && !codigoSolicitado) {
             setInfo('Na loja de teste a exigência do código de coleta não está ativa: o iFood não enviou DELIVERY_PICKUP_CODE_REQUESTED.');
           }

@@ -8,9 +8,7 @@ export interface RestaurantePropsLoja {
   id: string;
   nome: string;
   endereco: string | null;
-  /** Opcional: só as vitrines que mostram tarja de horário (ex.: V3 da Cantina Brasil) usam isso. */
   horariosFuncionamento?: HorarioFuncionamentoDia[] | null;
-  /** Opcional: foto de capa cadastrada pelo gestor (Configurações da loja). Só o Perucho Burguer usa isso por enquanto. */
   fotoCapaUrl?: string | null;
   logoUrl?: string | null;
 }

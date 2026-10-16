@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { obterRestauranteCabecalhoAdmin } from '@/utils/admin-auth';
 
-/** Por quanto tempo a vitrine pode reaproveitar os dados quando ninguém avisou que algo mudou (segundos). */
 const SEGUNDOS_DE_SEGURANCA = 60;
 
 export const ERRO_VITRINE_NAO_ENCONTRADA = 'VITRINE_NAO_ENCONTRADA';
@@ -11,7 +10,6 @@ export function tagVitrine(slug: string) {
   return `vitrine:${slug.trim()}`;
 }
 
-/** Cliente sem cookies (visitante anônimo): necessário porque o cache não pode depender de quem está logado. */
 export function criarClienteAnonimoVitrine() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,13 +18,11 @@ export function criarClienteAnonimoVitrine() {
   );
 }
 
-/** Joga fora o que está guardado da vitrine desta loja: a próxima visita já busca dados novos. */
 export function invalidarVitrine(slug: string | null | undefined) {
   if (!slug) return;
   revalidateTag(tagVitrine(slug), { expire: 0 });
 }
 
-/** Mesma coisa, descobrindo a loja pelo gestor logado. Nunca derruba a ação que o chamou. */
 export async function invalidarVitrineDoGestorLogado() {
   try {
     const restaurante = await obterRestauranteCabecalhoAdmin();
@@ -45,7 +41,6 @@ async function buscarDadosVitrine(slug: string) {
     .eq('slug', slug)
     .maybeSingle();
 
-  // Erros e loja inexistente são lançados (e não retornados) para nunca ficarem guardados no cache.
   if (erroRestaurante) throw erroRestaurante;
   if (!restaurante) throw new Error(ERRO_VITRINE_NAO_ENCONTRADA);
 
@@ -100,7 +95,6 @@ async function buscarPixelVitrine(slug: string): Promise<string | null> {
   return data?.meta_pixel_id ?? null;
 }
 
-/** Só o ID do Pixel (usado no layout da loja, que também envolve checkout e acompanhamento). */
 export async function obterPixelIdVitrineEmCache(slug: string): Promise<string | null> {
   try {
     return await unstable_cache(() => buscarPixelVitrine(slug), ['vitrine-pixel', slug], {

@@ -23,7 +23,6 @@ interface ConfiguracaoIfoodEntregaProps {
 
 type Mensagem = { tipo: 'success' | 'error'; texto: string } | null;
 
-// Acima disso o motoboy do iFood iria a um ponto diferente do cadastrado no goak.
 const DISTANCIA_ALERTA_METROS = 150;
 
 function formatarEndereco(endereco: EnderecoLojaIfood | null) {

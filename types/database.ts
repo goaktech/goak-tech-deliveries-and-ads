@@ -20,7 +20,6 @@ export interface Restaurante {
   email_corporativo: string | null;
   meta_access_token: string | null;
   meta_ad_account_id: string | null;
-  /** 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' — ver utils/formas-pagamento.ts */
   formas_pagamento_aceitas: string[];
   created_at: string;
 }
@@ -79,9 +78,7 @@ export interface ItemCardapio {
   disponivel: boolean;
   imagem_url: string;
   created_at: string;
-  /** Categoria estrutural do item (ex.: "Pratos", "Acompanhamentos", "Bebidas", "Sobremesas"). Texto livre, opcional. */
   categoria?: string | null;
-  /** Dia da semana em que o item fica disponível para pedido (0=Domingo .. 6=Sábado). null = disponível todos os dias. */
   dia_semana?: number | null;
   complementos_produto?: ComplementoProduto[];
 

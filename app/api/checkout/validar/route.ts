@@ -3,9 +3,6 @@ import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 import { estaLojaAberta, type HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 import { avaliarItensCarrinho, type ItemParaAvaliar } from '@/utils/politica-preco';
 
-// Confere a sacola do cliente com o cardápio de agora (preço visto x preço atual, item e adicionais
-// disponíveis, loja aberta) SEM criar pedido. Usa exatamente a mesma regra do POST /api/checkout.
-
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as { slug?: string; itens?: ItemParaAvaliar[] };
