@@ -5,7 +5,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { AtivadorPushPedido } from '@/components/ecommerce/acompanhamento/AtivadorPushPedido';
 import { RetentarPagamentoPedido } from '@/components/ecommerce/acompanhamento/RetentarPagamentoPedido';
+import { obterConfigLojaEspecial } from '@/utils/config-lojas-especiais';
 import { trackPurchaseUmaVez } from '@/utils/meta-pixel';
+import { montarUrlWhatsappComMensagem } from '@/utils/whatsapp';
 import {
   type DadosClientePedido,
   type StatusPedido,
@@ -174,6 +176,12 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
       window.clearInterval(intervalo);
     };
   }, [finalizado, pedido.codigo_acompanhamento, pedido.restaurante.slug]);
+
+  // Cenário 1: número fixo no código (config-lojas-especiais). Sem número, o botão não aparece.
+  const urlFalarComLoja = montarUrlWhatsappComMensagem(
+    obterConfigLojaEspecial(pedido.restaurante.slug).whatsappAtendimento,
+    `Olá! Sobre meu pedido #${formatarNumeroPedido(pedido.numero_pedido, pedido.codigo_acompanhamento)}.`
+  );
 
   return (
     <main className="min-h-screen bg-[#F8F8F8] px-4 py-6 text-[#1A1A1A] sm:px-6 md:py-10">
@@ -362,6 +370,16 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
             )}
             <p><span className="font-semibold text-zinc-900">Canal extra:</span> Você também receberá atualizações no WhatsApp cadastrado.</p>
           </div>
+          {urlFalarComLoja ? (
+            <a
+              href={urlFalarComLoja}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white transition hover:brightness-95"
+            >
+              Falar com a loja no WhatsApp
+            </a>
+          ) : null}
         </section>
       </div>
     </main>

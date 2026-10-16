@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
+import { enviarAvisoVendaWhatsapp } from '@/utils/whatsapp-aviso-venda';
 import { enviarNotificacoesStatusPedido, type PedidoParaNotificacao } from '@/utils/notificacoes-pedido';
 import { calcularRotaEntrega } from '@/utils/google-maps';
 import { enviarPurchaseCapi } from '@/utils/meta-capi';
@@ -566,7 +567,9 @@ export async function atualizarStatusPedidoComNotificacoes(
     return atualizarStatusPedidoComNotificacoes(params, tentativa + 1);
   }
 
-  if (params.novoStatus === 'PAGO' && statusAnterior === 'PENDENTE') {
+  const virouPago = params.novoStatus === 'PAGO' && statusAnterior === 'PENDENTE';
+
+  if (virouPago) {
     await processarEfeitosColateraisPagamentoAprovado(params.pedidoId, pedidoAtual.restaurante_id);
     // API de Conversões: avisa a Meta da compra pelo servidor (não lança; falha só vai para o log).
     await enviarPurchaseCapi(params.pedidoId);
@@ -575,6 +578,18 @@ export async function atualizarStatusPedidoComNotificacoes(
   const pedidoAtualizado = await buscarPedidoInternoPorId(params.pedidoId);
   if (!pedidoAtualizado) {
     throw new Error('Pedido atualizado não localizado.');
+  }
+
+  if (virouPago) {
+    const notificacao = mapearPedidoParaNotificacao(pedidoAtualizado);
+    // Aviso interno (dono da loja + equipe Appetitoso). Não lança erro.
+    await enviarAvisoVendaWhatsapp({
+      id: notificacao.id,
+      codigoAcompanhamento: notificacao.codigoAcompanhamento,
+      valorTotal: Number(pedidoAtualizado.valor_total),
+      nomeCliente: (notificacao.dadosCliente as { nome?: string }).nome ?? null,
+      restaurante: { id: notificacao.restaurante.id, nome: notificacao.restaurante.nome },
+    });
   }
 
   if (mudouStatus) {

@@ -1,6 +1,10 @@
 import webpush from 'web-push';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
-import { obterIntegracaoWhatsappBusinessPorRestauranteId } from '@/utils/whatsapp-business';
+import {
+  enviarTemplateWhatsapp,
+  normalizarTelefoneWhatsapp,
+  resolverRemetenteWhatsapp,
+} from '@/utils/whatsapp-envio';
 import {
   type DadosClientePedido,
   type StatusPedido,
@@ -23,14 +27,6 @@ export interface PedidoParaNotificacao {
 
 type CanalNotificacao = 'whatsapp' | 'push';
 
-interface ConfigWhatsapp {
-  accessToken: string;
-  phoneNumberId: string;
-  templateName: string;
-  languageCode: string;
-  apiVersion: string;
-}
-
 interface ConfigWebPush {
   publicKey: string;
   privateKey: string;
@@ -45,45 +41,6 @@ function getAppUrl() {
   return appUrl;
 }
 
-async function getWhatsappConfig(restauranteId: string): Promise<ConfigWhatsapp | null> {
-  const integracao = await obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId);
-  if (
-    integracao?.connection_status === 'conectado' &&
-    integracao.access_token &&
-    integracao.phone_number_id &&
-    integracao.template_name
-  ) {
-    if (integracao.template_status && integracao.template_status.toUpperCase() !== 'APPROVED') {
-      console.warn('[pedido:notificacao] Template do WhatsApp ainda não aprovado.');
-      return null;
-    }
-
-    return {
-      accessToken: integracao.access_token,
-      phoneNumberId: integracao.phone_number_id,
-      templateName: integracao.template_name,
-      languageCode: integracao.template_language_code ?? 'pt_BR',
-      apiVersion: integracao.api_version ?? 'v23.0',
-    };
-  }
-
-  const accessToken = process.env.WHATSAPP_BUSINESS_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_BUSINESS_PHONE_NUMBER_ID;
-  const templateName = process.env.WHATSAPP_TEMPLATE_STATUS_PEDIDO;
-
-  if (!accessToken || !phoneNumberId || !templateName) {
-    return null;
-  }
-
-  return {
-    accessToken,
-    phoneNumberId,
-    templateName,
-    languageCode: process.env.WHATSAPP_TEMPLATE_LANGUAGE_CODE ?? 'pt_BR',
-    apiVersion: process.env.WHATSAPP_BUSINESS_API_VERSION ?? 'v23.0',
-  };
-}
-
 function getWebPushConfig(): ConfigWebPush | null {
   const publicKey = process.env.NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY;
   const privateKey = process.env.WEB_PUSH_PRIVATE_KEY;
@@ -94,23 +51,6 @@ function getWebPushConfig(): ConfigWebPush | null {
   }
 
   return { publicKey, privateKey, subject };
-}
-
-function normalizarTelefoneWhatsapp(telefone?: string | null): string | null {
-  const digitos = String(telefone ?? '').replace(/\D/g, '');
-  if (!digitos) {
-    return null;
-  }
-
-  if (digitos.length === 10 || digitos.length === 11) {
-    return `55${digitos}`;
-  }
-
-  if (digitos.length >= 12) {
-    return digitos;
-  }
-
-  return null;
 }
 
 function serializarErro(error: unknown) {
@@ -178,8 +118,9 @@ async function enviarWhatsappStatusPedido(
   pedido: PedidoParaNotificacao,
   tipoEntrega: TipoEntregaPedido
 ) {
-  const config = await getWhatsappConfig(pedido.restaurante.id);
-  if (!config) {
+  // Cenário 3/4: o remetente é o número do Appetitoso, salvo loja liberada com conexão própria.
+  const remetente = await resolverRemetenteWhatsapp(pedido.restaurante.id);
+  if (!remetente) {
     console.warn('[pedido:notificacao] WhatsApp Business não configurado.');
     return;
   }
@@ -198,52 +139,26 @@ async function enviarWhatsappStatusPedido(
   const titulo = obterTituloStatusPedido(pedido.status, tipoEntrega);
   const descricao = obterDescricaoStatusPedido(pedido.status, tipoEntrega);
 
-  const payload = {
-    messaging_product: 'whatsapp',
-    to: telefone,
-    type: 'template',
-    template: {
-      name: config.templateName,
-      language: { code: config.languageCode },
-      components: [
-        {
-          type: 'body',
-          parameters: [
-            { type: 'text', text: pedido.restaurante.nome },
-            { type: 'text', text: titulo },
-            { type: 'text', text: descricao || 'Acompanhe o pedido em tempo real.' },
-            { type: 'text', text: trackingUrl },
-          ],
-        },
-      ],
-    },
-  } as const;
-
   try {
-    const resposta = await fetch(
-      `https://graph.facebook.com/${config.apiVersion}/${config.phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const body = await resposta.json();
-    if (!resposta.ok) {
-      throw new Error(body?.error?.message || 'Falha ao enviar WhatsApp Business.');
-    }
+    const { messageId, resposta } = await enviarTemplateWhatsapp({
+      remetente,
+      para: telefone,
+      template: remetente.templateStatusPedido,
+      parametros: [
+        pedido.restaurante.nome,
+        titulo,
+        descricao || 'Acompanhe o pedido em tempo real.',
+        trackingUrl,
+      ],
+    });
 
     await registrarLogNotificacao({
       pedidoId: pedido.id,
       canal: 'whatsapp',
       status: pedido.status,
       sucesso: true,
-      providerMessageId: body?.messages?.[0]?.id ?? null,
-      payload: body,
+      providerMessageId: messageId,
+      payload: { origem: remetente.origem, resposta },
     });
   } catch (error) {
     await registrarLogNotificacao({
@@ -251,6 +166,7 @@ async function enviarWhatsappStatusPedido(
       canal: 'whatsapp',
       status: pedido.status,
       sucesso: false,
+      payload: { origem: remetente.origem },
       erro: error,
     });
     throw error;
