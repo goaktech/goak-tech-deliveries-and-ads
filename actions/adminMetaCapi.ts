@@ -11,7 +11,6 @@ interface ResultadoAcaoCapi {
   error?: string;
 }
 
-// Confere na Meta se o token enxerga o Pixel da loja antes de salvar.
 async function validarTokenNoPixel(pixelId: string, token: string): Promise<string | null> {
   const versao = process.env.META_ADS_API_VERSION?.trim() || VERSAO_PADRAO;
   try {

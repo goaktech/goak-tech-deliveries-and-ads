@@ -59,9 +59,7 @@ export interface ItemCardapioComCMV {
   preco_venda: number;
   disponivel: boolean;
   imagem_url: string | null;
-  /** Categoria estrutural do item (ex.: "Pratos", "Acompanhamentos", "Bebidas", "Sobremesas"). Opcional. */
   categoria: string | null;
-  /** Dia da semana em que o item fica disponível (0=Domingo .. 6=Sábado). null = disponível todos os dias. */
   dia_semana: number | null;
   custo_producao: number;
   percentual_cmv: number;

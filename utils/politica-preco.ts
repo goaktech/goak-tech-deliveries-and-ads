@@ -1,19 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { HorarioFuncionamentoDia } from '@/utils/horario-funcionamento';
 
-/**
- * Política de preço do checkout.
- *
- * O cliente paga o preço que VIU na vitrine (CDC art. 30: a oferta com preço claro vincula o
- * fornecedor). Se o gestor mudou o preço depois, o preço visto continua valendo até o fim do
- * expediente do dia em que a mudança foi feita (janela abaixo). Fora dessa janela, o carrinho é
- * atualizado com aviso e o cliente confirma o novo valor antes de pagar. Preço que ficou MENOR
- * sempre vale o menor. Item/adicional que deixou de existir bloqueia o pagamento com mensagem.
- *
- * O preço "visto" vem do navegador, mas só é honrado se for IGUAL a uma versão que realmente
- * existiu (historico_precos_item): o cliente não consegue escolher um valor qualquer.
- */
-
 export interface AdicionalVisto {
   id: string;
   nome: string;
@@ -25,7 +12,6 @@ export interface ItemParaAvaliar {
   quantidade: number;
   complementoIds?: string[];
   adicionaisVistos?: AdicionalVisto[];
-  /** Preço unitário (já com adicionais) que o cliente viu. */
   precoVisto?: number;
 }
 
@@ -50,7 +36,6 @@ export interface AvaliacaoItem {
   status: StatusAvaliacaoItem;
   precoVisto: number | null;
   precoAtual: number;
-  /** Preço unitário que será cobrado (só vale quando o status não bloqueia). */
   precoCobrado: number;
   adicionais: AdicionalResolvido[];
 }
@@ -102,18 +87,12 @@ function partesBrasilia(instante: Date) {
   };
 }
 
-/** Instante (UTC) de um horário "HH:MM" de Brasília, `diasAtras` dias antes de hoje. Brasília é UTC-3 o ano todo. */
 function instanteAbertura(agora: Date, diasAtras: number, horaMinuto: string) {
   const p = partesBrasilia(agora);
   const m = minutos(horaMinuto);
   return new Date(Date.UTC(p.ano, p.mes - 1, p.dia - diasAtras, Math.floor(m / 60) + 3, m % 60));
 }
 
-/**
- * Início da janela em que uma troca de preço ainda é honrada: a abertura do expediente em curso
- * (hoje, ou ontem se a loja virou a madrugada), nunca mais de 24 h atrás. Sem horários cadastrados,
- * as últimas 12 h.
- */
 export function inicioJanelaPreco(horarios: HorarioFuncionamentoDia[] | null | undefined, agora = new Date()): Date {
   const piso = new Date(agora.getTime() - MAX_JANELA_MS);
   const semHorario = new Date(agora.getTime() - JANELA_SEM_HORARIO_MS);
@@ -182,7 +161,6 @@ export async function avaliarItensCarrinho(params: {
   if (erroComplementos) throw erroComplementos;
   const complementos = (complementosBanco ?? []) as LinhaComplemento[];
 
-  // Histórico: se a tabela ainda não existe (migration pendente), segue sem honrar preços antigos.
   let historico: LinhaHistorico[] = [];
   const inicioJanela = inicioJanelaPreco(horarios, agora);
   const { data: historicoBanco, error: erroHistorico } = await supabase
@@ -223,7 +201,6 @@ export async function avaliarItensCarrinho(params: {
     const resolvidos: AdicionalResolvido[] = [];
     let adicionalIndisponivel = false;
     for (const pedido of pedidos) {
-      // O gestor recria os adicionais ao editar o produto (ids novos): casa pelo id e, se não achar, pelo nome.
       const encontrado =
         doItem.find((c) => c.id === pedido.id) ??
         (pedido.nome ? doItem.find((c) => normalizarNome(c.nome) === normalizarNome(pedido.nome)) : undefined);
@@ -255,7 +232,6 @@ export async function avaliarItensCarrinho(params: {
       return { ...base, status: 'preco_menor', precoCobrado: precoAtual };
     }
 
-    // O preço subiu desde que o cliente viu: honra se ele bate com uma versão real da janela.
     const honrado = historico
       .filter((h) => h.item_cardapio_id === produto.id)
       .some((h) => {

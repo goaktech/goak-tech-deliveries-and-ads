@@ -1,7 +1,3 @@
-/**
- * Períodos do painel de métricas. Os dias são calculados no fuso de Brasília
- * (UTC-3, sem horário de verão), que é o "dia" que o gestor enxerga.
- */
 export type PeriodoMetricas = 'hoje' | '7d' | '30d';
 
 export const PERIODOS_METRICAS: Array<{ valor: PeriodoMetricas; rotulo: string; dias: number }> = [
@@ -31,7 +27,6 @@ function dataNoFuso(data: Date, offsetHoras: number): string {
   return new Date(data.getTime() + offsetHoras * 3600_000).toISOString().slice(0, 10);
 }
 
-/** Lista de dias (AAAA-MM-DD) do período, terminando em `hojeISO`. */
 export function calcularIntervalo(periodo: PeriodoMetricas, hojeISO: string): IntervaloMetricas {
   const total = PERIODOS_METRICAS.find((p) => p.valor === periodo)?.dias ?? 1;
   const base = new Date(`${hojeISO}T12:00:00.000Z`);
@@ -46,7 +41,6 @@ export function hojeEmBrasilia(): string {
   return dataNoFuso(new Date(), -3);
 }
 
-/** Limites em UTC de um intervalo de dias de Brasília (00:00 -03:00 até 23:59:59.999 -03:00). */
 export function limitesUtcDoIntervalo(intervalo: IntervaloMetricas): { inicio: string; fim: string } {
   return {
     inicio: new Date(`${intervalo.desde}T00:00:00.000-03:00`).toISOString(),

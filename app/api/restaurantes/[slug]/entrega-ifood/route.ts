@@ -13,8 +13,6 @@ interface Corpo {
   endereco?: { rua?: string; numero?: string; bairro?: string; cidade?: string; cep?: string };
 }
 
-// Taxa de entrega do iFood para a tela do checkout (lojas com "Entregas pelo
-// iFood"). Só exibição: o valor cobrado é recalculado em POST /api/checkout.
 export async function POST(request: Request, { params }: Params) {
   try {
     const { slug } = await params;

@@ -23,22 +23,17 @@ interface ComponenteLojaCantinaBrasilV2Props {
   produtos: ItemCardapio[];
 }
 
-/* =============================================================
-   Paleta — mesmas cores do Royal Burguer (--ink, --ink-soft, --brown,
-   --brown-soft, --gold, --cream, --cream-2 do style.css original),
-   só trocando a foto do lanche pela identidade da Cantina Brasil.
-   ============================================================= */
-const COR_MARROM = '#3b2011'; // --ink
-const COR_MARROM_SUAVE = '#6b4a33'; // --ink-soft
-const COR_PAINEL = '#b15e33'; // --brown-soft (painel do card do prato + pill de categoria inativa)
-const COR_PAINEL_TEXTO = '#ffffff'; // --white (texto sobre o painel marrom)
-const COR_DOURADO = '#f4a93c'; // --gold
-const COR_CREME = '#f6efe0'; // --cream
-const COR_CREME_ESCURO = '#efe3cc'; // --cream-2
-const COR_TERRACOTA = '#9e4a1f'; // --brown
-const COR_LINHA = 'rgba(107, 74, 51, 0.25)'; // --ink-soft com opacidade, pra bordas/divisores sutis
-const COR_FUNDO_PAGINA = '#e9dcc4'; // "mesa" atrás do cardápio em telas largas — igual ao body do Royal Burguer
-const SOMBRA = '0 10px 26px rgba(59, 32, 17, 0.16)'; // --shadow
+const COR_MARROM = '#3b2011';
+const COR_MARROM_SUAVE = '#6b4a33';
+const COR_PAINEL = '#b15e33';
+const COR_PAINEL_TEXTO = '#ffffff';
+const COR_DOURADO = '#f4a93c';
+const COR_CREME = '#f6efe0';
+const COR_CREME_ESCURO = '#efe3cc';
+const COR_TERRACOTA = '#9e4a1f';
+const COR_LINHA = 'rgba(107, 74, 51, 0.25)';
+const COR_FUNDO_PAGINA = '#e9dcc4';
+const SOMBRA = '0 10px 26px rgba(59, 32, 17, 0.16)';
 const SOMBRA_FOTO = '0 14px 16px rgba(59, 32, 17, 0.4)';
 
 function formatarMoeda(valor: number) {
@@ -76,7 +71,6 @@ function IconeSacola({ className }: { className?: string }) {
   );
 }
 
-/* ---------- ícones de categoria (linha, combinam com a identidade) ---------- */
 function IconeCategoria({
   categoria,
   className,
@@ -147,7 +141,6 @@ interface SeletorQuantidadeProps {
   complementosSelecionados: Complemento[];
   onAdicionar: (produto: ItemCardapio, complementos: Complemento[]) => void;
   onRemover: (idUnico: string) => void;
-  /** 'claro' = para usar sobre fundo creme/branco · 'escuro' = para usar sobre o painel marrom do card */
   variante?: 'claro' | 'escuro';
 }
 
@@ -205,7 +198,6 @@ function SeletorQuantidade({
   );
 }
 
-/** Prato do dia fora do dia dele: mostra quando ele volta em vez do botão de adicionar. */
 function EtiquetaForaDoDia({ diaSemana, variante = 'claro' }: { diaSemana: number; variante?: 'claro' | 'escuro' }) {
   const cor = variante === 'escuro' ? COR_PAINEL_TEXTO : COR_MARROM_SUAVE;
   return (
@@ -259,7 +251,6 @@ function CartaoPratoCantina({ produto, emojiCategoria, expandido, onToggleExpand
 
   return (
     <article className="relative mb-7 ml-[18px] flex min-h-[150px] flex-col justify-center pl-[118px]">
-      {/* foto em "blob" orgânico, sangrando pra esquerda e por cima do painel — mesma ideia do Royal Burguer */}
       <div
         className="absolute -left-[18px] top-1/2 z-[2] h-[142px] w-[142px] -translate-y-1/2 overflow-hidden rounded-[38%_38%_38%_12%]"
         style={{ boxShadow: SOMBRA_FOTO }}
@@ -293,9 +284,6 @@ function CartaoPratoCantina({ produto, emojiCategoria, expandido, onToggleExpand
         {produto.nome}
       </h3>
 
-      {/* painel puxado pra trás (-ml) pra passar por baixo da foto, com o canto
-          superior esquerdo bem arredondado pra "abraçar" o blob — o z-index
-          menor que o da foto garante que ela fique por cima na sobreposição */}
       <div
         className="relative z-[1] ml-[-64px] min-h-[108px] rounded-[34px_18px_18px_18px] py-3 pl-[78px] pr-4"
         style={{ backgroundColor: COR_PAINEL, boxShadow: SOMBRA }}
@@ -420,7 +408,6 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
     setProdutoExpandidoId((atual) => (atual === produtoId ? null : produtoId));
   };
 
-  // só mostra na barra as categorias que realmente têm produto cadastrado
   const categoriasDisponiveis = ORDEM_CATEGORIAS.filter((categoria) =>
     produtos.some((produto) => categoriaDoProduto(produto) === categoria.chave)
   );
@@ -431,10 +418,6 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
 
   const produtosFiltrados = produtos.filter((produto) => categoriaDoProduto(produto) === categoriaAtiva);
 
-  // "Prato do Momento": destaca automaticamente o prato do dia de hoje (o
-  // item de categoria PRATOS cujo dia_semana bate com hoje) — sem precisar
-  // configurar nada manualmente. Some sozinho quando nenhum prato do dia
-  // estiver cadastrado pra hoje.
   const produtoDestaque = produtos.find(
     (produto) =>
       categoriaDoProduto(produto) === 'PRATOS' &&
@@ -444,17 +427,11 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
   );
 
   return (
-    // moldura "celular" centralizada — mesma ideia do Royal Burguer (.phone,
-    // fundo contrastante nas laterais em telas largas). Um pouco mais larga
-    // que o --app original (480px) pra aproveitar melhor telas de desktop.
-    // Sem essa moldura o cardápio esticava a largura inteira da tela em
-    // desktop e o card do prato (foto-blob + painel compacto) ficava deformado.
     <div className="min-h-screen w-full" style={{ backgroundColor: COR_FUNDO_PAGINA }}>
       <div
         className="relative mx-auto min-h-screen w-full max-w-[560px] select-none pb-32 antialiased"
         style={{ backgroundColor: COR_CREME, boxShadow: '0 0 60px rgba(59, 32, 17, 0.18)' }}
       >
-      {/* ---------- herói: identidade da marca, no lugar da foto do Royal Burguer ---------- */}
       <header
         className="relative overflow-hidden"
         style={{ background: `linear-gradient(160deg, ${COR_MARROM} 0%, #6E3A1E 55%, ${COR_TERRACOTA} 100%)` }}
@@ -499,7 +476,6 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
         </div>
       </header>
 
-      {/* ---------- barra de categorias (sticky) ---------- */}
       {categoriasDisponiveis.length > 1 && (
         <nav
           className="sticky top-0 z-30 flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none"
@@ -534,7 +510,6 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
         </nav>
       )}
 
-      {/* ---------- prato do momento (destaque automático do prato de hoje) ---------- */}
       {produtoDestaque && (
         <section className="px-6 pb-2 pt-6 text-center" style={{ backgroundColor: COR_CREME }}>
           <span
@@ -576,7 +551,6 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
         </section>
       )}
 
-      {/* ---------- cardápio ---------- */}
       <section
         className="relative -mt-3 rounded-t-[26px] px-6 pb-10 pt-7"
         style={{ backgroundColor: '#fff' }}
@@ -613,8 +587,6 @@ export default function ComponenteLojaCantinaBrasilV2({ restaurante, produtos }:
   );
 }
 
-/* botão de adicionar do bloco "Prato do Momento" — vive fora do card porque
-   usa o contexto do carrinho isoladamente (mesmo produto pode não ter complementos) */
 function ProdutoDestaqueBotao({ produto }: { produto: ItemCardapio }) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const itemNoCarrinho = itens.find((item) => item.idUnico === produto.id);

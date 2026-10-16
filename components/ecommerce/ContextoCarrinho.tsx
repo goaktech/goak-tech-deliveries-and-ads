@@ -32,7 +32,6 @@ export interface ItemCarrinho {
   adicionaisEscolhidos: Complemento[];
 }
 
-/** Resultado da conferência da sacola com o cardápio de agora (POST /api/checkout/validar). */
 export interface AvaliacaoItemCarrinho {
   idUnico?: string;
   item_cardapio_id: string;
@@ -57,11 +56,8 @@ interface ContextoCarrinhoType {
   valorTotal: number;
   totalItens: number;
   limparCarrinho: () => void;
-  /** Remove a linha inteira (todas as unidades) da sacola. */
   removerLinha: (idUnico: string) => void;
-  /** Avisos sobre preços/itens que mudaram desde que o cliente montou a sacola. */
   avisosCarrinho: AvisoCarrinho[];
-  /** Aplica o resultado da conferência: atualiza preços e gera os avisos. */
   aplicarAvaliacao: (avaliacoes: AvaliacaoItemCarrinho[]) => void;
 }
 
@@ -205,7 +201,6 @@ export function ProvedorCarrinho({ children }: { children: React.ReactNode }) {
         }
         if (avaliacao.status === 'ok') return item;
 
-        // preço mudou (para mais ou para menos): atualiza a sacola e avisa; adicionais podem ter ganho ids novos
         const atualizado: ItemCarrinho = {
           ...item,
           produto: { ...item.produto, preco_venda: avaliacao.precoAtual },
@@ -234,8 +229,6 @@ export function ProvedorCarrinho({ children }: { children: React.ReactNode }) {
     aplicarAvaliacaoRef.current = aplicarAvaliacao;
   });
 
-  // Ao abrir a loja com a sacola já montada (de outro dia/aparelho), confere preços e itens com o cardápio de agora
-  // e avisa o cliente do que mudou. O servidor confere de novo ao cobrar (utils/politica-preco.ts).
   const itensAoAbrirRef = useRef(itens);
   useEffect(() => {
     const itensConferir = itensAoAbrirRef.current;
@@ -263,7 +256,6 @@ export function ProvedorCarrinho({ children }: { children: React.ReactNode }) {
           aplicarAvaliacaoRef.current(body.itens as AvaliacaoItemCarrinho[]);
         }
       } catch {
-        // sem rede: o checkout confere de novo
       }
     };
     void conferir();

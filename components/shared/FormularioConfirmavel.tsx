@@ -10,7 +10,6 @@ interface FormularioConfirmavelProps {
   children: ReactNode;
 }
 
-/** Formulário que só é enviado depois do "sim" no diálogo do painel (usado em ações de desconectar). */
 export function FormularioConfirmavel({ action, method, confirmacao, children }: FormularioConfirmavelProps) {
   const { confirmar } = useAvisosPainel();
   const formRef = useRef<HTMLFormElement | null>(null);

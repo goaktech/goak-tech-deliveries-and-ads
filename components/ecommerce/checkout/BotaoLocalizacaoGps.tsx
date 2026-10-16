@@ -2,7 +2,6 @@
 
 interface BotaoLocalizacaoGpsProps {
   onCapturarLocalizacao: () => void;
-  /** texto do botão (padrão: "Detectar Minha Localização Atual") */
   rotulo?: string;
 }
 

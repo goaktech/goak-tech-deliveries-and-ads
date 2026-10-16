@@ -72,16 +72,12 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
   const [pedido, setPedido] = useState(pedidoInicial);
   const [erro, setErro] = useState('');
   const [confirmacaoPagamento, setConfirmacaoPagamento] = useState(false);
-  // pedido aberto até 30 min depois de criado: ainda é o "acabei de pagar"
   const [recemPago] = useState(() => Date.now() - new Date(pedidoInicial.created_at).getTime() < 30 * 60 * 1000);
   const statusAtualRef = useRef(pedidoInicial.status);
   const tipoEntrega = useMemo(() => obterTipoEntregaPedido(pedido.dados_cliente), [pedido.dados_cliente]);
   const etapas = useMemo(() => obterEtapasStatusPedido(tipoEntrega), [tipoEntrega]);
   const indiceAtual = useMemo(() => obterIndiceStatusPedido(pedido.status, tipoEntrega), [pedido.status, tipoEntrega]);
 
-  // Purchase para o Meta Pixel: só com pagamento confirmado (status deixou de ser PENDENTE e não é
-  // cancelado). Dispara quando este navegador vê a virada de PENDENTE para pago, ou quando abre o
-  // pedido recém-pago (até 30 min), nunca para pedidos antigos abertos de novo.
   const statusInicialRef = useRef(pedidoInicial.status);
   useEffect(() => {
     if (pedido.status === 'PENDENTE' || pedido.status === 'CANCELADO') return;
@@ -101,8 +97,6 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
   const cancelado = pedido.status === 'CANCELADO';
   const finalizado = cancelado || pedido.status === 'ENTREGUE';
 
-  // O aviso de pagamento reflete o status REAL do pedido (confirmado pelo webhook do Mercado Pago),
-  // e não apenas o parâmetro ?pagamento= da URL, que vem do redirecionamento do checkout e não prova nada.
   const bannerPagamento = useMemo(() => {
     if (pedido.status === 'CANCELADO') {
       return null;
@@ -144,13 +138,11 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
           throw new Error(body?.error || 'Falha ao atualizar pedido.');
         }
         if (ativo) {
-          // virada de "aguardando" para pago enquanto a pessoa olha a tela: confirma com destaque
           if (statusAtualRef.current === 'PENDENTE' && body.status !== 'PENDENTE' && body.status !== 'CANCELADO') {
             setConfirmacaoPagamento(true);
             try {
               navigator.vibrate?.([150, 80, 150]);
             } catch {
-              // sem vibração neste aparelho
             }
             window.setTimeout(() => setConfirmacaoPagamento(false), 6000);
           }
@@ -242,14 +234,6 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
               </div>
 
               {emFaseEntrega ? (
-                // TEMPORÁRIO: enquanto a disponibilidade de motoboy estiver instável,
-                // escondemos tanto a contagem de preparo quanto a de entrega em minutos
-                // (que ficavam aqui, uma embaixo da outra) — o tempo estimado passa a ser
-                // combinado por WhatsApp. Os componentes LinhaContagemRegressiva /
-                // ContagemRegressiva usados antes ficaram só no histórico do git; reverter
-                // restaurando os dois blocos (Preparo com totalMinutos={pedido.tempo_preparo_estimado_min}
-                // referenciaIso={pedido.created_at}, Entrega com totalMinutos={pedido.tempo_deslocamento_min}
-                // referenciaIso={pedido.updated_at}) assim que a entrega estiver estabilizada.
                 <div className="mt-3 space-y-2">
                   <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
                     <span className="relative flex h-2 w-2 shrink-0">

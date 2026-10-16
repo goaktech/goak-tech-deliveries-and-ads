@@ -1,4 +1,3 @@
-// actions/adminIfoodLoja.ts
 'use server';
 
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
@@ -35,7 +34,6 @@ function mensagemDeErro(erro: unknown, padrao: string) {
   return erro instanceof Error ? erro.message : padrao;
 }
 
-/** Token e ID da loja conectada ao estabelecimento do gestor logado. */
 async function lojaConectada() {
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const integracao = await obterIntegracaoIfoodPorRestauranteId(restauranteId);
@@ -44,8 +42,6 @@ async function lojaConectada() {
   }
   return { accessToken: await obterAccessTokenIfood(restauranteId), merchantId: integracao.merchant_id };
 }
-
-// ------------------------------------------------------------ Cenário 1: informações da loja
 
 export async function listarLojasVinculadasAction(): Promise<Resultado<{ lojas: LojaVinculadaIfood[]; conectadaId: string }>> {
   try {
@@ -57,7 +53,6 @@ export async function listarLojasVinculadasAction(): Promise<Resultado<{ lojas: 
   }
 }
 
-/** Detalhes completos + disponibilidade (status) de uma loja vinculada ao token. */
 export async function detalharLojaIfoodAction(
   lojaId: string
 ): Promise<Resultado<{ detalhes: DetalhesLojaIfood; status: StatusOperacaoIfood[]; consultadoEm: string }>> {
@@ -78,8 +73,6 @@ export async function detalharLojaIfoodAction(
   }
 }
 
-// ------------------------------------------------------------ Cenário 2: pausas
-
 export async function listarPausasIfoodAction(): Promise<Resultado<{ pausas: PausaIfood[]; agora: string }>> {
   try {
     const { accessToken, merchantId } = await lojaConectada();
@@ -90,7 +83,6 @@ export async function listarPausasIfoodAction(): Promise<Resultado<{ pausas: Pau
   }
 }
 
-/** Início e fim chegam como no <input type="datetime-local">: hora de Brasília, sem fuso. */
 export async function criarPausaIfoodAction(
   descricao: string,
   inicio: string,
@@ -109,7 +101,6 @@ export async function criarPausaIfoodAction(
     }
     const inicioLocal = `${inicio.slice(0, 16)}:00`;
     const fimLocal = `${fim.slice(0, 16)}:00`;
-    // Strings no mesmo formato e fuso: a comparação de texto equivale à de datas.
     if (fimLocal <= inicioLocal) {
       return { success: false, error: 'O fim da pausa precisa ser depois do início.' };
     }
@@ -140,8 +131,6 @@ export async function removerPausaIfoodAction(pausaId: string): Promise<Resultad
   }
 }
 
-// ------------------------------------------------------------ Cenário 3: horário de funcionamento
-
 export async function consultarHorariosIfoodAction(): Promise<Resultado<{ turnos: TurnoIfood[]; consultadoEm: string }>> {
   try {
     const { accessToken, merchantId } = await lojaConectada();
@@ -157,7 +146,6 @@ function paraMinutos(hora: string) {
   return h * 60 + m;
 }
 
-/** Valida os turnos digitados (início/fim "HH:MM" no mesmo dia, sem sobreposição). */
 function validarTurnos(turnos: Array<{ dia: string; inicio: string; fim: string }>): TurnoIfood[] | string {
   const convertidos: TurnoIfood[] = [];
   for (const turno of turnos) {
@@ -200,8 +188,6 @@ export async function salvarHorariosIfoodAction(
 
     const { accessToken, merchantId } = await lojaConectada();
     await salvarHorariosIfood(accessToken, merchantId, validados);
-    // O GET do iFood leva alguns minutos para refletir o PUT: devolve o que foi
-    // gravado (o iFood já confirmou), e a consulta fica para o botão próprio.
     return { success: true, turnos: validados };
   } catch (erro) {
     console.error('Erro ao salvar horários no iFood:', erro);

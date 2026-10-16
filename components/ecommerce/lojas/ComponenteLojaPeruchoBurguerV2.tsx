@@ -22,21 +22,14 @@ interface ComponenteLojaPeruchoBurguerV2Props {
     id: string;
     nome: string;
     endereco: string | null;
-    /** Usado pra tarja "Aberto agora · fecha às Xh" no herói. */
     horariosFuncionamento?: HorarioFuncionamentoDia[] | null;
   };
   produtos: ItemCardapio[];
 }
 
-/* =============================================================
-   Paleta v2 — mesma essência quente (marrom/dourado/creme) do
-   cardápio atual, com o painel escurecido pra passar no contraste
-   WCAG AA (texto branco em cima precisa de >=4.5:1; o `#b15e33`
-   original dava ~2.9:1, o `#7a3814` abaixo dá ~8.8:1).
-   ============================================================= */
 const COR_MARROM = '#3B2011';
 const COR_MARROM_SUAVE = '#6B4A33';
-const COR_PAINEL = '#7A3814'; // era #b15e33 — escurecido só pra corrigir o contraste
+const COR_PAINEL = '#7A3814';
 const COR_PAINEL_TEXTO = '#ffffff';
 const COR_DOURADO = '#F4A93C';
 const COR_CREME = '#F6EFE0';
@@ -51,13 +44,6 @@ function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-/* =============================================================
-   Categorização — igual à v1 (Hambúrgueres / Entradas / Bebidas /
-   Sobremesas). Usa o campo `categoria` cadastrado no admin quando
-   bate com um sinônimo conhecido; senão cai numa heurística por
-   nome, então itens ainda não categorizados continuam aparecendo
-   no lugar certo.
-   ============================================================= */
 type CategoriaPerucho = 'HAMBURGUERES' | 'ENTRADAS' | 'BEBIDAS' | 'SOBREMESAS';
 
 interface ProdutoParaCategorizar {
@@ -106,26 +92,12 @@ const ORDEM_CATEGORIAS: { chave: CategoriaPerucho; rotulo: string }[] = [
   { chave: 'SOBREMESAS', rotulo: 'Sobremesas' },
 ];
 
-/* =============================================================
-   Disponibilidade — a v1 nunca checava `disponivel` nem
-   `dia_semana`: um item marcado como indisponível continuava
-   aparecendo como se pudesse ser comprado. Aqui, sem `dia_semana`
-   o item vale todo dia (comportamento padrão); com `dia_semana`,
-   só aparece liberado no dia certo. `disponivel === false` sempre
-   bloqueia, independente do dia.
-   ============================================================= */
 function produtoDisponivelHoje(produto: Pick<ItemCardapio, 'disponivel' | 'dia_semana'>, agora = new Date()): boolean {
   if (produto.disponivel === false) return false;
   if (produto.dia_semana === null || produto.dia_semana === undefined) return true;
   return produto.dia_semana === obterDiaSemanaAtualBrasil(agora);
 }
 
-/* =============================================================
-   Fotos reais — igual à v1: o banco ainda não tem imagem_url
-   cadastrado pra nenhum produto, então as fotos que já temos
-   entram por um mapa local (nome → arquivo em /public).
-   `produto.imagem_url` sempre tem prioridade quando existir.
-   ============================================================= */
 const FOTOS_LOCAIS: { correspondeNome: RegExp; src: string }[] = [
   { correspondeNome: /cl[aá]ssico/i, src: '/perucho-burguer-classico.webp' },
   { correspondeNome: /extra ?bacon|bacon/i, src: '/perucho-burguer-bacon.webp' },
@@ -137,16 +109,6 @@ function fotoLocalDoProduto(nome: string): string | undefined {
 
 const FOTO_DESTAQUE_FALLBACK = '/perucho-burguer-destaque.webp';
 
-/* =============================================================
-   Fotos "3D" (recorte sem fundo) — só pros pratos que já têm um
-   recorte pronto em /public. Quando existe, o prato aparece
-   flutuando sobre o card (sombra + leve rotação) em vez do recorte
-   redondo "blob" da v1. Sem recorte, cai pro tratamento normal
-   (foto quadrada) ou pro círculo com ícone, como antes.
-   Pra adicionar um novo prato aqui: gere o PNG/WEBP sem fundo do
-   prato, salve em /public com um nome descritivo e cadastre a
-   linha abaixo — não tem geração automática de recorte no código.
-   ============================================================= */
 const FOTOS_3D_LOCAIS: { correspondeNome: RegExp; src: string }[] = [
   { correspondeNome: /cl[aá]ssico/i, src: '/perucho-burguer-classico-3d.webp' },
   { correspondeNome: /extra ?bacon|bacon/i, src: '/perucho-burguer-extra-bacon-3d.webp' },
@@ -156,15 +118,8 @@ function foto3DLocalDoProduto(nome: string): string | undefined {
   return FOTOS_3D_LOCAIS.find((f) => f.correspondeNome.test(nome))?.src;
 }
 
-/* =============================================================
-   Item em destaque no bloco "Lanche do Momento" (topo do
-   cardápio). Sem flag de destaque no banco, o nome fica
-   configurado aqui — troque quando quiser destacar outro item.
-   Deixe "" pra desativar o bloco.
-   ============================================================= */
 const NOME_ITEM_DESTAQUE = 'Extra Bacon';
 
-/* ---------- ícones de categoria (linha, marrom) — iguais à v1 ---------- */
 function IconeCategoria({
   categoria,
   className,
@@ -234,7 +189,6 @@ function IconeSacola({ className }: { className?: string }) {
   );
 }
 
-/* ---------- selo redondo "PB" que substitui a coroa da v1 no topo/rodapé ---------- */
 function SeloPB({ tom = 'escuro', className }: { tom?: 'claro' | 'escuro'; className?: string }) {
   const cor = tom === 'claro' ? COR_DOURADO : COR_MARROM;
   return (
@@ -249,7 +203,6 @@ function SeloPB({ tom = 'escuro', className }: { tom?: 'claro' | 'escuro'; class
   );
 }
 
-/* ---------- foto do prato "flutuando" em 3D: recorte + sombra elíptica + leve rotação ---------- */
 function FotoFlutuante({
   src,
   alt,
@@ -297,12 +250,9 @@ interface SeletorQuantidadeProps {
   complementosSelecionados: Complemento[];
   onAdicionar: (produto: ItemCardapio, complementos: Complemento[]) => void;
   onRemover: (idUnico: string) => void;
-  /** 'claro' = para usar sobre fundo creme/branco · 'escuro' = para usar sobre o painel marrom do card */
   variante?: 'claro' | 'escuro';
 }
 
-/* Toques agora de 44px (eram 24px na v1) — abaixo do mínimo recomendado pra
-   toque em telas pequenas causava erro de clique frequente no celular. */
 function SeletorQuantidade({
   qtd,
   idUnicoCarrinho,
@@ -400,8 +350,6 @@ function CartaoPratoPerucho({ produto, fotoLocal, expandido, onToggleExpandir, r
 
   return (
     <article className="relative" style={{ paddingTop: 56, marginBottom: 22 }}>
-      {/* foto do prato — flutuando em 3D quando existe recorte; senão foto
-          quadrada normal; senão círculo com o ícone da categoria */}
       <div className="absolute z-[3]" style={{ left: 8, top: -14, width: 118, height: 118 }}>
         {foto3D ? (
           <FotoFlutuante src={foto3D} alt={produto.nome} rotacaoGraus={rotacaoFoto} tamanho={118} sombraLargura={78} />
@@ -425,9 +373,6 @@ function CartaoPratoPerucho({ produto, fotoLocal, expandido, onToggleExpandir, r
         )}
       </div>
 
-      {/* painel com nome, descrição, preço e ação — agora com contraste
-          corrigido (fundo mais escuro) e o nome dentro do painel, sem
-          truncar (a v1 cortava nomes longos com `truncate`) */}
       <div
         className="min-h-[112px] rounded-[22px] py-3.5 pr-4"
         style={{ backgroundColor: disponivelHoje ? COR_PAINEL : '#C9BFA6', paddingLeft: 130, boxShadow: disponivelHoje ? SOMBRA : undefined }}
@@ -549,8 +494,6 @@ function CartaoPratoPerucho({ produto, fotoLocal, expandido, onToggleExpandir, r
   );
 }
 
-/* botão de adicionar do bloco "Lanche do Momento" — vive fora do card porque
-   usa o contexto do carrinho isoladamente (o item pode não ter complementos) */
 function ItemDestaqueBotao({ produto }: { produto: ItemCardapio }) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const itemNoCarrinho = itens.find((item) => item.idUnico === produto.id);
@@ -580,8 +523,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
     setProdutoExpandidoId((atual) => (atual === produtoId ? null : produtoId));
   };
 
-  // agrupa os produtos por categoria, na mesma ordem da v1 — só entram
-  // categorias que realmente têm produto cadastrado
   const grupos = useMemo(
     () =>
       ORDEM_CATEGORIAS.map((categoria) => ({
@@ -593,8 +534,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
 
   const [categoriaAtiva, setCategoriaAtiva] = useState<CategoriaPerucho>(grupos[0]?.chave ?? 'HAMBURGUERES');
 
-  // realça na barra sticky a categoria que está no topo da tela — mesma
-  // técnica (IntersectionObserver) da v1
   useEffect(() => {
     const elementos = grupos
       .map((grupo) => secoesRef.current[grupo.chave])
@@ -635,7 +574,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
         className="relative mx-auto min-h-screen w-full max-w-[560px] pb-32 antialiased"
         style={{ backgroundColor: COR_CREME, boxShadow: '0 0 60px rgba(59, 32, 17, 0.18)' }}
       >
-        {/* ---------- topo: selo "PB" + nome da loja + sacola ---------- */}
         <div className="flex items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-2.5">
             <SeloPB className="h-9 w-9 text-sm" />
@@ -661,7 +599,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
           </Link>
         </div>
 
-        {/* ---------- herói: foto cheia + selo de status real + título serifado ---------- */}
         <div className="relative">
           <Image
             src="/perucho-burguer-classico.webp"
@@ -695,8 +632,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
           </div>
         </div>
 
-        {/* ---------- barra de categorias (sticky, com rolagem horizontal —
-            a v1 usava flex-1 e espremia tudo quando havia muitas categorias) ---------- */}
         {grupos.length > 0 && (
           <nav
             aria-label="Categorias do cardápio"
@@ -736,8 +671,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
           </nav>
         )}
 
-        {/* ---------- lanche do momento (destaque opcional) — foto flutuando
-            em 3D quando existe recorte pronto ---------- */}
         {itemDestaque && (
           <section className="px-6 pb-2 pt-6 text-center" style={{ backgroundColor: COR_CREME }}>
             <span
@@ -779,9 +712,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
           </section>
         )}
 
-        {/* ---------- cardápio: todas as categorias em sequência, cada uma
-            com id próprio (compartilhável / acessível — a v1 só tinha
-            `data-categoria`, sem `id` real pra âncora) ---------- */}
         <section className="relative mt-3.5 rounded-t-[26px] px-6 pb-10 pt-7" style={{ backgroundColor: '#fff' }}>
           {grupos.length === 0 ? (
             <div className="py-16 text-center">
@@ -821,7 +751,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
           )}
         </section>
 
-        {/* ---------- CTA final — leva pra sacola/checkout de verdade ---------- */}
         <section className="px-6 py-10 text-center" style={{ backgroundColor: COR_TERRACOTA }}>
           <h2 className={`${fonteExibicao.className} text-2xl font-extrabold`} style={{ color: COR_CREME }}>
             Deu fome?
@@ -839,7 +768,6 @@ export default function ComponenteLojaPeruchoBurguerV2({ restaurante, produtos }
           </Link>
         </section>
 
-        {/* ---------- rodapé ---------- */}
         <footer className="px-6 py-9 text-center" style={{ backgroundColor: COR_MARROM }}>
           <SeloPB tom="claro" className="mx-auto h-11 w-11 text-base" />
           <p className={`${fonteExibicao.className} mt-3 mb-3.5 text-lg italic`} style={{ color: COR_DOURADO }}>

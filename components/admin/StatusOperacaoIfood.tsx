@@ -32,11 +32,6 @@ interface RespostaStatus {
   error?: string;
 }
 
-/**
- * Status de operação da loja no iFood (GET /merchant/v1.0/merchants/{id}/status),
- * atualizado a cada 30 s. `compacto` é a versão de uma linha usada na cozinha;
- * sem ele, lista também as pendências de cada operação (card de Integrações).
- */
 export function StatusOperacaoIfood({ compacto = false }: { compacto?: boolean }) {
   const [dados, setDados] = useState<RespostaStatus | null>(null);
 

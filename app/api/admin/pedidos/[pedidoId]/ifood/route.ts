@@ -25,7 +25,6 @@ type Corpo =
   | { acao: 'coleta'; codigo: string }
   | { acao: 'homologacao' };
 
-// iFood Entrega a partir do card da cozinha — ver utils/ifood-entrega.ts.
 export async function POST(request: Request, { params }: Params) {
   try {
     const { pedidoId } = await params;
@@ -78,7 +77,6 @@ export async function POST(request: Request, { params }: Params) {
         }
         return NextResponse.json({ valido: await validarCodigoColetaIfood(restauranteId, pedidoId, corpo.codigo) });
       case 'homologacao':
-        // Código de coleta e eventos do pedido — só com IFOOD_HOMOLOGACAO=true.
         if (!clientIdIfoodHomologacao()) {
           return NextResponse.json({ error: 'Disponível só no modo homologação.' }, { status: 403 });
         }

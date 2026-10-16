@@ -25,7 +25,6 @@ export default async function PainelConfiguracoesAdmin() {
     .maybeSingle(),
     createClient().then((cliente) => cliente.auth.getUser()),
   ]);
-  // E-mail da loja; se ainda não foi cadastrado, mostra o e-mail do login do gestor.
   const emailLoja = restaurante?.email_corporativo?.trim() || dadosLogin?.user?.email || null;
 
   return (
@@ -45,7 +44,6 @@ export default async function PainelConfiguracoesAdmin() {
             <div className="text-sm text-zinc-500">/{restaurante?.slug ?? ''}</div>
           </div>
 
-          {/* Duas colunas a partir do tablet; no celular segue a ordem normal, uma embaixo da outra. */}
           <div className="space-y-5 md:columns-2 md:gap-5 md:space-y-0 [&>*]:break-inside-avoid md:[&>*]:mb-5">
           <ConfiguracaoEnderecoLoja
             enderecoInicial={restaurante?.endereco ?? ''}

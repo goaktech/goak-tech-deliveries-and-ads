@@ -1,4 +1,3 @@
-// actions/adminIfood.ts
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -31,10 +30,6 @@ async function integracaoAtual(restauranteId: string) {
   return paraIntegracaoIfoodPublica(await obterIntegracaoIfoodPorRestauranteId(restauranteId));
 }
 
-/**
- * Passo 1: gestor informou o ID da loja. Gera o código de vínculo que o
- * lojista vai aprovar no Portal do Parceiro. O verifier fica só no banco.
- */
 export async function iniciarConexaoIfood(merchantId: string): Promise<Resultado> {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
@@ -68,11 +63,6 @@ export async function iniciarConexaoIfood(merchantId: string): Promise<Resultado
   }
 }
 
-/**
- * Passo 2: lojista aprovou e colou o código de autorização. Troca por
- * tokens, confere que a loja autorizada é a do ID informado e puxa os
- * dados cadastrais dela.
- */
 export async function concluirConexaoIfood(authorizationCode: string): Promise<Resultado> {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
@@ -88,10 +78,6 @@ export async function concluirConexaoIfood(authorizationCode: string): Promise<R
 
     const tokens = await trocarAuthorizationCodeIfood(codigo, integracao.authorization_code_verifier);
 
-    // O código de autorização só vale uma vez: a conferência da loja não pode
-    // jogar o token fora por um atraso do iFood. Logo depois da aprovação a
-    // loja às vezes ainda não aparece para o token, então tenta algumas vezes
-    // buscar a loja informada antes de concluir que a autorização foi para outra.
     let loja: Awaited<ReturnType<typeof buscarDadosLojaIfood>> | null = null;
     for (let tentativa = 1; tentativa <= TENTATIVAS_CONFERIR_LOJA && !loja; tentativa++) {
       loja = await buscarDadosLojaIfood(tokens.accessToken, integracao.merchant_id).catch(() => null);
@@ -144,7 +130,6 @@ export async function concluirConexaoIfood(authorizationCode: string): Promise<R
   }
 }
 
-/** Puxa de novo nome, endereço e status da loja no iFood. */
 export async function atualizarDadosLojaIfood(): Promise<Resultado> {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
@@ -172,7 +157,6 @@ export async function atualizarDadosLojaIfood(): Promise<Resultado> {
   }
 }
 
-/** Apaga os tokens do goak. O lojista também pode revogar no Portal do Parceiro. */
 export async function desconectarIfood(): Promise<Resultado> {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();
@@ -195,10 +179,6 @@ export async function desconectarIfood(): Promise<Resultado> {
   }
 }
 
-/**
- * "Entregas pelo iFood": com a opção ligada, o checkout cobra do cliente a
- * cotação do iFood (+ acréscimo) no lugar da taxa fixa/tabela por bairro.
- */
 export async function salvarConfiguracaoEntregaIfood(ativo: boolean, acrescimo: number): Promise<Resultado> {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();

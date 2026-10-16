@@ -1,46 +1,15 @@
-// Configurações pontuais por loja (slug) que ainda não têm um campo dedicado
-// no banco de dados. Usado tanto no checkout (server e client) quanto nas
-// vitrines customizadas em components/ecommerce/lojas.
-//
-// Quando migrarmos essas configurações para colunas em `restaurantes`,
-// este arquivo pode ser removido.
-
-/** Bairro/localidade atendido pela entrega, com a taxa cobrada (em reais). */
 export interface ZonaEntrega {
-  /** Nome exibido ao cliente e gravado no endereço do pedido. */
   nome: string;
-  /** Taxa de entrega (em reais) para esta localidade. */
   taxa: number;
-  /**
-   * Grafias alternativas (ex.: vindas do GPS/mapa) que devem ser reconhecidas
-   * como esta localidade. O `nome` já é reconhecido automaticamente.
-   */
   aliases?: string[];
 }
 
 export interface ConfigLojaEspecial {
-  /** Valor fixo (em reais) somado ao total do pedido em toda compra com entrega. */
   taxaEntregaFixa: number;
-  /** Se true, a opção "Retirada" fica oculta no checkout desta loja. */
   ocultarRetirada: boolean;
-  /**
-   * Limite máximo de unidades de "comida" (itens que não são bebida, ver
-   * `ehBebida`) somadas em todo o pedido. `undefined`/`0` = sem limite.
-   */
   limiteUnidadesComida?: number;
-  /**
-   * Taxa de entrega por localidade. Quando preenchida, o cliente escolhe o
-   * bairro numa lista no checkout, a taxa vem desta tabela (e não de
-   * `taxaEntregaFixa`) e bairros fora da lista não recebem entrega.
-   * A retirada no balcão continua sem taxa.
-   */
   zonasEntrega?: ZonaEntrega[];
-  /** Cidade usada na geocodificação do endereço digitado (melhora o "abrir no Maps"). */
   cidadeEntrega?: string;
-  /**
-   * WhatsApp de atendimento da loja (DDD + número, ex.: "61999998888"). Quando preenchido, a vitrine mostra
-   * "Você pode pedir por aqui ou pelo WhatsApp". Vazio/ausente = a faixa não aparece.
-   */
   whatsappAtendimento?: string;
 }
 
@@ -49,13 +18,7 @@ const CONFIG_PADRAO: ConfigLojaEspecial = {
   ocultarRetirada: false,
 };
 
-/* =============================================================
-   Perucho Burguer — tabela "Aipede Delivery · Região 1"
-   (motoboys parceiros). Uma linha por localidade; para mudar um
-   valor ou incluir um bairro, é só editar/adicionar aqui.
-   ============================================================= */
 const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
-  // R$ 6
   { nome: 'Centro', taxa: 6 },
   { nome: 'Residencial Oeste', taxa: 6 },
   { nome: 'Morro Azul', taxa: 6 },
@@ -63,19 +26,16 @@ const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
   { nome: 'São Bartolomeu', taxa: 6, aliases: ['S. Bartolomeu'] },
   { nome: 'Pró-DF', taxa: 6, aliases: ['Pro DF', 'ProDF'] },
   { nome: 'Bonsucesso', taxa: 6 },
-  // R$ 7
   { nome: 'Vila Nova', taxa: 7 },
   { nome: 'São Francisco', taxa: 7 },
   { nome: 'São José', taxa: 7 },
   { nome: 'João Cândido', taxa: 7 },
-  // R$ 8
   { nome: 'Bosque', taxa: 8 },
   { nome: 'Bela Vista', taxa: 8 },
   { nome: 'Bora Manso', taxa: 8 },
   { nome: 'Baía', taxa: 8 },
   { nome: 'Vitória', taxa: 8 },
   { nome: 'Setor Ch. Tradicional (Rua 1 a 19)', taxa: 8 },
-  // R$ 10
   { nome: 'Mangueiral', taxa: 10 },
   { nome: 'Jardim Botânico 3', taxa: 10 },
   { nome: 'Del Rey', taxa: 10 },
@@ -84,7 +44,6 @@ const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
   { nome: 'Vila do Boa', taxa: 10 },
   { nome: 'Morro da Cruz (até a Chácara 43)', taxa: 10 },
   { nome: 'Crixás', taxa: 10 },
-  // R$ 12
   { nome: 'Ouro Vermelho 2', taxa: 12 },
   { nome: 'Quintas do Itaipu', taxa: 12 },
   { nome: 'Vistas do Itaipu', taxa: 12 },
@@ -95,12 +54,10 @@ const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
   { nome: 'Itaipus (1 ao 83)', taxa: 12 },
   { nome: 'Cond. Bentivi', taxa: 12 },
   { nome: 'Solar Itaipu', taxa: 12 },
-  // R$ 17
   { nome: 'Capão Comprido', taxa: 17 },
   { nome: 'Morro da Cruz (após a Chácara 44)', taxa: 17 },
   { nome: 'Zumbi dos Palmares', taxa: 17 },
   { nome: 'Jardim da Serra', taxa: 17 },
-  // R$ 18
   { nome: 'Mansões Califórnia', taxa: 18 },
   { nome: 'Jardim Botânico 1', taxa: 18 },
   { nome: 'Jardim Botânico 2', taxa: 18 },
@@ -120,7 +77,6 @@ const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
   { nome: 'Belvedere Green', taxa: 18 },
   { nome: 'Condomínio Verde', taxa: 18 },
   { nome: 'São Matheus', taxa: 18 },
-  // R$ 22
   { nome: 'Papuda', taxa: 22 },
   { nome: 'Caje', taxa: 22 },
   { nome: 'Jardim do Lago Q.1', taxa: 22 },
@@ -128,11 +84,9 @@ const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
   { nome: 'Solar de Brasília 1', taxa: 22 },
   { nome: 'Solar de Brasília 2', taxa: 22 },
   { nome: 'Condomínio Village 3', taxa: 22 },
-  // R$ 25
   { nome: 'Solar de Brasília 3', taxa: 25 },
   { nome: 'Aguilhada', taxa: 25 },
   { nome: 'Cond. Caminho das Anta', taxa: 25 },
-  // R$ 30
   { nome: 'Mônaco', taxa: 30 },
   { nome: 'Cond. Rural Privê', taxa: 30 },
   { nome: 'Lago Sul', taxa: 30 },
@@ -141,7 +95,6 @@ const ZONAS_ENTREGA_PERUCHO: ZonaEntrega[] = [
   { nome: 'Ville de Montagne', taxa: 30 },
   { nome: 'QI 23', taxa: 30 },
   { nome: 'SMDB', taxa: 30 },
-  // R$ 40
   { nome: 'QI 5 a QI 29 (exceto QI 23)', taxa: 40 },
   { nome: 'Quintas Alvorada', taxa: 40 },
   { nome: 'Solar da Serra', taxa: 40 },
@@ -199,11 +152,6 @@ export function obterConfigLojaEspecial(slug: string | null | undefined): Config
   return CONFIGS_LOJAS_ESPECIAIS[chave] ?? CONFIG_PADRAO;
 }
 
-/* =============================================================
-   Taxa de entrega por localidade
-   ============================================================= */
-
-/** minúsculas, sem acento/pontuação e sem espaços repetidos — base da comparação de bairros. */
 export function normalizarNomeBairro(valor: string | null | undefined): string {
   return String(valor ?? '')
     .normalize('NFD')
@@ -217,7 +165,6 @@ export function lojaTemTaxaPorBairro(config: ConfigLojaEspecial): boolean {
   return (config.zonasEntrega?.length ?? 0) > 0;
 }
 
-/** Localidade cujo nome (ou apelido) bate exatamente com o texto informado. */
 export function encontrarZonaEntrega(config: ConfigLojaEspecial, bairro: string | null | undefined): ZonaEntrega | null {
   const alvo = normalizarNomeBairro(bairro);
   if (!alvo || !config.zonasEntrega) return null;
@@ -230,18 +177,12 @@ export function encontrarZonaEntrega(config: ConfigLojaEspecial, bairro: string 
   );
 }
 
-/**
- * Versão tolerante de `encontrarZonaEntrega` para textos vindos de fora (CEP,
- * mapa): ignora complementos entre parênteses, ex.: "Centro (São Sebastião)"
- * casa com a localidade "Centro". Não usar para validar o pedido no servidor.
- */
 export function sugerirZonaEntrega(config: ConfigLojaEspecial, texto: string | null | undefined): ZonaEntrega | null {
   const exata = encontrarZonaEntrega(config, texto);
   if (exata) return exata;
   return encontrarZonaEntrega(config, String(texto ?? '').replace(/\([^)]*\)/g, ' '));
 }
 
-/** Menor e maior taxa da tabela (para avisos do tipo "a partir de R$ 6,00"). */
 export function faixaTaxasEntrega(config: ConfigLojaEspecial): { minima: number; maxima: number } | null {
   const taxas = (config.zonasEntrega ?? []).map((zona) => zona.taxa);
   if (taxas.length === 0) return null;
@@ -252,11 +193,6 @@ export type CalculoTaxaEntrega =
   | { ok: true; taxa: number; zona: ZonaEntrega | null }
   | { ok: false; erro: string };
 
-/**
- * Regra única de taxa de entrega, usada pelo checkout (exibição) e pela API
- * (valor realmente cobrado). Retirada nunca tem taxa; lojas com tabela por
- * localidade exigem um bairro da lista; as demais usam a taxa fixa.
- */
 export function calcularTaxaEntrega(
   config: ConfigLojaEspecial,
   tipoEntrega: string | null | undefined,
@@ -275,11 +211,6 @@ export function calcularTaxaEntrega(
   return { ok: true, taxa: zona.taxa, zona };
 }
 
-/**
- * Heurística por nome do produto para separar bebidas de "comida" quando a
- * loja ainda não tem uma categoria dedicada no cardápio. Usado pela vitrine
- * da GoDog e pela validação de limite de unidades no checkout.
- */
 export function ehBebida(nome: string) {
   return /coca|guaran[aá]|suco|[aá]gua|refrigerante|milk\s*-?shake|shake|sprite|limonada|ch[aá]/i.test(nome);
 }

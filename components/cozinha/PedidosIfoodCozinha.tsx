@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PedidoIfoodCozinha, StatusPedidoIfood } from '@/utils/ifood-pedidos';
 
-// Só lê o banco do goak (o polling do iFood roda no servidor), então pode ser curto.
 const INTERVALO_LISTA_MS = 10000;
 
 const ROTULO_STATUS: Record<StatusPedidoIfood, string> = {
@@ -41,10 +40,6 @@ const BOTAO = 'rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wid
 const BOTAO_PRIMARIO = `${BOTAO} bg-[#1A1A1A] text-white`;
 const BOTAO_SECUNDARIO = `${BOTAO} border border-zinc-200 bg-white text-zinc-700`;
 
-/**
- * Pedidos recebidos do iFood (módulo Order) na cozinha: confirmar, cancelar com
- * um dos motivos que o iFood oferece, avisar que está pronto e despachar.
- */
 export function PedidosIfoodCozinha() {
   const [pedidos, setPedidos] = useState<PedidoIfoodCozinha[]>([]);
   const [ocupadoId, setOcupadoId] = useState<string | null>(null);
@@ -57,7 +52,6 @@ export function PedidosIfoodCozinha() {
       const corpo = (await resposta.json()) as { pedidos?: PedidoIfoodCozinha[] };
       setPedidos(corpo.pedidos ?? []);
     } catch {
-      // sem conexão: tenta de novo no próximo ciclo
     }
   }, []);
 

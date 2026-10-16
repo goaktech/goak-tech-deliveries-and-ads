@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { obterRestauranteIdDoGestorLogado } from '@/utils/mercado-pago';
 import { obterIntegracaoIfoodPorRestauranteId, obterStatusOperacaoLojaIfood } from '@/utils/ifood';
 
-// Status de operação da loja do gestor logado no iFood (aberta, fechada, com
-// pendência). Usado pelo card iFood em Integrações e pela cozinha.
 export async function GET() {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();

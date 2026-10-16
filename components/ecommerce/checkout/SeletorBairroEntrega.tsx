@@ -4,12 +4,9 @@ import { useMemo } from 'react';
 import { encontrarZonaEntrega, type ZonaEntrega } from '@/utils/config-lojas-especiais';
 
 interface SeletorBairroEntregaProps {
-  /** Localidades atendidas (com a taxa de cada uma). */
   zonas: ZonaEntrega[];
-  /** Nome da localidade escolhida ('' = nenhuma). */
   valor: string;
   onChange: (nome: string) => void;
-  /** Bairro que o mapa/GPS devolveu quando ele não bate com nenhuma localidade da lista. */
   bairroDetectado?: string;
 }
 

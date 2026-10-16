@@ -9,7 +9,6 @@ export interface OpcoesConfirmacao {
   mensagem?: string;
   rotuloConfirmar?: string;
   rotuloCancelar?: string;
-  /** Pinta o botão de confirmar de vermelho (apagar, desconectar...). */
   perigo?: boolean;
 }
 
@@ -20,7 +19,6 @@ interface AvisosPainelContexto {
 
 const AvisosContext = createContext<AvisosPainelContexto | null>(null);
 
-/** Sem o provedor (ex.: componente usado fora do painel), cai nos diálogos do navegador em vez de quebrar. */
 const FALLBACK_NAVEGADOR: AvisosPainelContexto = {
   confirmar: async ({ titulo, mensagem }) => window.confirm(mensagem ? `${titulo}\n\n${mensagem}` : titulo),
   avisar: (texto) => window.alert(texto),
@@ -76,7 +74,6 @@ export function AvisosPainelProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!confirmacao) return;
-    // O foco começa no botão seguro (cancelar), para um Enter sem querer não apagar nada.
     botaoCancelarRef.current?.focus();
     const aoTeclar = (evento: KeyboardEvent) => {
       if (evento.key === 'Escape') responder(false);

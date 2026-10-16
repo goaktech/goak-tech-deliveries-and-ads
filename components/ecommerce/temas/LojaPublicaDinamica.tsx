@@ -6,7 +6,6 @@ import type { ComponenteLojaProps } from '@/components/ecommerce/temas/SeletorLo
 
 type ComponenteLoja = ComponentType<ComponenteLojaProps>;
 
-// Cada tema vira um arquivo separado: o visitante baixa só o da loja que abriu (a renderização no servidor continua igual).
 export const TEMAS_DE_LOJA = {
   'geovanna-acaiteria': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaGeovannaAcaiteria')),
   'pastel-e-cia': dynamic(() => import('@/components/ecommerce/lojas/ComponenteLojaPastelECia')),

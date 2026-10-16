@@ -2,7 +2,6 @@
 
 import './globals.css';
 
-/** Último recurso: só aparece se o próprio layout raiz falhar, por isso traz o seu html/body. */
 export default function ErroGlobal({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="pt-BR">

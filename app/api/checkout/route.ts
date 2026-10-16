@@ -38,26 +38,20 @@ interface ItemCliente {
   item_cardapio_id: string;
   quantidade: number;
   complementoIds?: string[];
-  /** Adicionais como o cliente os viu (id + nome): o gestor recria os ids ao editar o produto. */
   adicionaisVistos?: AdicionalVisto[];
-  /** Preço unitário (com adicionais) que o cliente viu na vitrine. */
   precoVisto?: number;
 }
 
 interface RequestBody {
   slug: string;
   paymentMethod: 'PIX' | 'CARTAO';
-  /** Presente quando o cartão é pago no formulário embutido; ausente = Checkout Pro do Mercado Pago. */
   cartao?: DadosCartaoEmbutido;
   itens: ItemCliente[];
   dadosCliente: DadosClientePedido;
   clienteLatitude?: number | null;
   clienteLongitude?: number | null;
-  /** Total que o cliente viu na tela (sacola + entrega). Se o total de verdade for maior, o pedido não é criado. */
   valorTotalExibido?: number;
-  /** UUID gerado pelo navegador por tentativa de checkout; torna o envio idempotente (duplo clique/retry). */
   checkoutId?: string;
-  /** Cookies _fbp e _fbc do Pixel da Meta, para a API de Conversões. */
   fbp?: string | null;
   fbc?: string | null;
 }
@@ -117,7 +111,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dados do cartão inválidos. Confira e tente novamente.' }, { status: 400 });
     }
     const dadosCliente = (body.dadosCliente ?? {}) as DadosClientePedido;
-    // Identificadores para a API de Conversões da Meta. Só texto curto e sem espaços; senão ignora.
     const lerIdentificadorMeta = (valor: unknown): string | null =>
       typeof valor === 'string' && /^[\w.\-]{1,255}$/.test(valor.trim()) ? valor.trim() : null;
     const fbp = lerIdentificadorMeta(body.fbp);
@@ -167,8 +160,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Restaurante não encontrado.' }, { status: 404 });
     }
 
-    // Só aceita a forma de pagamento que o gestor habilitou para esta loja
-    // (a tela do cliente também esconde as demais, mas a regra vale aqui).
     const formasAceitas = normalizarFormasPagamento(restaurante.formas_pagamento_aceitas);
     if (paymentMethod === 'PIX' && !aceitaPix(formasAceitas)) {
       return NextResponse.json({ error: 'Esta loja não está aceitando PIX no momento.' }, { status: 400 });
@@ -177,7 +168,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Esta loja não está aceitando cartão no momento.' }, { status: 400 });
     }
 
-    // Loja fechada: a vitrine já mostra o aviso, mas quem estava com o checkout aberto (ou a URL direta) chegava aqui.
     if (!estaLojaAberta(restaurante.horarios_funcionamento as HorarioFuncionamentoDia[] | null)) {
       return NextResponse.json(
         { error: 'A loja está fechada no momento. Volte no horário de funcionamento para finalizar o pedido.', codigo: 'LOJA_FECHADA' },
@@ -190,7 +180,6 @@ export async function POST(request: Request) {
       ? `pedido-${restaurante.id}-${checkoutId}`
       : `pedido-${restaurante.id}-${Date.now()}-${randomUUID()}`;
 
-    // Idempotência: o mesmo checkoutId nunca gera um segundo pedido/cobrança.
     if (checkoutId) {
       const existente = await buscarPedidoPorExternalReference(externalReference);
       if (existente) {
@@ -229,10 +218,6 @@ export async function POST(request: Request) {
 
     const configLoja = obterConfigLojaEspecial(restaurante.slug);
 
-    // Lojas com "Entregas pelo iFood" (card iFood Entrega em /admin/integracoes):
-    // a taxa é a cotação do iFood + acréscimo, calculada pela localização do
-    // cliente — a taxa fixa e a tabela por bairro não valem. Se o iFood não
-    // atender agora, cai na regra normal da loja logo abaixo.
     let taxaIfood: TaxaEntregaIfoodCheckout | null = null;
     if (dadosCliente.tipoEntrega !== 'RETIRADA' && (await lojaEntregaPeloIfood(restaurante.id))) {
       if (!coordenadaClienteRecebida && dadosCliente.endereco) {
@@ -244,8 +229,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // A taxa é sempre calculada aqui, no servidor (nunca confiamos no valor do navegador).
-    // Lojas com tabela por bairro exigem um bairro da lista; retirada nunca paga taxa.
     let taxaEntrega: number;
     if (taxaIfood) {
       taxaEntrega = taxaIfood.taxaCliente;
@@ -256,7 +239,6 @@ export async function POST(request: Request) {
       }
       taxaEntrega = calculoTaxa.taxa;
       if (calculoTaxa.zona && dadosCliente.endereco) {
-        // grava no pedido o nome oficial da localidade (o mesmo da tabela de taxas)
         dadosCliente.endereco = { ...dadosCliente.endereco, bairro: calculoTaxa.zona.nome };
       }
     }
@@ -268,8 +250,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Valor total inválido.' }, { status: 400 });
     }
 
-    // O cliente nunca paga mais do que viu na tela: se o total de verdade passou do exibido
-    // (ex.: taxa de entrega mudou), devolve o valor atual para ele confirmar antes de pagar.
     const totalExibido = Number(body.valorTotalExibido);
     if (Number.isFinite(totalExibido) && totalExibido > 0 && valorTotal - totalExibido > 0.009) {
       return NextResponse.json(
@@ -303,15 +283,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Mercado Pago não conectado para este restaurante.' }, { status: 409 });
     }
 
-    // Cartão embutido: confere ANTES de criar o pedido se o tipo do cartão (crédito/débito) é aceito pela loja.
-    // A conferência do tipo do cartão só importa quando a loja aceita APENAS crédito ou APENAS débito.
-    // Aceitando os dois, qualquer crédito/débito serve (o formulário já esconde pré-pago), e uma consulta
-    // que falhe ou devolva algo inesperado não deve barrar um pagamento legítimo.
     if (cartaoEmbutido && !(aceitaCartaoCredito(formasAceitas) && aceitaCartaoDebito(formasAceitas))) {
       const tokenParaValidacao = await obterTokenMercadoPagoValido(restaurante.id);
       const tiposCartao = await obterTiposMeioPagamentoMercadoPago(tokenParaValidacao, cartaoEmbutido.payment_method_id);
-      // sem informação do Mercado Pago, o formulário (que já filtra por tipo) prevalece;
-      // com informação, basta que algum dos tipos do cartão seja aceito pela loja
       const tipoAceito =
         tiposCartao.length === 0 ||
         tiposCartao.some(
@@ -432,8 +406,6 @@ export async function POST(request: Request) {
     }
 
     if (taxaIfood) {
-      // A cozinha chama o entregador com essa mesma cotação (o cliente já pagou
-      // por ela); se tiver expirado, o card cota de novo.
       const { error: errCotacao } = await supabase
         .from('pedidos')
         .update({ ifood_cotacao: { ...taxaIfood.cotacao, taxaCobradaCliente: taxaIfood.taxaCliente } })

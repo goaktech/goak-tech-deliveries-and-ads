@@ -2,10 +2,6 @@ import { cache } from 'react';
 import { createClient } from '@/utils/supabase/server';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 
-/**
- * Restaurante do gestor logado. Dentro da mesma renderização (layout + página + ações chamadas por elas)
- * a verificação de login e a busca do perfil acontecem uma única vez, em vez de uma por chamada.
- */
 export const obterRestauranteIdDoGestorLogado = cache(async (): Promise<string> => {
   const supabase = await createClient();
   const {
@@ -35,7 +31,6 @@ export interface RestauranteCabecalhoAdmin {
   logoUrl: string | null;
 }
 
-/** Dados que o cabeçalho do painel mostra (nome, link do cardápio e logo). Nunca lança erro. */
 export const obterRestauranteCabecalhoAdmin = cache(async (): Promise<RestauranteCabecalhoAdmin | null> => {
   try {
     const restauranteId = await obterRestauranteIdDoGestorLogado();

@@ -30,7 +30,6 @@ export function valoresIguais(a: number, b: number) {
 
 export type ResultadoAssinatura = 'valida' | 'invalida' | 'ausente' | 'sem_segredo';
 
-/** Valida o header x-signature do webhook do Mercado Pago (HMAC-SHA256). */
 export function verificarAssinaturaWebhook(request: Request, dataId: string): ResultadoAssinatura {
   const segredo = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
   const assinatura = request.headers.get('x-signature');
@@ -100,7 +99,6 @@ export async function buscarPagamentosPorExternalReference(accessToken: string, 
   );
 }
 
-/** Cancela um pagamento ainda pendente (ex.: PIX não pago) para evitar cobrança dupla. */
 export async function cancelarPagamentoPendenteMercadoPago(accessToken: string, paymentId: string) {
   const response = await fetch(`${MP_API_BASE}/v1/payments/${encodeURIComponent(paymentId)}`, {
     method: 'PUT',
@@ -146,7 +144,6 @@ export class ErroEstornoMercadoPago extends Error {
   }
 }
 
-/** Executa o estorno no Mercado Pago (total quando valor omitido) e registra em estornos_pedido. */
 export async function estornarPagamentoMercadoPago(params: {
   restauranteId: string;
   pedidoId: string;

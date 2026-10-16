@@ -33,18 +33,13 @@ interface ComponenteLojaCantinaBrasilV3Props {
   produtos: ItemCardapio[];
 }
 
-/* =============================================================
-   Paleta "Tropical Azulejo" v3 — extraída da própria logo da loja
-   (anel/letras douradas, telhado da casinha em terracota, faixa
-   escura "Comida Caseira" em verde-oliva na versão final aprovada).
-   ============================================================= */
-const COR_INK = '#3F4A2A'; // superfícies escuras: header, hero, botões, barra do carrinho
-const COR_TEXTO = '#2A1710'; // texto padrão sobre fundo claro
+const COR_INK = '#3F4A2A';
+const COR_TEXTO = '#2A1710';
 const COR_TEXTO_SUAVE = '#5C4A3A';
 const COR_MUTED = '#A08F76';
-const COR_DOURADO = '#F2A30C'; // anel/letras do logo
-const COR_DOURADO_CLARO = '#FFC65A'; // texto dourado pequeno sobre fundo escuro (contraste)
-const COR_TERRACOTA = '#8C4A2A'; // telhado da casinha / borda da tigela, no logo
+const COR_DOURADO = '#F2A30C';
+const COR_DOURADO_CLARO = '#FFC65A';
+const COR_TERRACOTA = '#8C4A2A';
 const COR_CREME = '#FBF7EF';
 const COR_CREME_2 = '#F3E8D4';
 
@@ -52,7 +47,6 @@ function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-/* ---------- padrão decorativo tipo azulejo, em tom dourado sobre o fundo escuro ---------- */
 function PadraoAzulejo() {
   return (
     <svg
@@ -86,7 +80,6 @@ function IconeSacola({ className }: { className?: string }) {
   );
 }
 
-/* ---------- ícones de categoria (linha) — sem acompanhamentos, que saiu da v3 ---------- */
 function IconeCategoria({
   categoria,
   className,
@@ -144,7 +137,6 @@ interface SeletorQuantidadeProps {
   complementosSelecionados: Complemento[];
   onAdicionar: (produto: ItemCardapio, complementos: Complemento[]) => void;
   onRemover: (idUnico: string) => void;
-  /** 'claro' = botão marrom-oliva sobre fundo creme · 'escuro' = botão dourado sobre o card escuro do herói */
   variante?: 'claro' | 'escuro';
 }
 
@@ -202,7 +194,6 @@ function SeletorQuantidade({
   );
 }
 
-/** Prato do dia fora do seu dia da semana: mostra quando ele volta em vez do botão de adicionar. */
 function EtiquetaForaDoDia({ diaSemana, variante = 'claro' }: { diaSemana: number; variante?: 'claro' | 'escuro' }) {
   const cor = variante === 'escuro' ? '#fff' : COR_TEXTO_SUAVE;
   return (
@@ -221,14 +212,11 @@ interface LinhaProdutoCantinaV3Props {
   onToggleExpandir: () => void;
 }
 
-/** Linha de item reutilizada pelas seções Bebidas, Sobremesas e Pratos da semana. */
 function LinhaProdutoCantinaV3({ produto, expandido, onToggleExpandir }: LinhaProdutoCantinaV3Props) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const [complementosSelecionadosIds, setComplementosSelecionadosIds] = useState<string[]>([]);
 
   const categoria = categoriaDoProduto(produto);
-  // Só os PRATOS (pratos do dia) têm restrição de dia da semana; os demais
-  // ficam sempre disponíveis, igual já era na v1/v2.
   const disponivelHoje = categoria !== 'PRATOS' || produtoDisponivelHoje(produto);
 
   const complementosDisponiveis = (produto.complementos_produto || []).filter((c) => c.disponivel);
@@ -390,7 +378,6 @@ function LinhaProdutoCantinaV3({ produto, expandido, onToggleExpandir }: LinhaPr
   );
 }
 
-/** Botão de adicionar do herói "prato do dia" — fora do card genérico porque usa fundo escuro. */
 function ProdutoDestaqueBotao({ produto }: { produto: ItemCardapio }) {
   const { adicionarItem, itens, removerItem } = useCarrinho();
   const itemNoCarrinho = itens.find((item) => item.idUnico === produto.id);
@@ -433,18 +420,14 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
   const bebidas = produtos.filter((p) => categoriaDoProduto(p) === 'BEBIDAS');
   const sobremesas = produtos.filter((p) => categoriaDoProduto(p) === 'SOBREMESAS');
 
-  // "Prato do momento": o prato do dia cujo dia_semana bate com hoje. Some
-  // sozinho (sem herói) se nenhum prato estiver cadastrado pra hoje.
   const produtoDestaque = pratos.find((p) => produtoDisponivelHoje(p));
 
-  // Pratos da semana, ordenados de domingo a sábado, pra tira e pra seção final.
   const pratosPorDia = [...pratos].sort((a, b) => (a.dia_semana as number) - (b.dia_semana as number));
 
   return (
     <div className={`${fonteCorpo.className} min-h-screen w-full`} style={{ backgroundColor: COR_CREME }}>
       <div className="relative mx-auto min-h-screen w-full max-w-[560px] select-none pb-32 antialiased" style={{ backgroundColor: COR_CREME }}>
 
-        {/* ---------- header ---------- */}
         <header className="relative overflow-hidden px-6 pb-8 pt-7 text-center" style={{ backgroundColor: COR_INK }}>
           <PadraoAzulejo />
 
@@ -481,7 +464,6 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
           </div>
         </header>
 
-        {/* ---------- tarja de confiança: horário real + endereço ---------- */}
         <div className="flex flex-wrap items-center justify-center gap-2 px-6 py-2.5" style={{ backgroundColor: COR_CREME_2 }}>
           <span className="flex items-center gap-1.5 text-[10.5px] font-bold" style={{ color: COR_TEXTO }}>
             <span
@@ -500,7 +482,6 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
           )}
         </div>
 
-        {/* ---------- nav ---------- */}
         <nav
           className="sticky top-0 z-30 flex gap-2 overflow-x-auto px-5 py-3.5 scrollbar-none"
           style={{ backgroundColor: COR_CREME, borderBottom: '1px solid rgba(42,23,16,0.1)' }}
@@ -519,7 +500,6 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
 
         <main className="px-6 pb-2">
 
-          {/* ---------- prato do dia (herói) ---------- */}
           <section id="hoje" style={{ scrollMarginTop: 66 }}>
             {produtoDestaque ? (
               <div className="relative overflow-hidden rounded-[18px] p-5 text-white" style={{ backgroundColor: COR_INK }}>
@@ -571,7 +551,6 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
               </div>
             )}
 
-            {/* tira compacta com a semana inteira, prato-a-prato */}
             {pratosPorDia.length > 0 && (
               <div className="mt-4">
                 <span className="mb-2 block text-[10.5px] font-bold uppercase tracking-wide" style={{ color: COR_TEXTO_SUAVE }}>
@@ -612,7 +591,6 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
             )}
           </section>
 
-          {/* ---------- bebidas ---------- */}
           {bebidas.length > 0 && (
             <section id="bebidas" style={{ scrollMarginTop: 66, marginTop: 30 }}>
               <div className="mb-1 flex items-center gap-2.5">
@@ -632,7 +610,6 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
             </section>
           )}
 
-          {/* ---------- sobremesas ---------- */}
           {sobremesas.length > 0 && (
             <section id="sobremesas" style={{ scrollMarginTop: 66, marginTop: 26 }}>
               <div className="mb-1 flex items-center gap-2.5">
@@ -652,7 +629,6 @@ export default function ComponenteLojaCantinaBrasilV3({ restaurante, produtos }:
             </section>
           )}
 
-          {/* ---------- pratos da semana (seção completa, sempre a última) ---------- */}
           {pratosPorDia.length > 0 && (
             <section id="pratos-da-semana" style={{ scrollMarginTop: 66, marginTop: 26 }}>
               <div className="mb-1 flex items-center gap-2.5">

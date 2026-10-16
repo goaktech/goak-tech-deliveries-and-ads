@@ -81,12 +81,9 @@ export function CardPedidoCozinha({
   const nivelAtraso = obterNivelAtraso(pedido, agora);
   const comIfood = pedido.logistica === 'IFOOD';
   const mostrarSeletorEntregador = ehEntrega && !comIfood && (pedido.status === 'PRONTO' || pedido.status === 'SAIU_PARA_ENTREGA');
-  // O entregador do iFood pode ser chamado já no preparo: o iFood calcula a
-  // alocação pelo tempo de preparo restante.
   const podeChamarIfood =
     ehEntrega && ifoodConectado && !pedido.entregador_id && ['PAGO', 'PREPARANDO', 'PRONTO'].includes(pedido.status);
   const mostrarEntregador = mostrarSeletorEntregador || comIfood || podeChamarIfood;
-  // Com o iFood, "Despachar" vem do evento do próprio iFood (coletou/saiu).
   const textoAcao = comIfood && pedido.status === 'PRONTO' ? '' : textoBotaoAcao(pedido, ehEntrega);
   const linhaEndereco = [[endereco?.rua, endereco?.numero].filter(Boolean).join(', '), endereco?.cidade, endereco?.cep ? `CEP ${endereco.cep}` : null]
     .filter(Boolean)

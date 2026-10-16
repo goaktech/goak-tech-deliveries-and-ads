@@ -72,7 +72,6 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
   const restauranteId = await obterRestauranteIdDoGestorLogado();
   const supabase = createWebhookAdminClient();
 
-  // As consultas não dependem umas das outras, então rodam juntas (e não em fila).
   const [
     { data: restaurante },
     integracao,
@@ -89,13 +88,11 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
     obterIntegracaoMercadoPagoPorRestauranteId(restauranteId),
     obterIntegracaoWhatsappBusinessPorRestauranteId(restauranteId),
     obterIntegracaoMetaAdsPorRestauranteId(restauranteId),
-    // Só informa se há token da API de Conversões; o valor nunca sai do servidor.
     supabase
       .from('restaurante_integracoes_meta_capi')
       .select('test_event_code')
       .eq('restaurante_id', restauranteId)
       .maybeSingle(),
-    // Falha aqui (ex.: tabela ainda não criada no Supabase) não pode derrubar as outras integrações.
     obterIntegracaoIfoodPorRestauranteId(restauranteId)
       .then(paraIntegracaoIfoodPublica)
       .catch((erro) => {

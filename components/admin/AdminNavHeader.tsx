@@ -22,9 +22,7 @@ type AdminTab =
   | 'entregadores';
 
 interface AdminNavHeaderProps {
-  /** Opcional: por padrão a aba ativa vem do endereço atual. */
   activeTab?: AdminTab;
-  /** Dados da loja, carregados no servidor uma única vez para o painel inteiro. */
   restaurante?: RestauranteCabecalhoAdmin | null;
   brandActions?: ReactNode;
   showAccountActions?: boolean;
@@ -151,10 +149,6 @@ const itensDoMenu: NavItem[] = [
   },
 ];
 
-/**
- * Ordem do menu: o que o gestor usa no dia a dia vem primeiro (a Cozinha é a tela inicial) e o que
- * ainda não existe ("em breve") fica no fim.
- */
 const ORDEM_DO_MENU: AdminTab[] = [
   'cozinha',
   'metricas',
@@ -170,7 +164,6 @@ const ORDEM_DO_MENU: AdminTab[] = [
 
 const navItems: NavItem[] = ORDEM_DO_MENU.map((id) => itensDoMenu.find((item) => item.id === id)!);
 
-/** Itens que ficam sempre visíveis na barra inferior do celular; o resto vai para "Mais". */
 const ABAS_BARRA_INFERIOR: AdminTab[] = ['cozinha', 'metricas', 'produtos'];
 
 function classeAba(item: NavItem, isActive: boolean): string {
@@ -326,7 +319,6 @@ export function AdminNavHeader({
           {brandActions ? <div className="flex items-center gap-2">{brandActions}</div> : null}
         </div>
 
-        {/* Desktop e tablet: marca da loja no canto direito, com o menu da conta ao lado. */}
         <div className="hidden select-none items-center gap-3.5 md:flex">
           <div className="text-right leading-tight">
             <h2 className="text-lg font-bold tracking-tight text-[#1A1A1A]">{nomeLoja ?? APP_BRAND_NAME}</h2>
@@ -340,7 +332,6 @@ export function AdminNavHeader({
           {showAccountActions ? <MenuConta variante="desktop" /> : null}
         </div>
 
-        {/* Celular: sem marca; só o botão de perfil (com a opção de trocar o logo). */}
         {showAccountActions ? (
           <div className="md:hidden">
             <MenuConta variante="celular" onAlterarLogo={triggerInputLogo} enviandoLogo={enviandoLogo} />
@@ -361,7 +352,6 @@ interface MenuContaProps {
   enviandoLogo?: boolean;
 }
 
-/** Menu da conta: seta ao lado da marca no desktop; botão "Perfil" no celular. */
 function MenuConta({ variante, onAlterarLogo, enviandoLogo = false }: MenuContaProps) {
   const [aberto, setAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -598,10 +588,6 @@ function BarraAbasResponsiva({ activeTab }: { activeTab: AdminTab }) {
   );
 }
 
-/**
- * Barra de navegação fixa no rodapé do celular (some a partir de `md`, onde o menu fica no cabeçalho).
- * Mostra os 3 destinos de uso diário e um "Mais" que abre o restante como uma folha de baixo.
- */
 export function BarraNavegacaoMobile() {
   const pathname = usePathname();
   const activeTab = abaDoEndereco(pathname);

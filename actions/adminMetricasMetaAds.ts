@@ -17,15 +17,11 @@ const CACHE_VALIDO_MS = 30 * 60 * 1000;
 export type EstadoMetricasMetaAds = 'nao_conectado' | 'reconectar' | 'erro' | 'ok';
 
 export interface ResumoMetricasMetaAds {
-  /** true só quando há dados (atuais ou o último cache) para mostrar. */
   conectado: boolean;
   estado: EstadoMetricasMetaAds;
   contaNome: string | null;
-  /** Moeda da conta de anúncios (o gasto vem nela, sem conversão). */
   moeda: string;
-  /** Dias até o token expirar, quando faltam poucos (aviso para reconectar). */
   diasParaExpirar: number | null;
-  /** Dados do cache porque a Meta não respondeu agora. */
   desatualizado: boolean;
   impressoes: number;
   cliques: number;
@@ -60,7 +56,6 @@ interface LinhaCacheMetaAds {
 
 type BaseResumo = Pick<ResumoMetricasMetaAds, 'contaNome' | 'moeda' | 'diasParaExpirar'>;
 
-/** Soma os dias e recalcula as taxas (CTR, CPC, CPM) sobre o total, não pela média das taxas. */
 function resumoDasLinhas(
   linhas: Array<Pick<LinhaCacheMetaAds, 'impressoes' | 'cliques' | 'gasto'>>,
   base: BaseResumo,
@@ -106,7 +101,6 @@ export async function obterMetricasMetaAds(periodo: PeriodoMetricas = 'hoje'): P
     }
 
     const supabase = createWebhookAdminClient();
-    // "Hoje" no fuso da conta de anúncios (e não em UTC), que é o dia que a Meta usa nos relatórios.
     const hoje = dataDeHojeNoFuso(integracao.ad_account_timezone);
     const intervalo = calcularIntervalo(periodo, hoje);
 
@@ -121,12 +115,10 @@ export async function obterMetricasMetaAds(periodo: PeriodoMetricas = 'hoje'): P
     const porDia = new Map(cache.map((l) => [l.data, l]));
     const agora = Date.now();
 
-    // Dia fechado (já gravado depois de terminar) não muda mais; hoje vale 30 min.
     const diaPrecisaBuscar = (dia: string) => {
       const linha = porDia.get(dia);
       if (!linha) return true;
       if (dia === hoje) return agora - new Date(linha.updated_at).getTime() >= CACHE_VALIDO_MS;
-      // Dia passado gravado antes de terminar (ex.: ontem à tarde) ainda estava incompleto: refaz uma vez.
       const fimDoDia = new Date(`${dia}T00:00:00.000-03:00`).getTime() + 86_400_000;
       return new Date(linha.updated_at).getTime() < fimDoDia;
     };
@@ -145,7 +137,6 @@ export async function obterMetricasMetaAds(periodo: PeriodoMetricas = 'hoje'): P
       const insightsPorDia = new Map(insights.map((i) => [i.data, i]));
       const atualizadoEm = new Date().toISOString();
 
-      // Grava todos os dias do intervalo (zerados quando não houve veiculação) para não refazer a consulta.
       const linhasParaGravar = intervalo.dias.map((dia) => {
         const i = insightsPorDia.get(dia);
         return {
@@ -172,13 +163,11 @@ export async function obterMetricasMetaAds(periodo: PeriodoMetricas = 'hoje'): P
       return resumoDasLinhas(linhasParaGravar, base, false);
     } catch (error) {
       if (ehErroTokenMetaAds(error)) {
-        // A Meta recusou o token: marca como expirado e pede para o gestor reconectar.
         await marcarTokenMetaAdsInvalido(restauranteId);
         return { ...RESUMO_BASE, ...base, diasParaExpirar: null, estado: 'reconectar' };
       }
 
       console.error('Falha ao buscar métricas na Meta:', error);
-      // Falha passageira (rede, limite de requisições): mostra o último dado em cache, se houver.
       if (cache.length > 0) {
         return resumoDasLinhas(cache, base, true);
       }

@@ -10,7 +10,6 @@ interface FormularioEnderecoEntregaProps {
   onChangeNumero: (valor: string) => void;
   bairro: string;
   onChangeBairro: (valor: string) => void;
-  /** Quando informado, o bairro vira uma lista de localidades atendidas (com taxa por bairro). */
   zonasEntrega?: ZonaEntrega[];
   bairroDetectado?: string;
 }

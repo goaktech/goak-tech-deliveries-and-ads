@@ -2,8 +2,6 @@ import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { removerDadosDoUsuarioMetaAds, validarSignedRequestMetaAds } from '@/utils/meta-ads';
 
-// "Data Deletion Request URL" do app Meta. A exclusão é feita na hora; a Meta espera de
-// volta uma URL de acompanhamento e um código de confirmação.
 export async function POST(request: Request) {
   try {
     const formulario = await request.formData();

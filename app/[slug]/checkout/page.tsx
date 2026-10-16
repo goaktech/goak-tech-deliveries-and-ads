@@ -73,7 +73,6 @@ function gravarJsonLocal(chave: string, valor: unknown) {
   try {
     window.localStorage.setItem(chave, JSON.stringify(valor));
   } catch {
-    // armazenamento indisponível (aba anônima, cheio): o checkout segue funcionando sem rascunho
   }
 }
 
@@ -81,13 +80,11 @@ function removerLocal(chave: string) {
   try {
     window.localStorage.removeItem(chave);
   } catch {
-    // ignora
   }
 }
 
 const ETAPAS_CHECKOUT: EtapaCheckout[] = ['SACOLA', 'ENTREGA', 'PAGAMENTO'];
 
-/** A etapa fica na entrada do histórico do navegador: reload e "voltar" retomam de onde parou. */
 function etapaSalvaNoHistorico(): EtapaCheckout {
   if (typeof window === 'undefined') return 'SACOLA';
   const salva = (window.history.state as { etapaCheckout?: EtapaCheckout } | null)?.etapaCheckout;
@@ -103,8 +100,6 @@ export default function TelaDeCheckoutDedicada() {
 
   const { itens, adicionarItem, removerItem, removerLinha, valorTotal, totalItens, limparCarrinho, avisosCarrinho, aplicarAvaliacao } = useCarrinho();
 
-  // Rascunho do checkout (dados do cliente e endereço) e PIX em aberto: sobrevivem a reload e a voltar do navegador.
-  // Dados de cartão NUNCA são guardados.
   const chaveRascunho = `checkout-rascunho:${slug}`;
   const chavePixAtivo = `checkout-pix-ativo:${slug}`;
   const [rascunho] = useState<RascunhoCheckout | null>(() => lerJsonLocal<RascunhoCheckout>(chaveRascunho));
@@ -116,16 +111,12 @@ export default function TelaDeCheckoutDedicada() {
   const [rua, setRua] = useState(rascunho?.rua ?? '');
   const [numero, setNumero] = useState(rascunho?.numero ?? '');
   const [bairro, setBairro] = useState(rascunho?.bairro ?? '');
-  // bairro devolvido pelo mapa/cadastro que não bate com a lista de localidades atendidas
   const [bairroDetectado, setBairroDetectado] = useState('');
-  // consulta de endereço pelo CEP
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [mensagemCep, setMensagemCep] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [cidadeCep, setCidadeCep] = useState(rascunho?.cidadeCep ?? '');
   const ultimoCepConsultadoRef = useRef('');
-  // formas de pagamento habilitadas pelo gestor (até carregar, só PIX — o padrão de toda loja)
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoLoja[]>(FORMAS_PAGAMENTO_PADRAO);
-  // Idempotência do checkout: um UUID por tentativa (duplo clique/retry reusam o mesmo; o servidor deduplica).
   const checkoutIdRef = useRef<string | null>(null);
   const enviandoCheckoutRef = useRef(false);
   const obterCheckoutId = () => {
@@ -174,14 +165,9 @@ export default function TelaDeCheckoutDedicada() {
   const [modalMapaCepAberto, setModalMapaCepAberto] = useState(false);
   const [resultadoMapaCepPendente, setResultadoMapaCepPendente] = useState<ResultadoLocalizacaoMapa | null>(null);
 
-  // Taxa de entrega: mesma regra usada pela API (utils/config-lojas-especiais).
-  // Lojas com tabela por bairro só calculam depois que o cliente escolhe um bairro da lista.
-  // Lojas com "Entregas pelo iFood": a taxa é a cotação do iFood pelo endereço; a tabela da
-  // loja só volta a valer se o iFood não atender (cotacaoIfood.estado === 'indisponivel').
   const tipoEntregaAtual = abaEntregaAtiva === 'RETIRADA' ? 'RETIRADA' : 'ENTREGA';
   const enderecoEntregaPreenchido =
     (rua.trim().length > 0 && numero.trim().length > 0) || (clienteLatitude !== null && clienteLongitude !== null);
-  // a cotação vale para o endereço em que foi feita; mudou o endereço, volta a "carregando"
   const chaveCotacaoIfood =
     entregaIfood && tipoEntregaAtual === 'ENTREGA' && enderecoEntregaPreenchido
       ? clienteLatitude !== null && clienteLongitude !== null
@@ -202,13 +188,10 @@ export default function TelaDeCheckoutDedicada() {
   const bairroPendente = usaTaxaPorBairro && tipoEntregaAtual === 'ENTREGA' && !calculoTaxa.ok;
   const valorTotalComTaxa = valorTotal + taxaEntrega;
 
-  // em lojas com taxa por bairro a entrega exige bairro da lista + endereço (ou ponto no mapa);
-  // com iFood, exige endereço e a taxa já cotada (o cliente nunca paga um valor que não viu)
   const entregaValida = usaIfood
     ? taxaPeloIfood && enderecoEntregaPreenchido
     : !usaTaxaPorBairro || tipoEntregaAtual === 'RETIRADA' || (calculoTaxa.ok && enderecoEntregaPreenchido);
 
-  // aplica um bairro vindo do mapa/cadastro; em lojas com tabela só vale se bater com a lista
   const aplicarBairroSugerido = (valor: string) => {
     if (!usaTaxaPorBairro) {
       setBairro(valor);
@@ -263,7 +246,6 @@ export default function TelaDeCheckoutDedicada() {
   const erroNome = contatoTocado.nome && !nomeOk ? 'Informe seu nome para o pedido.' : '';
   const sacolaTemBloqueio = avisosCarrinho.some((aviso) => aviso.tipo === 'bloqueio');
 
-  // Etapa efetiva: recarregar na etapa 3 só vale se os dados da etapa 2 ainda estiverem válidos.
   const etapaEfetiva: EtapaCheckout =
     etapaCheckout === 'PAGAMENTO' && !dadosPix && (!dadosContatoPreenchidos || !entregaValida || itens.length === 0)
       ? itens.length === 0
@@ -284,9 +266,6 @@ export default function TelaDeCheckoutDedicada() {
     [bairro, cep, cidadeCep, configLoja.cidadeEntrega, numero, rua]
   );
 
-  // Lojas com "Entregas pelo iFood": cota a entrega quando o endereço (ou o
-  // ponto no mapa) estiver preenchido. Só exibição — o servidor cota de novo
-  // ao cobrar (POST /api/checkout).
   useEffect(() => {
     if (chaveCotacaoIfood === null) return;
     let ativo = true;
@@ -328,11 +307,9 @@ export default function TelaDeCheckoutDedicada() {
     try {
       window.history.pushState({ etapaCheckout: nova }, '');
     } catch {
-      // sem histórico: a etapa continua mudando só no estado
     }
   };
 
-  // A etapa fica gravada no histórico do navegador (reload e "voltar" retomam de onde parou).
   useEffect(() => {
     try {
       const estado = window.history.state as { etapaCheckout?: EtapaCheckout } | null;
@@ -340,7 +317,6 @@ export default function TelaDeCheckoutDedicada() {
         window.history.replaceState({ ...(estado ?? {}), etapaCheckout: 'SACOLA' }, '');
       }
     } catch {
-      // ignora
     }
     const aoVoltar = (evento: PopStateEvent) => {
       const salva = (evento.state as { etapaCheckout?: EtapaCheckout } | null)?.etapaCheckout;
@@ -350,7 +326,6 @@ export default function TelaDeCheckoutDedicada() {
     return () => window.removeEventListener('popstate', aoVoltar);
   }, []);
 
-  // Rascunho: telefone, nome, endereço e observação ficam salvos neste aparelho (nunca dados de cartão).
   useEffect(() => {
     gravarJsonLocal(chaveRascunho, {
       telefone: telefoneCliente,
@@ -377,8 +352,6 @@ export default function TelaDeCheckoutDedicada() {
       precoVisto: Number(item.produto.preco_venda),
     }));
 
-  // Confere a sacola com o cardápio de agora (preço, disponibilidade, loja aberta). Não bloqueia por falha de rede:
-  // o servidor confere de novo ao cobrar.
   const conferirSacola = async (): Promise<'ok' | 'revisar' | 'fechada'> => {
     if (itens.length === 0) return 'ok';
     setConferindoSacola(true);
@@ -403,16 +376,13 @@ export default function TelaDeCheckoutDedicada() {
     }
   };
 
-  // Ao abrir o checkout: preços/itens que mudaram desde que a sacola foi montada aparecem já na primeira tela.
   useEffect(() => {
     if (itens.length === 0 || dadosPix) return;
     const inicio = window.setTimeout(() => void conferirSacola(), 0);
     return () => window.clearTimeout(inicio);
-    // só na abertura da tela
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reload com PIX em aberto: recupera o QR do pedido (o Mercado Pago guarda o código) em vez de perdê-lo.
   useEffect(() => {
     const salvo = lerJsonLocal<PixAtivoSalvo>(chavePixAtivo);
     if (!salvo) return;
@@ -443,7 +413,6 @@ export default function TelaDeCheckoutDedicada() {
           return;
         }
         if (body.status === 'PENDENTE') {
-          // PIX expirado: mostra o painel de "gerar novo PIX" para o mesmo pedido
           setTrackingPedido(pedidoRecuperado);
           setDadosPix({ qr_code: '', payment_id: '', expira_em: new Date(Date.now() - 1000).toISOString() });
           return;
@@ -453,7 +422,6 @@ export default function TelaDeCheckoutDedicada() {
           router.replace(`${salvo.tracking_url}?pagamento=aprovado`);
         }
       } catch {
-        // sem rede: o cliente ainda pode abrir o acompanhamento pelo histórico
       }
     };
     void recuperar();
@@ -462,7 +430,6 @@ export default function TelaDeCheckoutDedicada() {
     };
   }, [chavePixAtivo, router, slug]);
 
-  // PIX em aberto: consulta o status a cada 4 s (e na hora em que a aba volta ao primeiro plano).
   useEffect(() => {
     const codigo = trackingPedido?.codigo_acompanhamento;
     if (!codigo || !dadosPix || pagamentoConfirmado) return;
@@ -486,7 +453,6 @@ export default function TelaDeCheckoutDedicada() {
           try {
             navigator.vibrate?.([150, 80, 150]);
           } catch {
-            // sem vibração neste aparelho
           }
           setPagamentoConfirmado({
             numero: formatarNumeroPedido(pedido.numero_pedido, codigo),
@@ -494,7 +460,6 @@ export default function TelaDeCheckoutDedicada() {
           });
         }
       } catch {
-        // tenta de novo no próximo ciclo
       }
     };
     const intervalo = window.setInterval(() => void consultar(), 4000);
@@ -509,7 +474,6 @@ export default function TelaDeCheckoutDedicada() {
     };
   }, [trackingPedido?.codigo_acompanhamento, dadosPix, pagamentoConfirmado, slug, chavePixAtivo]);
 
-  // Pagamento confirmado: mostra a confirmação e leva ao acompanhamento sozinho.
   useEffect(() => {
     if (!pagamentoConfirmado || !trackingPedido) return;
     const espera = window.setTimeout(() => {
@@ -528,7 +492,6 @@ export default function TelaDeCheckoutDedicada() {
     try {
       window.history.replaceState({ ...(window.history.state ?? {}), etapaCheckout: anterior }, '');
     } catch {
-      // ignora
     }
   };
 
@@ -572,8 +535,6 @@ export default function TelaDeCheckoutDedicada() {
     ...lerIdentificadoresMeta(),
   });
 
-  // Respostas 409 do servidor que pedem uma ação do cliente (preço mudou, item saiu, loja fechou, total mudou).
-  // Devolve a mensagem para mostrar, ou null se não for um desses casos.
   const tratarConflitoCheckout = (body: Record<string, unknown> | null): string | null => {
     const codigo = body?.codigo;
     const mensagem = typeof body?.error === 'string' ? body.error : 'Confira os dados e tente novamente.';
@@ -593,8 +554,6 @@ export default function TelaDeCheckoutDedicada() {
     return null;
   };
 
-  // Pagamento com o formulário de cartão embutido: o servidor cria o pedido e cobra com o token do cartão.
-  // Lança erro (mensagem amigável) se o pagamento não for concluído, o que libera o formulário para nova tentativa.
   const pagarComCartaoEmbutido = async (dadosCartao: DadosCartaoBrick) => {
     trackAddPaymentInfo({
       metodo: 'cartao',
@@ -604,8 +563,6 @@ export default function TelaDeCheckoutDedicada() {
     const corpoPedido = montarCorpoPedido('CARTAO', dadosCartao);
     const assinatura = JSON.stringify([corpoPedido.itens, corpoPedido.dadosCliente, valorTotalComTaxa]);
     const retentativa = pedidoRecusadoRef.current;
-    // Depois de uma recusa, as próximas tentativas (outro cartão) reaproveitam o MESMO pedido,
-    // em vez de criar um pedido novo a cada tentativa. Se a sacola/dados mudaram, cria um novo.
     const reaproveitar = retentativa && retentativa.assinatura === assinatura ? retentativa.codigo : null;
 
     if (enviandoCheckoutRef.current) {
@@ -649,8 +606,6 @@ export default function TelaDeCheckoutDedicada() {
     }
     pedidoRecusadoRef.current = null;
 
-    // O evento Purchase NÃO é disparado aqui: pedido criado não é pedido pago. Ele sai da tela de
-    // acompanhamento, quando o status confirma o pagamento (ver PainelAcompanhamentoPedido).
     limparCarrinho();
     router.push(body.status === 'approved' ? body.tracking_url : `${body.tracking_url}?pagamento=pendente`);
   };
@@ -709,8 +664,6 @@ export default function TelaDeCheckoutDedicada() {
           payment_id: body.payment_id,
           expira_em: typeof body.expira_em === 'string' ? body.expira_em : null,
         });
-        // Pedido criado: a sacola já virou pedido, então sai do carrinho agora (evita pagar/pedir duas vezes)
-        // e o PIX fica "salvo" por código para sobreviver a reload.
         gravarJsonLocal(chavePixAtivo, {
           codigo: body.codigo_acompanhamento,
           tracking_url: body.tracking_url,
@@ -731,7 +684,6 @@ export default function TelaDeCheckoutDedicada() {
     }
   };
 
-  // PIX expirado: gera um novo código para o MESMO pedido (a rota /retomar cancela o anterior e confere se não foi pago).
   const gerarNovoPix = async () => {
     const codigo = trackingPedido?.codigo_acompanhamento;
     if (!codigo || gerandoNovoPix) return;
@@ -773,7 +725,6 @@ export default function TelaDeCheckoutDedicada() {
       const resposta = await fetch(`/api/restaurantes/${slug}/clientes?telefone=${encodeURIComponent(digitos)}`);
       const dados = await resposta.json();
 
-      // cliente novo: nada a preencher (a localização é opcional, pelo botão "Abrir minha localização")
       if (!dados?.encontrado) return;
 
       if (!nomeCliente && dados.nome) setNomeCliente(dados.nome);
@@ -799,7 +750,6 @@ export default function TelaDeCheckoutDedicada() {
     try {
       const resposta = await fetch(`/api/cep?cep=${digitos}`);
       const body = await resposta.json().catch(() => null);
-      // o cliente já digitou outro CEP enquanto esta resposta vinha: descarta
       if (ultimoCepConsultadoRef.current !== digitos) return;
 
       if (!resposta.ok || !body) {
@@ -822,7 +772,6 @@ export default function TelaDeCheckoutDedicada() {
       const resumo = [body.rua, body.bairro, body.cidade].filter((parte) => typeof parte === 'string' && parte).join(' · ');
       setMensagemCep({ tipo: 'ok', texto: resumo ? `Endereço encontrado: ${resumo}` : 'CEP encontrado. Complete o endereço abaixo.' });
 
-      // próximo campo a preencher é o número
       setTimeout(() => document.getElementById('input-numero')?.focus(), 50);
     } catch (error) {
       console.error('Erro ao consultar CEP:', error);
@@ -838,7 +787,6 @@ export default function TelaDeCheckoutDedicada() {
     const digitos = somenteDigitosCep(valor);
 
     if (digitos.length < 8) {
-      // CEP incompleto: cancela qualquer consulta em andamento e limpa o aviso
       ultimoCepConsultadoRef.current = '';
       setBuscandoCep(false);
       setMensagemCep(null);
@@ -879,9 +827,6 @@ export default function TelaDeCheckoutDedicada() {
     setResultadoMapaCepPendente(null);
   };
 
-  // Etapas 1 e 3: h-dvh (altura visível de verdade no celular, descontando as barras do navegador).
-  // A página em si não rola: só o miolo; cabeçalho e rodapé (total + botão) ficam sempre à vista.
-  // Etapa 2 (dados de entrega) mantém a página rolando normalmente, por causa do teclado do celular.
   const layoutFixo = modoPix || etapaEfetiva !== 'ENTREGA';
 
   return (
@@ -933,7 +878,6 @@ export default function TelaDeCheckoutDedicada() {
                           try {
                             window.history.replaceState({ ...(window.history.state ?? {}), etapaCheckout: etapa }, '');
                           } catch {
-                            // ignora
                           }
                         }}
                         aria-current={atual ? 'step' : undefined}

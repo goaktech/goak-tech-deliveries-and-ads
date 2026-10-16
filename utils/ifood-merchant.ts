@@ -1,8 +1,3 @@
-// utils/ifood-merchant.ts
-// Gestão da loja pela Merchant API do iFood (módulo Merchant da homologação):
-// lojas vinculadas ao token, detalhes, pausas (interrupções) e horário de
-// funcionamento. Tudo passa pelo token da loja conectada ao goak.
-
 import { requisicaoIfood } from '@/utils/ifood';
 
 const TAMANHO_PAGINA_LOJAS = 100;
@@ -41,7 +36,6 @@ export interface DetalhesLojaIfood {
   operacoes: Array<{ nome: string; canais: Array<{ nome: string; habilitado: boolean }> }>;
 }
 
-/** Início e fim em hora local de Brasília, sem fuso ("AAAA-MM-DDTHH:MM:SS"). */
 export interface PausaIfood {
   id: string;
   descricao: string;
@@ -49,7 +43,6 @@ export interface PausaIfood {
   fim: string;
 }
 
-/** Turno de funcionamento: início "HH:MM" e duração em minutos. */
 export interface TurnoIfood {
   dia: DiaSemanaIfood;
   inicio: string;
@@ -73,9 +66,6 @@ function erroIfood(status: number, texto: string, padrao: string) {
   return new Error(detalhe ? `${padrao} iFood: ${detalhe} (HTTP ${status})` : `${padrao} (HTTP ${status})`);
 }
 
-// ------------------------------------------------------------ lojas
-
-/** Todas as lojas que o token pode operar (GET /merchants, paginado). */
 export async function listarLojasVinculadasIfood(accessToken: string): Promise<LojaVinculadaIfood[]> {
   const lojas: LojaVinculadaIfood[] = [];
   for (let pagina = 1; pagina <= MAX_PAGINAS_LOJAS; pagina++) {
@@ -139,7 +129,6 @@ function listaDeCanais(canal: CanalBruto | CanalBruto[] | undefined) {
   }));
 }
 
-/** Detalhes completos da loja (GET /merchants/{id}). */
 export async function buscarDetalhesLojaIfood(accessToken: string, merchantId: string): Promise<DetalhesLojaIfood> {
   const resposta = await requisicaoIfood<MerchantBruto>(`/merchant/v1.0/merchants/${merchantId}`, { accessToken });
   if (resposta.status !== 200 || !resposta.body) {
@@ -178,8 +167,6 @@ export async function buscarDetalhesLojaIfood(accessToken: string, merchantId: s
   };
 }
 
-// ------------------------------------------------------------ pausas
-
 interface InterrupcaoBruta {
   id?: string;
   description?: string;
@@ -187,15 +174,8 @@ interface InterrupcaoBruta {
   end?: string;
 }
 
-/**
- * Pausas usam hora local de Brasília sem fuso ("2026-10-14T13:44:00"): é assim
- * que o iFood devolve e é assim que ele aplica. Se mandar com fuso, ele
- * converte para UTC e passa a tratar o resultado como hora local (a pausa
- * fica 3 h deslocada) — conferido na loja de testes em 14-10-2026.
- */
 export const FUSO_PAUSAS_IFOOD = 'America/Sao_Paulo';
 
-/** "AAAA-MM-DDTHH:MM:SS" do instante informado no horário de Brasília. */
 export function horaLocalPausaIfood(data = new Date()) {
   const partes = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
@@ -222,7 +202,6 @@ function paraPausa(item: InterrupcaoBruta): PausaIfood {
   return { id: item.id ?? '', descricao: item.description ?? '', inicio: semFuso(item.start), fim: semFuso(item.end) };
 }
 
-/** Pausas atuais e futuras da loja (GET /interruptions). */
 export async function listarPausasIfood(accessToken: string, merchantId: string): Promise<PausaIfood[]> {
   const resposta = await requisicaoIfood<InterrupcaoBruta[]>(`/merchant/v1.0/merchants/${merchantId}/interruptions`, {
     accessToken,
@@ -233,7 +212,6 @@ export async function listarPausasIfood(accessToken: string, merchantId: string)
   return resposta.body.map(paraPausa).sort((a, b) => a.inicio.localeCompare(b.inicio));
 }
 
-/** Cria uma pausa (POST /interruptions). Início e fim em hora de Brasília, sem fuso. */
 export async function criarPausaIfood(
   accessToken: string,
   merchantId: string,
@@ -250,7 +228,6 @@ export async function criarPausaIfood(
   return paraPausa(resposta.body ?? { description: pausa.descricao, start: pausa.inicio, end: pausa.fim });
 }
 
-/** Remove uma pausa atual ou futura (DELETE /interruptions/{id}). */
 export async function removerPausaIfood(accessToken: string, merchantId: string, pausaId: string) {
   const resposta = await requisicaoIfood<unknown>(
     `/merchant/v1.0/merchants/${merchantId}/interruptions/${encodeURIComponent(pausaId)}`,
@@ -264,8 +241,6 @@ export async function removerPausaIfood(accessToken: string, merchantId: string,
   }
 }
 
-// ------------------------------------------------------------ horário de funcionamento
-
 interface HorariosBrutos {
   shifts?: Array<{ dayOfWeek?: string; start?: string; duration?: number }>;
 }
@@ -274,7 +249,6 @@ function diaValido(dia: string | undefined): dia is DiaSemanaIfood {
   return !!dia && (DIAS_SEMANA_IFOOD as readonly string[]).includes(dia);
 }
 
-/** Horário configurado no iFood (GET /opening-hours), ordenado por dia e início. */
 export async function obterHorariosIfood(accessToken: string, merchantId: string): Promise<TurnoIfood[]> {
   const resposta = await requisicaoIfood<HorariosBrutos>(`/merchant/v1.0/merchants/${merchantId}/opening-hours`, {
     accessToken,
@@ -292,10 +266,6 @@ export async function obterHorariosIfood(accessToken: string, merchantId: string
     .sort((a, b) => DIAS_SEMANA_IFOOD.indexOf(a.dia) - DIAS_SEMANA_IFOOD.indexOf(b.dia) || a.inicio.localeCompare(b.inicio));
 }
 
-/**
- * Grava o horário da semana inteira (PUT /opening-hours). O iFood substitui
- * todos os turnos: dia que não vier na lista fica fechado.
- */
 export async function salvarHorariosIfood(accessToken: string, merchantId: string, turnos: TurnoIfood[]) {
   const resposta = await requisicaoIfood<unknown>(`/merchant/v1.0/merchants/${merchantId}/opening-hours`, {
     method: 'PUT',

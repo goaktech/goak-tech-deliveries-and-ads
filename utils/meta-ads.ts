@@ -6,13 +6,10 @@ const META_GRAPH_BASE_URL = 'https://graph.facebook.com';
 
 const ESCOPO_META_ADS = ['ads_read', 'business_management'].join(',');
 
-/** Fuso usado quando a conta de anúncios ainda não informou o seu. */
 const FUSO_PADRAO = 'America/Sao_Paulo';
 
-/** Tokens de longa duração valem ~60 dias; avisamos para reconectar com essa antecedência. */
 const DIAS_AVISO_EXPIRACAO = 7;
 
-/** Limite de páginas ao listar contas de anúncios (100 por página). */
 const MAX_PAGINAS_CONTAS = 5;
 
 type StatusConexao = 'pendente' | 'conectado' | 'desconectado';
@@ -76,7 +73,6 @@ interface ResultadoConexaoMetaAds {
   nonce: string;
 }
 
-/** Erro devolvido pela Graph API (guarda o código para distinguir token inválido de falha comum). */
 export class ErroGraphMetaAds extends Error {
   constructor(
     message: string,
@@ -88,7 +84,6 @@ export class ErroGraphMetaAds extends Error {
   }
 }
 
-/** Token expirado, revogado ou inválido: só resolve reconectando a conta. */
 export function ehErroTokenMetaAds(error: unknown): boolean {
   return error instanceof ErroGraphMetaAds && error.codigo === 190;
 }
@@ -106,8 +101,6 @@ function getConfigOAuthMetaAds(): ConfigOAuthMetaAds {
     appSecret: getEnvOrThrow(process.env.META_ADS_APP_SECRET, 'META_ADS_APP_SECRET'),
     redirectUri: getEnvOrThrow(process.env.META_ADS_REDIRECT_URI, 'META_ADS_REDIRECT_URI'),
     stateSecret: getEnvOrThrow(process.env.META_ADS_STATE_SECRET, 'META_ADS_STATE_SECRET'),
-    // v25.0 é suportada até 29/07/2028 (confirmado em 08/10/2026); a v26.0 já existe.
-    // Para trocar de versão basta definir META_ADS_API_VERSION, sem mexer no código.
     apiVersion: process.env.META_ADS_API_VERSION ?? 'v25.0',
   };
 }
@@ -223,11 +216,6 @@ async function trocarCodePorTokenMetaAds(code: string) {
   return payload;
 }
 
-/**
- * Troca o token curto (1–2 h) por um de longa duração (~60 dias). Se a troca falhar,
- * a conexão inteira falha: gravar o token curto como se não expirasse deixaria a
- * integração "conectada" por um par de horas e quebrada depois, sem aviso.
- */
 async function trocarPorTokenLongaDuracaoMetaAds(tokenCurto: string) {
   const { appId, appSecret } = getConfigOAuthMetaAds();
   const url = new URL(`${META_GRAPH_BASE_URL}/oauth/access_token`);
@@ -257,7 +245,6 @@ async function buscarUsuarioMeta(accessToken: string) {
   return payload as UsuarioMeta;
 }
 
-/** Lista as contas de anúncios do usuário, seguindo a paginação da Graph API. */
 export async function buscarAdAccounts(accessToken: string): Promise<AdAccountMeta[]> {
   const contas: AdAccountMeta[] = [];
   let proximaUrl: string | null = null;
@@ -290,7 +277,6 @@ function escolherContaPadrao(contas: AdAccountMeta[]) {
   return contas.find((conta) => conta.account_status === 1) ?? contas[0] ?? null;
 }
 
-/** Data de hoje (AAAA-MM-DD) no fuso da conta de anúncios. */
 export function dataDeHojeNoFuso(timezone: string | null | undefined): string {
   const formatar = (tz: string) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
@@ -308,7 +294,6 @@ export interface InsightDiaMetaAds extends InsightsDiariosMetaAds {
   data: string;
 }
 
-/** Insights dia a dia (time_increment=1) de um intervalo; dias sem veiculação não vêm na resposta. */
 export async function buscarInsightsPeriodoMetaAds(
   accessToken: string,
   adAccountId: string,
@@ -421,10 +406,6 @@ export async function obterIntegracaoMetaAdsPorRestauranteId(restauranteId: stri
 
 export type EstadoTokenMetaAds = 'ausente' | 'ok' | 'expirando' | 'expirado';
 
-/**
- * Situação do token da integração. `token_expires_at` no passado também marca um token
- * que a Meta recusou (ver `marcarTokenMetaAdsInvalido`), então "expirado" = precisa reconectar.
- */
 export function avaliarTokenMetaAds(
   integracao: Pick<IntegracaoMetaAds, 'connection_status' | 'access_token' | 'token_expires_at'> | null
 ): { estado: EstadoTokenMetaAds; diasRestantes: number | null } {
@@ -445,7 +426,6 @@ export function avaliarTokenMetaAds(
   return { estado: diasRestantes <= DIAS_AVISO_EXPIRACAO ? 'expirando' : 'ok', diasRestantes };
 }
 
-/** A Meta recusou o token (código 190): marca como expirado para a tela pedir reconexão. */
 export async function marcarTokenMetaAdsInvalido(restauranteId: string) {
   const supabase = createWebhookAdminClient();
   const agora = new Date().toISOString();
@@ -503,7 +483,6 @@ export async function concluirConexaoMetaAds(code: string, restauranteId: string
 
   const contas = await buscarAdAccounts(accessToken);
   const integracaoAnterior = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
-  // Reconectando: mantém a conta que o gestor já tinha escolhido, se ela ainda existir.
   const contaAnterior = integracaoAnterior?.ad_account_id
     ? contas.find((conta) => conta.id === integracaoAnterior.ad_account_id)
     : null;
@@ -524,7 +503,6 @@ export async function concluirConexaoMetaAds(code: string, restauranteId: string
   return { usuarioMeta, adAccountId: conta.id, adAccountName: conta.name ?? null };
 }
 
-/** Lista as contas de anúncios disponíveis para o gestor trocar a conta vinculada. */
 export async function listarContasAnunciosDoRestaurante(restauranteId: string) {
   const integracao = await obterIntegracaoMetaAdsPorRestauranteId(restauranteId);
   if (avaliarTokenMetaAds(integracao).estado === 'ausente' || !integracao?.access_token) {
@@ -566,19 +544,16 @@ export async function selecionarContaAnunciosMetaAds(restauranteId: string, adAc
     throw new Error(`Falha ao salvar a conta de anúncios: ${error.message}`);
   }
 
-  // O cache de métricas era da conta anterior.
   await supabase.from('metricas_meta_ads_diarias').delete().eq('restaurante_id', restauranteId);
 
   return { adAccountId: conta.id, adAccountName: conta.name ?? null };
 }
 
 async function revogarPermissoesMetaAds(accessToken: string) {
-  // Revoga só as permissões deste módulo (sem derrubar outras autorizações do usuário no app).
   for (const permissao of ESCOPO_META_ADS.split(',')) {
     try {
       await fetchGraphJson(`/me/permissions/${permissao}`, accessToken, { method: 'DELETE' });
     } catch (error) {
-      // Token já inválido ou permissão já revogada: o objetivo (perder o acesso) está cumprido.
       console.warn(`[meta-ads] Não foi possível revogar a permissão ${permissao}:`, (error as Error).message);
     }
   }
@@ -618,10 +593,6 @@ export async function desconectarMetaAds(restauranteId: string) {
   await supabase.from('metricas_meta_ads_diarias').delete().eq('restaurante_id', restauranteId);
 }
 
-/**
- * Valida o `signed_request` que a Meta envia nos callbacks de desautorização e de
- * exclusão de dados: `<assinatura>.<payload>` (base64url), HMAC-SHA256 com o segredo do app.
- */
 export function validarSignedRequestMetaAds(signedRequest: string): { user_id: string } {
   const { appSecret } = getConfigOAuthMetaAds();
   const [assinaturaEncoded, payloadEncoded] = signedRequest.split('.');
@@ -642,7 +613,6 @@ export function validarSignedRequestMetaAds(signedRequest: string): { user_id: s
   return { user_id: String(payload.user_id) };
 }
 
-/** Remove token, dados da conta Meta e métricas em cache de quem desautorizou o app ou pediu exclusão. */
 export async function removerDadosDoUsuarioMetaAds(metaUserId: string) {
   const supabase = createWebhookAdminClient();
   const { data: integracoes, error } = await supabase
@@ -668,7 +638,6 @@ export async function removerDadosDoUsuarioMetaAds(metaUserId: string) {
   return (integracoes ?? []).length;
 }
 
-/** Traduz erros do fluxo de conexão em um motivo curto e seguro para a URL de retorno. */
 export function motivoErroConexaoMetaAds(error: unknown): string {
   const mensagem = error instanceof Error ? error.message : '';
   if (/state/i.test(mensagem) || /nonce/i.test(mensagem) || /sessão/i.test(mensagem)) return 'estado-invalido';

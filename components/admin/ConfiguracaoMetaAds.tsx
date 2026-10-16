@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { listarContasMetaAds, selecionarContaMetaAds, type ContaAnunciosOpcao } from '@/actions/adminMetaAds';
 
 interface ConfiguracaoMetaAdsProps {
-  /** Situação para exibição: conectado | reconectar | pendente | desconectado. */
   situacao: 'conectado' | 'reconectar' | 'pendente' | 'desconectado';
   diasParaExpirar: number | null;
   contaNome: string | null;

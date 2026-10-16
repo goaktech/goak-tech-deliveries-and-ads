@@ -1,12 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
 
-// API de Conversões da Meta: envia o Purchase pelo servidor quando o pagamento é aprovado.
-// Cada loja usa o próprio Pixel (restaurantes.meta_pixel_id) e o próprio token
-// (restaurante_integracoes_meta_capi). Sem Pixel ou sem token, nada é enviado.
-// O `event_id` é o id do pedido, o mesmo `eventID` do Pixel no navegador: a Meta junta os dois
-// e conta a compra uma vez só.
-
 const VERSAO_PADRAO = 'v25.0';
 const TIMEOUT_MS = 6000;
 
@@ -29,7 +23,6 @@ function normalizarEmail(valor: unknown): string | null {
   return email && email.includes('@') ? email : null;
 }
 
-// Telefone só com dígitos e com DDI. Números brasileiros com 10 ou 11 dígitos ganham o 55.
 export function normalizarTelefone(valor: unknown): string | null {
   if (typeof valor !== 'string') return null;
   let digitos = valor.replace(/\D/g, '');
@@ -59,8 +52,6 @@ export interface DadosUsuarioCapi {
   userAgent?: string | null;
 }
 
-// Monta o `user_data`: dados pessoais com hash SHA-256, e fbp/fbc/IP/navegador em texto puro
-// (como a Meta exige para esses campos).
 export function montarUserData(dados: DadosUsuarioCapi): Record<string, unknown> {
   const userData: Record<string, unknown> = {};
   adicionar(userData, 'em', normalizarEmail(dados.email));
@@ -105,9 +96,6 @@ interface PedidoCapi {
   itens_pedido: Array<{ item_cardapio_id: string; quantidade: number; preco_unitario: number }> | null;
 }
 
-// Envia o Purchase de um pedido pago. Nunca lança: falha na Meta não pode derrubar o pagamento.
-// A marca `capi_purchase_enviado_em` é reservada antes do envio (webhooks repetidos não duplicam)
-// e liberada se o envio falhar, para a próxima tentativa.
 export async function enviarPurchaseCapi(pedidoId: string): Promise<ResultadoEnvioCapi> {
   const supabase = createWebhookAdminClient();
   let reservou = false;

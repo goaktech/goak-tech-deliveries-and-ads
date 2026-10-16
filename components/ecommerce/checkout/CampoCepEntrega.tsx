@@ -6,9 +6,7 @@ interface CampoCepEntregaProps {
   cep: string;
   onChangeCep: (valor: string) => void;
   abaAtiva: AbaEntregaCheckout;
-  /** true enquanto o endereço do CEP está sendo consultado. */
   buscando?: boolean;
-  /** resultado da última consulta (endereço encontrado ou motivo da falha). */
   mensagem?: { tipo: 'ok' | 'erro'; texto: string } | null;
 }
 

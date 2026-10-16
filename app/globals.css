@@ -42,14 +42,6 @@ h4 {
   letter-spacing: -0.015em;
 }
 
-/*
- * Botões e campos já herdam a fonte do texto ao redor pelo reset do Tailwind (camada base). Uma regra
- * `font: inherit` solta aqui, fora das camadas, vencia as classes `text-xs`, `font-bold` etc. e deixava
- * todos os botões e campos com 16 px e peso normal. Por isso ela foi removida.
- *
- * No celular, campos de texto precisam ter pelo menos 16 px, senão o iPhone dá zoom ao tocar neles.
- * Esta regra fica fora das camadas de propósito, para valer sobre as classes de tamanho.
- */
 @media (max-width: 767px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]),
   select,
@@ -58,11 +50,6 @@ h4 {
   }
 }
 
-/*
- * Indicador de foco para quem navega pelo teclado. Fica fora das camadas do Tailwind de propósito:
- * assim vale mesmo onde os componentes usam `focus:outline-none`, que antes deixava o foco invisível.
- * Só aparece no foco por teclado (focus-visible), não ao clicar com o mouse em botões e links.
- */
 :where(a, button, summary, [role="button"], [role="tab"], [role="menuitem"], [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid var(--ui-primary);
   outline-offset: 2px;

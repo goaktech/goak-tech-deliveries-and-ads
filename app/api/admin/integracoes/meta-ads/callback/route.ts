@@ -19,7 +19,6 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
 
-  // O usuário clicou em "Cancelar" (ou negou as permissões) na tela da Meta.
   if (url.searchParams.get('error')) {
     return redirecionar(request, 'meta-ads-cancelado');
   }
@@ -40,7 +39,6 @@ export async function GET(request: Request) {
       throw new Error('State OAuth do Meta Ads sem nonce correspondente.');
     }
 
-    // Quem volta do OAuth tem que ser o mesmo gestor (e restaurante) que iniciou a conexão.
     const restauranteDoGestor = await obterRestauranteIdDoGestorLogado();
     if (restauranteDoGestor !== payload.restauranteId) {
       throw new Error('State OAuth de outra sessão.');

@@ -13,9 +13,6 @@ import {
   type FormaPagamentoLoja,
 } from '@/utils/formas-pagamento';
 
-// Nova tentativa de pagamento na tela de acompanhamento, para o pedido que continua PENDENTE
-// (cartão recusado, PIX que expirou, cliente que fechou a tela...). Usa o MESMO pedido.
-
 interface PropsRetentarPagamentoPedido {
   slug: string;
   codigoAcompanhamento: string;
@@ -51,7 +48,6 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
         console.error('Erro ao carregar formas de pagamento da loja:', error);
       }
     };
-    // PIX que o cliente já gerou e ainda vale: mostra o mesmo código em vez de obrigar a gerar outro
     const carregarPixExistente = async () => {
       try {
         const resposta = await fetch(
@@ -62,7 +58,6 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
         if (!ativo || !body?.pix?.qr_code) return;
         setPix({ qr_code: body.pix.qr_code, qr_code_base64: body.pix.qr_code_base64, expira_em: body.pix.expira_em ?? null });
       } catch {
-        // sem o PIX existente o cliente ainda pode gerar um novo
       }
     };
     void carregarLoja();
@@ -80,7 +75,6 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
     });
     const body = await resposta.json().catch(() => null);
     if (resposta.status === 409 && body?.duplicado) {
-      // o pedido já foi pago: recarrega o acompanhamento com o status atualizado
       window.location.assign(`${window.location.pathname}?pagamento=aprovado`);
       return new Promise<Record<string, unknown>>(() => {});
     }
@@ -123,13 +117,11 @@ export function RetentarPagamentoPedido({ slug, codigoAcompanhamento, valorTotal
     }
   };
 
-  // Lança erro (mensagem amigável) se o pagamento não for concluído: o formulário fica livre para outro cartão.
   const pagarComCartaoEmbutido = async (dadosCartao: DadosCartaoBrick) => {
     const body = await chamarNovaTentativa('CARTAO', dadosCartao);
     if (body.status === 'rejected') {
       throw new Error(String(body.mensagem || 'O pagamento foi recusado. Tente outro cartão ou escolha PIX.'));
     }
-    // recarrega a tela já com o status atualizado
     window.location.assign(`${window.location.pathname}?pagamento=${body.status === 'approved' ? 'aprovado' : 'pendente'}`);
   };
 

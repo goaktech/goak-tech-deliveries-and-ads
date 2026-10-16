@@ -1,7 +1,3 @@
-/**
- * Estilos de botão e selo do painel do gestor, num só lugar, para as telas ficarem iguais.
- * Todos têm altura mínima de 44 px no celular (alvo de toque) e voltam ao tamanho compacto no desktop.
- */
 const BASE_BOTAO =
   'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-bold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9';
 

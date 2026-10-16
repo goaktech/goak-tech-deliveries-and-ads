@@ -14,7 +14,6 @@ type Corpo =
   | { acao: 'confirmar' | 'pronto' | 'despachar' | 'motivos' }
   | { acao: 'cancelar'; codigo: string; descricao: string };
 
-// Ações da cozinha num pedido recebido do iFood — ver utils/ifood-pedidos.ts.
 export async function POST(request: Request, { params }: Params) {
   try {
     const { orderId } = await params;

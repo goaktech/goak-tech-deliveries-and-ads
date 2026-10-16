@@ -64,7 +64,6 @@ function dataHora(iso: string | null) {
   return Number.isNaN(data.getTime()) ? iso : FORMATO_DATA_HORA.format(data);
 }
 
-/** "AAAA-MM-DDTHH:MM" no horário de Brasília, como as pausas do iFood usam. */
 function paraInputBrasilia(data: Date) {
   const partes = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
@@ -82,7 +81,6 @@ function paraInputBrasilia(data: Date) {
   return `${partes.year}-${partes.month}-${partes.day}T${partes.hour}:${partes.minute}`;
 }
 
-/** Hora de pausa do iFood (Brasília, sem fuso) como "DD/MM/AAAA, HH:MM". */
 function dataHoraPausa(local: string) {
   const [data, hora = ''] = local.split('T');
   const [ano, mes, dia] = data.split('-');
@@ -129,8 +127,6 @@ function Secao({ titulo, descricao, children }: { titulo: string; descricao: str
     </div>
   );
 }
-
-// ------------------------------------------------------------ Cenário 1
 
 function LojasVinculadas() {
   const [lojas, setLojas] = useState<LojaVinculadaIfood[] | null>(null);
@@ -292,15 +288,10 @@ function LojasVinculadas() {
   );
 }
 
-// ------------------------------------------------------------ Cenário 2
-
 function PausasLoja() {
   const { confirmar } = useAvisosPainel();
   const [pausas, setPausas] = useState<PausaIfood[] | null>(null);
   const [agoraIfood, setAgoraIfood] = useState('');
-  // O GET de pausas do iFood demora alguns minutos para refletir criação e
-  // remoção. Guardamos o que o próprio iFood já confirmou (201/204) para a
-  // lista não "desfazer" a ação enquanto o cache dele não atualiza.
   const [criadas, setCriadas] = useState<PausaIfood[]>([]);
   const [removidas, setRemovidas] = useState<string[]>([]);
   const [descricao, setDescricao] = useState('');
@@ -447,8 +438,6 @@ function PausasLoja() {
   );
 }
 
-// ------------------------------------------------------------ Cenário 3
-
 function HorarioFuncionamento() {
   const [edicao, setEdicao] = useState(() => turnosParaEdicao([]));
   const [noIfood, setNoIfood] = useState<{ turnos: TurnoIfood[]; consultadoEm: string } | null>(null);
@@ -588,7 +577,6 @@ function HorarioFuncionamento() {
   );
 }
 
-/** Gestão da loja no iFood (módulo Merchant): lojas, pausas e horários. */
 export function GestaoLojaIfood() {
   return (
     <div className="space-y-3">

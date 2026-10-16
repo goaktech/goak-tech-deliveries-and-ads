@@ -9,11 +9,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 interface Body {
   pedidoId?: unknown;
   paymentId?: unknown;
-  /** Ausente = estorno total do saldo restante. */
   valor?: unknown;
   motivo?: unknown;
   cancelarPedido?: unknown;
-  /** Chave de idempotência gerada ao abrir o formulário (evita estorno duplicado por duplo clique). */
   token?: unknown;
 }
 
@@ -53,7 +51,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Valor de estorno inválido.' }, { status: 400 });
     }
 
-    // O pagamento tem que pertencer a um pedido DESTE restaurante.
     const admin = createWebhookAdminClient();
     const { data: pagamento } = await admin
       .from('pagamentos_pedido')
