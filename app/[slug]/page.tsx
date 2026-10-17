@@ -58,7 +58,11 @@ export default async function PaginaCardapioPublico({ params }: PaginaCardapioPr
   if (!estaLojaAberta(horariosFuncionamento)) {
     return (
       <main className="min-h-screen bg-[#FDFDFD]">
-        <LojaFechadaAviso nomeRestaurante={restaurante.nome} horarios={horariosFuncionamento ?? []} />
+        <LojaFechadaAviso
+          nomeRestaurante={restaurante.nome}
+          horarios={horariosFuncionamento ?? []}
+          tema={resolverSlugLoja(slug) === 'godog' ? 'verde' : 'padrao'}
+        />
       </main>
     );
   }

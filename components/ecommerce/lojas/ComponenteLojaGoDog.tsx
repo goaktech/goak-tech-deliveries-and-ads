@@ -16,7 +16,7 @@ interface ComponenteLojaGoDogProps {
 }
 
 const COR_PRIMARIA = '#C1272D';
-const COR_ACENTO = '#10B981'; // emerald-500 (verde da paleta da aplicação)
+const COR_ACENTO = '#F4B41A';
 
 const MOSTRAR_PROMO_INAUGURACAO = true;
 
@@ -135,7 +135,7 @@ function CartaoItemGoDog({ produto, limiteUnidadesComida }: CartaoItemGoDogProps
         }}
         className="p-4 flex gap-4 items-start cursor-pointer select-none hover:bg-zinc-50/80 transition-colors"
       >
-        <div className="w-[88px] h-[88px] rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-50 text-emerald-700 shadow-inner overflow-hidden">
+        <div className="w-[88px] h-[88px] rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FCEFD2] text-amber-700 shadow-inner overflow-hidden">
           {produto.imagem_url ? (
             <Image
               src={produto.imagem_url}
@@ -254,7 +254,7 @@ function CartaoItemGoDog({ produto, limiteUnidadesComida }: CartaoItemGoDogProps
                   disabled={limiteComidaAtingido}
                   onClick={() => adicionarItem(produto, complementosSelecionados)}
                   className="text-zinc-900 font-semibold text-sm px-6 py-2.5 rounded-xl transition-all tracking-wide border disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: COR_ACENTO, borderColor: '#059669' }}
+                  style={{ backgroundColor: COR_ACENTO, borderColor: '#D9A014' }}
                 >
                   Adicionar à sacola
                 </button>
@@ -313,7 +313,7 @@ export default function ComponenteLojaGoDog({ restaurante, produtos }: Component
           </header>
         </div>
 
-        <div className="w-full border-b" style={{ backgroundColor: COR_ACENTO, borderColor: '#059669' }}>
+        <div className="w-full border-b" style={{ backgroundColor: COR_ACENTO, borderColor: '#D9A014' }}>
           <nav className="w-full px-6 py-3 flex items-center gap-3 text-xs font-medium text-zinc-900 overflow-x-auto scrollbar-none">
             <button
               type="button"
