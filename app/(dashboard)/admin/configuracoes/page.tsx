@@ -1,4 +1,5 @@
 import { ConfiguracaoTempoPreparo } from '@/components/admin/ConfiguracaoTempoPreparo';
+import { ConfiguracaoWhatsappAtendimento } from '@/components/admin/ConfiguracaoWhatsappAtendimento';
 import { ConfiguracaoEnderecoLoja } from '@/components/admin/ConfiguracaoEnderecoLoja';
 import { ConfiguracaoHorarioFuncionamento } from '@/components/admin/ConfiguracaoHorarioFuncionamento';
 import { ConfiguracaoFotoCapaLoja } from '@/components/admin/ConfiguracaoFotoCapaLoja';
@@ -19,7 +20,7 @@ export default async function PainelConfiguracoesAdmin() {
     supabase
     .from('restaurantes')
     .select(
-      'nome, slug, email_corporativo, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url, largura_papel_impressao'
+      'nome, slug, email_corporativo, endereco, latitude, longitude, tempo_preparo_base_minutos, tempo_preparo_incremento_minutos, tempo_preparo_teto_minutos, horarios_funcionamento, foto_capa_url, largura_papel_impressao, whatsapp_atendimento'
     )
     .eq('id', restauranteId)
     .maybeSingle(),
@@ -52,6 +53,8 @@ export default async function PainelConfiguracoesAdmin() {
             latitudeInicial={restaurante?.latitude ?? null}
             longitudeInicial={restaurante?.longitude ?? null}
           />
+
+          <ConfiguracaoWhatsappAtendimento numeroInicial={restaurante?.whatsapp_atendimento ?? null} />
 
           <ConfiguracaoTempoPreparo
             tempoPreparoBaseMinutosInicial={restaurante?.tempo_preparo_base_minutos ?? 20}

@@ -41,6 +41,7 @@ interface PedidoAcompanhamento {
     nome: string;
     slug: string;
     endereco: string | null;
+    whatsapp_atendimento?: string | null;
   };
   itens: Array<{
     id: string;
@@ -177,9 +178,10 @@ export function PainelAcompanhamentoPedido({ pedidoInicial, pagamento }: PainelA
     };
   }, [finalizado, pedido.codigo_acompanhamento, pedido.restaurante.slug]);
 
-  // Cenário 1: número fixo no código (config-lojas-especiais). Sem número, o botão não aparece.
+  // Cenário 1: número de atendimento cadastrado pela loja em Configurações; sem ele, o número fixo das lojas
+  // especiais (config-lojas-especiais). Sem nenhum dos dois, o botão não aparece.
   const urlFalarComLoja = montarUrlWhatsappComMensagem(
-    obterConfigLojaEspecial(pedido.restaurante.slug).whatsappAtendimento,
+    pedido.restaurante.whatsapp_atendimento || obterConfigLojaEspecial(pedido.restaurante.slug).whatsappAtendimento,
     `Olá! Sobre meu pedido #${formatarNumeroPedido(pedido.numero_pedido, pedido.codigo_acompanhamento)}.`
   );
 

@@ -134,3 +134,52 @@ export async function enviarTemplateWhatsapp(params: {
 
   return { messageId: corpo?.messages?.[0]?.id ?? null, resposta: corpo };
 }
+
+/**
+ * Texto livre (cenário 5: resposta pelo painel de conversas). A Meta só aceita dentro da janela de
+ * 24 h desde a última mensagem do cliente; fora dela, só template.
+ */
+export async function enviarTextoWhatsapp(params: {
+  remetente: Pick<RemetenteWhatsapp, 'accessToken' | 'phoneNumberId' | 'apiVersion'>;
+  para: string;
+  texto: string;
+}): Promise<{ messageId: string | null; resposta: unknown }> {
+  const { remetente } = params;
+  const resposta = await fetch(
+    `https://graph.facebook.com/${remetente.apiVersion}/${remetente.phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${remetente.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.para,
+        type: 'text',
+        text: { preview_url: false, body: params.texto },
+      }),
+    }
+  );
+
+  const corpo = await resposta.json().catch(() => null);
+  if (!resposta.ok) {
+    throw new Error(corpo?.error?.message || `Falha ao enviar WhatsApp (HTTP ${resposta.status}).`);
+  }
+
+  return { messageId: corpo?.messages?.[0]?.id ?? null, resposta: corpo };
+}
+
+/** Credencial do número do Appetitoso para conversas e modelos (não exige o template de status). */
+export function obterCredencialPlataforma(): (Pick<RemetenteWhatsapp, 'accessToken' | 'phoneNumberId' | 'apiVersion'> & { wabaId: string | null }) | null {
+  const accessToken = process.env.WHATSAPP_BUSINESS_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_BUSINESS_PHONE_NUMBER_ID;
+  if (!accessToken || !phoneNumberId) return null;
+  return {
+    accessToken,
+    phoneNumberId,
+    apiVersion: process.env.WHATSAPP_BUSINESS_API_VERSION ?? VERSAO_API_PADRAO,
+    wabaId: process.env.WHATSAPP_BUSINESS_WABA_ID || null,
+  };
+}

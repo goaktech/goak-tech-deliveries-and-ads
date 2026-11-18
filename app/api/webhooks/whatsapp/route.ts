@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createWebhookAdminClient } from '@/utils/supabase/webhook';
+import { aplicarStatusResposta, registrarMensagensRecebidas, type ValorWebhookMensagens } from '@/utils/whatsapp-conversas';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -63,6 +64,30 @@ async function aplicarStatus(tabela: 'notificacoes_pedido' | 'avisos_venda_whats
   await supabase.from(tabela).update(atualizacao).eq('id', atual.id);
 }
 
+/** Guarda o payload bruto (diagnóstico). Sem a tabela (migração não aplicada), segue sem gravar. */
+async function registrarEvento(campo: string | null, payload: unknown): Promise<string | null> {
+  try {
+    const { data, error } = await createWebhookAdminClient()
+      .from('whatsapp_eventos')
+      .insert({ campo, payload })
+      .select('id')
+      .maybeSingle();
+    return error ? null : (data?.id as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function marcarErroEvento(id: string | null, erro: unknown) {
+  if (!id) return;
+  const texto = erro instanceof Error ? erro.message : String(erro);
+  try {
+    await createWebhookAdminClient().from('whatsapp_eventos').update({ erro: texto.slice(0, 1000) }).eq('id', id);
+  } catch {
+    // diagnóstico é opcional
+  }
+}
+
 export async function POST(request: Request) {
   const corpo = await request.text();
 
@@ -70,22 +95,34 @@ export async function POST(request: Request) {
     return new NextResponse('Assinatura inválida.', { status: 401 });
   }
 
+  let json: {
+    entry?: { changes?: { field?: string; value?: ValorWebhookMensagens & { statuses?: StatusMeta[] } }[] }[];
+  } | null = null;
   try {
-    const json = JSON.parse(corpo) as {
-      entry?: { changes?: { value?: { statuses?: StatusMeta[] } }[] }[];
-    };
+    json = JSON.parse(corpo);
+  } catch {
+    return NextResponse.json({ received: true });
+  }
 
-    for (const entry of json.entry ?? []) {
-      for (const change of entry.changes ?? []) {
+  for (const entry of json?.entry ?? []) {
+    for (const change of entry.changes ?? []) {
+      const evento = await registrarEvento(change.field ?? null, change);
+      try {
         for (const status of change.value?.statuses ?? []) {
           await aplicarStatus('notificacoes_pedido', status);
           await aplicarStatus('avisos_venda_whatsapp', status);
+          await aplicarStatusResposta(status); // cenário 5: respostas enviadas pelo painel
         }
+        // Cenário 5: mensagens dos clientes para o número do Appetitoso.
+        if (change.field === 'messages' && change.value?.messages?.length) {
+          await registrarMensagensRecebidas(change.value);
+        }
+      } catch (erro) {
+        // Responder 200 evita reenvio em loop da Meta; o erro fica no evento e nos logs.
+        console.error('[whatsapp:webhook] Falha ao processar evento.', erro);
+        await marcarErroEvento(evento, erro);
       }
     }
-  } catch (erro) {
-    // Responder 200 evita reenvio em loop da Meta; o erro fica nos logs.
-    console.error('[whatsapp:webhook] Falha ao processar evento.', erro);
   }
 
   return NextResponse.json({ received: true });

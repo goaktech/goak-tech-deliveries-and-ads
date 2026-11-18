@@ -47,6 +47,7 @@ interface RestauranteRelacionadoBruto {
   nome: string;
   slug: string;
   endereco?: string | null;
+  whatsapp_atendimento?: string | null;
   latitude?: number | null;
   longitude?: number | null;
 }
@@ -98,6 +99,8 @@ export interface PedidoPublico {
     nome: string;
     slug: string;
     endereco: string | null;
+    /** Cenário 1 do WhatsApp: número de atendimento cadastrado pela loja (só dígitos), se houver. */
+    whatsapp_atendimento: string | null;
   };
   itens: Array<{
     id: string;
@@ -187,6 +190,7 @@ function normalizarPedidoPublico(bruto: PedidoPublicoBruto): PedidoPublico {
       nome: restaurante?.nome ?? 'Restaurante',
       slug: restaurante?.slug ?? '',
       endereco: restaurante?.endereco ?? null,
+      whatsapp_atendimento: restaurante?.whatsapp_atendimento ?? null,
     },
     itens: (bruto.itens_pedido ?? []).map((item) => ({
       id: item.id,
@@ -327,7 +331,7 @@ export async function buscarPedidoPublicoPorToken(slug: string, token: string) {
       numero_pedido,
       motivo_cancelamento,
       cancelado_em,
-      restaurantes ( nome, slug, endereco, latitude, longitude ),
+      restaurantes ( nome, slug, endereco, latitude, longitude, whatsapp_atendimento ),
       itens_pedido ( id, quantidade, preco_unitario, itens_cardapio ( nome, imagem_url ), itens_pedido_complementos ( id, nome, preco_adicional ) )
     `)
     .eq('codigo_acompanhamento', token)
@@ -368,7 +372,7 @@ export async function buscarPedidoInternoPorId(pedidoId: string) {
       numero_pedido,
       motivo_cancelamento,
       cancelado_em,
-      restaurantes ( nome, slug, endereco, latitude, longitude ),
+      restaurantes ( nome, slug, endereco, latitude, longitude, whatsapp_atendimento ),
       itens_pedido ( id, quantidade, preco_unitario, item_cardapio_id, itens_cardapio ( nome, imagem_url ), itens_pedido_complementos ( id, nome, preco_adicional ) )
     `)
     .eq('id', pedidoId)

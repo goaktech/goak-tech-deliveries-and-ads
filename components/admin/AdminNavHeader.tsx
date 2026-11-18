@@ -19,7 +19,8 @@ type AdminTab =
   | 'ia'
   | 'configuracoes'
   | 'estornos'
-  | 'entregadores';
+  | 'entregadores'
+  | 'conversas';
 
 interface AdminNavHeaderProps {
   /** Opcional: por padrão a aba ativa vem do endereço atual. */
@@ -139,6 +140,16 @@ const itensDoMenu: NavItem[] = [
     ),
   },
   {
+    id: 'conversas',
+    href: '/admin/conversas',
+    label: 'Conversas',
+    icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 6l2.5-3H18a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z" />
+      </svg>
+    ),
+  },
+  {
     id: 'estoque',
     href: '/admin/estoque',
     label: 'Estoque (em breve)',
@@ -157,6 +168,7 @@ const itensDoMenu: NavItem[] = [
  */
 const ORDEM_DO_MENU: AdminTab[] = [
   'cozinha',
+  'conversas',
   'metricas',
   'produtos',
   'insumos',

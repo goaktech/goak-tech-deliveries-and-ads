@@ -228,3 +228,33 @@ export async function atualizarLarguraPapelImpressaoLoja(largura: number) {
 
   return { success: true, largura };
 }
+
+/**
+ * WhatsApp, cenário 1: número de atendimento da loja, usado no botão "Falar com a loja no WhatsApp"
+ * do acompanhamento do pedido. Vazio remove o número (o botão some, salvo nas lojas especiais).
+ */
+export async function atualizarWhatsappAtendimentoLoja(numero: string) {
+  const digitos = String(numero ?? '').replace(/\D/g, '');
+  const valido =
+    digitos === '' ||
+    digitos.length === 10 ||
+    digitos.length === 11 ||
+    ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith('55'));
+  if (!valido) {
+    return { success: false, error: 'Informe o WhatsApp com DDD, por exemplo (61) 99999-9999.' };
+  }
+
+  const restauranteId = await obterRestauranteIdDoGestorLogado();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('restaurantes')
+    .update({ whatsapp_atendimento: digitos || null })
+    .eq('id', restauranteId);
+
+  if (error) {
+    return { success: false, error: `Erro ao salvar o WhatsApp: ${error.message}` };
+  }
+
+  revalidatePath('/admin/configuracoes');
+  return { success: true };
+}
