@@ -341,7 +341,18 @@ async function criarTemplatePadraoWhatsapp(accessToken: string, wabaId: string) 
       components: [
         {
           type: 'BODY',
-          text: 'Olá! Atualização do pedido de {{1}}: {{2}}. {{3}} Acompanhe aqui: {{4}}',
+          // A Meta rejeita corpo que começa/termina com variável e exige exemplos de cada variável.
+          text: 'Olá! Novidade sobre o seu pedido em {{1}}: {{2}}. {{3}} Acompanhe em tempo real: {{4}} Obrigado por pedir com a gente!',
+          example: {
+            body_text: [
+              [
+                'Restaurante Exemplo',
+                'Pedido em preparo',
+                'A cozinha já começou a preparar o seu pedido.',
+                'https://www.appetitoso.com.br/exemplo/acompanhar/ABC123',
+              ],
+            ],
+          },
         },
       ],
     },

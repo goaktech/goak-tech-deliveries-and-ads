@@ -7,6 +7,9 @@ import {
   obterRestauranteIdDoGestorLogado,
 } from '@/utils/mercado-pago';
 import { obterIntegracaoWhatsappBusinessPorRestauranteId } from '@/utils/whatsapp-business';
+import { obterRemetentePlataforma } from '@/utils/whatsapp-envio';
+import { obterAvisosVendaDaLoja } from '@/utils/whatsapp-avisos-loja';
+import { AvisosVendaWhatsapp } from '@/components/admin/AvisosVendaWhatsapp';
 import { avaliarTokenMetaAds, obterIntegracaoMetaAdsPorRestauranteId } from '@/utils/meta-ads';
 import { ConfiguracaoMetaAds } from '@/components/admin/ConfiguracaoMetaAds';
 import { FaixaHomologacaoIfood } from '@/components/cozinha/FaixaHomologacaoIfood';
@@ -79,10 +82,11 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
     integracaoMetaAds,
     { data: integracaoCapi },
     integracaoIfood,
+    avisosVenda,
   ] = await Promise.all([
     supabase
       .from('restaurantes')
-      .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas, endereco, latitude, longitude')
+      .select('nome, slug, meta_pixel_id, formas_pagamento_aceitas, endereco, latitude, longitude, whatsapp_proprio_liberado')
       .eq('id', restauranteId)
       .maybeSingle(),
     obterIntegracaoMercadoPagoPorRestauranteId(restauranteId),
@@ -99,10 +103,15 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
         console.error('Falha ao carregar integração iFood:', erro);
         return null;
       }),
+    obterAvisosVendaDaLoja(restauranteId),
   ]);
   const tokenMetaAds = avaliarTokenMetaAds(integracaoMetaAds);
   const mpConectado = integracao?.connection_status === 'conectado';
   const waConectado = integracaoWhatsapp?.connection_status === 'conectado';
+  // Cenários 3 e 4: as mensagens saem do número do Appetitoso; o número da loja só é usado quando a equipe libera
+  // (restaurantes.whatsapp_proprio_liberado) e a conexão própria está pronta (ver utils/whatsapp-envio.ts).
+  const numeroProprioLiberado = restaurante?.whatsapp_proprio_liberado === true;
+  const envioAvisoConfigurado = Boolean(process.env.WHATSAPP_TEMPLATE_AVISO_VENDA && obterRemetentePlataforma());
   const resumo: ItemResumo[] = [
     { ancora: 'mercado-pago', nome: 'Mercado Pago', ok: mpConectado },
     { ancora: 'whatsapp', nome: 'WhatsApp', ok: waConectado },
@@ -193,6 +202,11 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
             selo={<span className={classeBadgeIntegracao(integracaoWhatsapp?.connection_status)}>{rotuloStatus(integracaoWhatsapp?.connection_status)}</span>}
           >
             <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 md:border-0 md:p-1">
+              <div className="rounded-xl bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+                {numeroProprioLiberado && waConectado
+                  ? 'Os avisos de status saem do número da sua loja (liberado pela equipe Appetitoso).'
+                  : 'Os avisos de status do pedido saem do número do Appetitoso. Conectar o número da loja fica disponível quando a equipe Appetitoso liberar.'}
+              </div>
               <div className="text-lg font-semibold text-zinc-900">{waConectado ? 'Conta conectada' : 'Conta não conectada'}</div>
 
             <div className="space-y-1 text-sm text-zinc-600">
@@ -233,6 +247,15 @@ export default async function PainelIntegracoesAdmin({ searchParams }: PainelInt
               ) : null}
             </div>
             </div>
+          </SecaoRecolhivel>
+
+          <SecaoRecolhivel id="avisos-venda" titulo="Avisos de venda no WhatsApp">
+            <AvisosVendaWhatsapp
+              destinatarios={avisosVenda.destinatarios}
+              avisos={avisosVenda.avisos}
+              disponivel={avisosVenda.disponivel}
+              envioConfigurado={envioAvisoConfigurado}
+            />
           </SecaoRecolhivel>
 
           {mensagemMetaAds ? (
